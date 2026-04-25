@@ -2,7 +2,7 @@
 import { navigate } from '../router';
 import { t, getLang, setLang } from '../i18n';
 import { getTheme, setTheme } from '../theme';
-import type { Registry, Project, Category } from '../types';
+import type { Registry } from '../types';
 import type { Lang } from '../i18n';
 import type { Theme } from '../theme';
 

@@ -216,7 +216,7 @@ function initNavbar(): void {
   );
 }
 
-function initFilters(sorted: Project[], catMap: Map<string, Category>, _fallback: Category): void {
+function initFilters(sorted: Project[], _catMap: Map<string, Category>, _fallback: Category): void {
   const bar = document.getElementById('filters');
   if (!bar) return;
   bar.addEventListener('click', (e) => {
