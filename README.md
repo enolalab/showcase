@@ -4,7 +4,7 @@
 
 Nhiều bạn sinh viên có ý tưởng tuyệt vời về web, game, hay tool — nhưng không có domain, không biết deploy. **Enolalab Showcase** giải quyết điều đó: bạn chỉ cần submit project qua một **Pull Request trên GitHub**, chúng tôi lo phần còn lại.
 
-🌐 **Live:** [enolalab.pages.dev](https://enolalab.pages.dev) *(coming soon)*
+🌐 **Live:** [enolalab.com](https://enolalab.com)
 
 ---
 
@@ -30,7 +30,7 @@ Nhiều bạn sinh viên có ý tưởng tuyệt vời về web, game, hay tool 
 
 ```bash
 # Clone repo
-git clone https://github.com/enolalab/showcase.git
+git clone https://github.com/Enolalab/showcase.git
 cd ropascis
 
 # Cài dependencies
@@ -49,14 +49,15 @@ ropascis/
 ├── src/
 │   ├── main.ts              # Entry point
 │   ├── types.ts             # TypeScript interfaces
-│   ├── router.ts            # Hash-based SPA router
+│   ├── router.ts            # Path-based SPA router
 │   ├── data.ts              # Registry data loader
 │   ├── utils.ts             # DOM utilities & animations
 │   ├── styles/
 │   │   └── index.css        # Design system & all styles
 │   └── pages/
 │       ├── home.ts          # Landing page + showcase gallery
-│       └── guide.ts         # Hướng dẫn submit project
+│       ├── guide.ts         # Hướng dẫn submit project
+│       └── viewer.ts        # Project viewer (iframe wrapper)
 ├── public/
 │   └── registry.json        # Project registry (metadata)
 ├── projects/                # Thư mục chứa các project được submit
@@ -128,7 +129,7 @@ Mỗi project trong `registry.json` có cấu trúc:
 
 ## 📜 License
 
-MIT © [k0walski](https://github.com/k0walski)
+MIT © [hieuntg81](https://github.com/hieuntg81)
 
 ---
 

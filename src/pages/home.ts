@@ -75,13 +75,13 @@ export function renderHome(app: HTMLElement, data: Registry): void {
   app.innerHTML = `
     <nav class="nav" id="navbar">
       <div class="nav__inner">
-        <a href="#" class="nav__brand"><img class="nav__logo" src="/logo.png" alt="enolalab" /> enolalab</a>
+        <a href="/" class="nav__brand"><img class="nav__logo" src="/logo.png" alt="Enolalab" /> Enolalab</a>
         <div class="nav__links" id="nav-links">
           <a href="#projects" class="nav__link">${i.navProjects}</a>
           <a href="#how" class="nav__link">${i.navHowItWorks}</a>
           <a class="nav__link" id="nav-guide-link">${i.navGuide}</a>
           ${toolbarHTML()}
-          <a href="https://github.com/enolalab/showcase" target="_blank" rel="noopener" class="nav__cta" id="nav-contribute">
+          <a href="https://github.com/Enolalab/showcase" target="_blank" rel="noopener" class="nav__cta" id="nav-contribute">
             ${GITHUB_SVG} ${i.navContribute}
           </a>
         </div>
@@ -98,7 +98,7 @@ export function renderHome(app: HTMLElement, data: Registry): void {
         <h1 class="hero__title">${i.heroTitle1}<br/><span class="gradient-text">${i.heroTitle2}</span></h1>
         <p class="hero__sub">${i.heroSub1}<br/>${i.heroSub2}</p>
         <div class="hero__actions">
-          <a href="https://github.com/enolalab/showcase" target="_blank" class="btn btn--primary" id="hero-cta">
+          <a href="https://github.com/Enolalab/showcase" target="_blank" class="btn btn--primary" id="hero-cta">
             ${GITHUB_SVG_18} ${i.heroSubmit}
           </a>
           <a href="#projects" class="btn btn--ghost">${i.heroExplore}</a>
@@ -106,7 +106,7 @@ export function renderHome(app: HTMLElement, data: Registry): void {
         <div class="terminal" id="terminal">
           <div class="terminal__bar"><span class="terminal__dot terminal__dot--r"></span><span class="terminal__dot terminal__dot--y"></span><span class="terminal__dot terminal__dot--g"></span><span class="terminal__title">terminal</span></div>
           <div class="terminal__body">
-            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd" data-text="git clone https://github.com/enolalab/showcase.git"></span></div>
+            <div class="term-line"><span class="term-ps">$</span><span class="term-cmd" data-text="git clone https://github.com/Enolalab/showcase.git"></span></div>
             <div class="term-line"><span class="term-ps">$</span><span class="term-cmd" data-text="cp -r my-project/ projects/my-project/"></span></div>
             <div class="term-line"><span class="term-ps">$</span><span class="term-cmd" data-text="git push origin main && # Create PR 🚀"></span></div>
             <div class="term-line term-line--ok"><span class="term-output">${i.terminalSuccess}</span></div>
@@ -151,7 +151,7 @@ export function renderHome(app: HTMLElement, data: Registry): void {
             <div class="empty__icon">📭</div>
             <h3>${i.emptyTitle}</h3>
             <p>${i.emptyDesc}</p>
-            <a href="https://github.com/enolalab/showcase" target="_blank" class="btn btn--primary">${i.emptyBtn}</a>
+            <a href="https://github.com/Enolalab/showcase" target="_blank" class="btn btn--primary">${i.emptyBtn}</a>
           </div>` : ''}
       </div>
     </section>
@@ -174,7 +174,7 @@ export function renderHome(app: HTMLElement, data: Registry): void {
           <h2 class="cta__title">${i.ctaTitle}</h2>
           <p class="cta__desc">${i.ctaDesc}</p>
           <div class="cta__actions">
-            <a href="https://github.com/enolalab/showcase" target="_blank" class="btn btn--primary btn--lg">${i.ctaSubmit}</a>
+            <a href="https://github.com/Enolalab/showcase" target="_blank" class="btn btn--primary btn--lg">${i.ctaSubmit}</a>
             <button class="btn btn--ghost btn--lg" id="cta-guide">${i.ctaGuide}</button>
           </div>
         </div>
@@ -184,11 +184,11 @@ export function renderHome(app: HTMLElement, data: Registry): void {
     <footer class="footer">
       <div class="container">
         <div class="footer__inner">
-          <div class="footer__brand"><img class="nav__logo" src="/logo.png" alt="enolalab" /> enolalab</div>
+          <div class="footer__brand"><img class="nav__logo" src="/logo.png" alt="Enolalab" /> Enolalab</div>
           <p class="footer__tag">${i.footerTag}</p>
           <div class="footer__links">
-            <a href="https://github.com/enolalab/showcase" target="_blank">GitHub</a>
-            <a href="#" id="footer-guide-link">${i.footerGuide}</a>
+            <a href="https://github.com/Enolalab/showcase" target="_blank">GitHub</a>
+            <a href="/guide" id="footer-guide-link">${i.footerGuide}</a>
           </div>
         </div>
       </div>

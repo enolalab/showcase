@@ -29,11 +29,11 @@ export function renderGuide(app: HTMLElement): void {
   app.innerHTML = `
     <nav class="nav scrolled" id="navbar-guide">
       <div class="nav__inner">
-        <a class="nav__brand" id="guide-back" href="#"><img class="nav__logo" src="/logo.png" alt="enolalab" /> enolalab</a>
+        <a class="nav__brand" id="guide-back" href="/"><img class="nav__logo" src="/logo.png" alt="Enolalab" /> Enolalab</a>
         <div class="nav__links">
           <a class="nav__link" id="guide-home-link">${i.guideBack}</a>
           ${toolbarHTML()}
-          <a href="https://github.com/enolalab/showcase" target="_blank" rel="noopener" class="nav__cta">
+          <a href="https://github.com/Enolalab/showcase" target="_blank" rel="noopener" class="nav__cta">
             ${GITHUB_SVG} GitHub
           </a>
         </div>
@@ -150,7 +150,7 @@ git push origin feat/add-my-awesome-project</code></pre>
         </div>
 
         <div class="guide__cta">
-          <a href="https://github.com/enolalab/showcase" target="_blank" class="btn btn--primary btn--lg">
+          <a href="https://github.com/Enolalab/showcase" target="_blank" class="btn btn--primary btn--lg">
             ${GITHUB_SVG} ${i.guideCta}
           </a>
         </div>
@@ -160,7 +160,7 @@ git push origin feat/add-my-awesome-project</code></pre>
     <footer class="footer">
       <div class="container">
         <div class="footer__inner">
-          <div class="footer__brand"><img class="nav__logo" src="/logo.png" alt="enolalab" /> enolalab</div>
+          <div class="footer__brand"><img class="nav__logo" src="/logo.png" alt="Enolalab" /> Enolalab</div>
           <p class="footer__tag">${i.footerTag}</p>
         </div>
       </div>

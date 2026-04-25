@@ -109,7 +109,7 @@ const vi: Translations = {
   heroSub2: 'Submit qua <strong>GitHub PR</strong> — chúng tôi lo phần còn lại.',
   heroSubmit: 'Submit Project',
   heroExplore: 'Khám phá Projects ↓',
-  terminalSuccess: '✓ Deployed at enolalab.pages.dev/projects/my-project',
+  terminalSuccess: '✓ Deployed at Enolalab.pages.dev/projects/my-project',
 
   howTag: 'Quy trình',
   howTitle1: 'Đơn giản như ',
@@ -196,7 +196,7 @@ const en: Translations = {
   heroSub2: 'Submit via <strong>GitHub PR</strong> — we handle the rest.',
   heroSubmit: 'Submit Project',
   heroExplore: 'Explore Projects ↓',
-  terminalSuccess: '✓ Deployed at enolalab.pages.dev/projects/my-project',
+  terminalSuccess: '✓ Deployed at Enolalab.pages.dev/projects/my-project',
 
   howTag: 'Process',
   howTitle1: 'Simple as ',

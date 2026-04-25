@@ -50,8 +50,8 @@ export function renderProjectViewer(app: HTMLElement, data: Registry, projectId:
           <button class="viewer-nav__back" id="viewer-back" title="Về trang chủ">
             ${backArrow}
           </button>
-          <a href="#" class="nav__brand" id="viewer-brand">
-            <img class="nav__logo" src="/logo.png" alt="enolalab" /> enolalab
+          <a href="/" class="nav__brand" id="viewer-brand">
+            <img class="nav__logo" src="/logo.png" alt="Enolalab" /> Enolalab
           </a>
           <span class="viewer-nav__sep">›</span>
           <span class="viewer-nav__project">
@@ -78,12 +78,12 @@ export function renderProjectViewer(app: HTMLElement, data: Registry, projectId:
     <footer class="viewer-footer">
       <div class="viewer-footer__inner">
         <div class="viewer-footer__brand">
-          <img class="nav__logo" src="/logo.png" alt="enolalab" /> enolalab
+          <img class="nav__logo" src="/logo.png" alt="Enolalab" /> Enolalab
         </div>
         <p class="viewer-footer__tag">${i.footerTag}</p>
         <div class="viewer-footer__links">
-          <a href="#" id="footer-back-home">← ${getLang() === 'vi' ? 'Về trang chủ' : 'Back to home'}</a>
-          <a href="https://github.com/enolalab/showcase" target="_blank">GitHub</a>
+          <a href="/" id="footer-back-home">← ${getLang() === 'vi' ? 'Về trang chủ' : 'Back to home'}</a>
+          <a href="https://github.com/Enolalab/showcase" target="_blank">GitHub</a>
         </div>
       </div>
     </footer>

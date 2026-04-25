@@ -1,4 +1,4 @@
-// ===== Simple hash-based router =====
+// ===== Path-based SPA router =====
 type RouteHandler = () => void;
 type DynRouteHandler = (param: string) => void;
 
@@ -14,13 +14,18 @@ export function registerProjectRoute(handler: DynRouteHandler): void {
 }
 
 export function navigate(path: string, param?: string): void {
+  let url: string;
   if (path === 'home') {
-    window.location.hash = '';
+    url = '/';
   } else if (path === 'project' && param) {
-    window.location.hash = `project/${param}`;
+    url = `/projects/${param}`;
+  } else if (path === 'guide') {
+    url = '/guide';
   } else {
-    window.location.hash = path;
+    url = `/${path}`;
   }
+  history.pushState(null, '', url);
+  handleRoute();
 }
 
 export interface ParsedRoute {
@@ -29,25 +34,34 @@ export interface ParsedRoute {
 }
 
 export function getCurrentRoute(): ParsedRoute {
-  const hash = window.location.hash.replace('#', '').trim();
-  if (hash.startsWith('project/')) {
-    return { route: 'project', param: hash.replace('project/', '') };
+  const path = window.location.pathname;
+
+  // /projects/:id
+  const projectMatch = path.match(/^\/projects\/([^/]+)\/?$/);
+  if (projectMatch) {
+    return { route: 'project', param: projectMatch[1] };
   }
-  if (hash === 'guide') return { route: 'guide' };
+
+  // /guide
+  if (path === '/guide' || path === '/guide/') {
+    return { route: 'guide' };
+  }
+
+  // Everything else → home
   return { route: 'home' };
 }
 
-export function initRouter(): void {
-  const handleRoute = () => {
-    const { route, param } = getCurrentRoute();
-    if (route === 'project' && param && projectHandler) {
-      projectHandler(param);
-    } else {
-      const handler = routes[route];
-      if (handler) handler();
-    }
-  };
+function handleRoute(): void {
+  const { route, param } = getCurrentRoute();
+  if (route === 'project' && param && projectHandler) {
+    projectHandler(param);
+  } else {
+    const handler = routes[route];
+    if (handler) handler();
+  }
+}
 
-  window.addEventListener('hashchange', handleRoute);
+export function initRouter(): void {
+  window.addEventListener('popstate', handleRoute);
   handleRoute();
 }
