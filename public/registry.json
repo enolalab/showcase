@@ -3,14 +3,39 @@
     "name": "Enolalab Showcase",
     "description": "Nơi sinh viên biến ý tưởng thành sản phẩm thực tế",
     "version": "1.0.0",
-    "maintainer": "k0walski"
+    "maintainer": "hieuntg81"
   },
   "categories": [
-    { "id": "web", "name": "Website", "icon": "🌐", "color": "#6C63FF" },
-    { "id": "game", "name": "Game", "icon": "🎮", "color": "#FF6584" },
-    { "id": "tool", "name": "Tool / Utility", "icon": "🛠️", "color": "#43E97B" },
-    { "id": "ai", "name": "AI / ML", "icon": "🤖", "color": "#F7971E" },
-    { "id": "other", "name": "Khác", "icon": "✨", "color": "#A18CD1" }
+    {
+      "id": "web",
+      "name": "Website",
+      "icon": "🌐",
+      "color": "#6C63FF"
+    },
+    {
+      "id": "game",
+      "name": "Game",
+      "icon": "🎮",
+      "color": "#FF6584"
+    },
+    {
+      "id": "tool",
+      "name": "Tool / Utility",
+      "icon": "🛠️",
+      "color": "#43E97B"
+    },
+    {
+      "id": "ai",
+      "name": "AI / ML",
+      "icon": "🤖",
+      "color": "#F7971E"
+    },
+    {
+      "id": "other",
+      "name": "Khác",
+      "icon": "✨",
+      "color": "#A18CD1"
+    }
   ],
   "projects": [
     {
@@ -18,12 +43,18 @@
       "name": "Kéo Búa Bao — AI Camera",
       "description": "Chơi Kéo Búa Bao với AI nhận diện cử chỉ tay qua camera. Hỗ trợ cả chế độ thủ công.",
       "author": {
-        "name": "k0walski",
-        "github": "k0walski",
+        "name": "hieuntg81",
+        "github": "hieuntg81",
         "avatar": "https://avatars.githubusercontent.com/u/271492227?s=400&u=9220e68198ec3f2a6abf096f9f2aea5655929307&v=4"
       },
       "category": "game",
-      "tags": ["game", "ai", "camera", "mediapipe", "hand-gesture"],
+      "tags": [
+        "game",
+        "ai",
+        "camera",
+        "mediapipe",
+        "hand-gesture"
+      ],
       "thumbnail": null,
       "path": "projects/rock-paper-scissors",
       "liveUrl": null,
