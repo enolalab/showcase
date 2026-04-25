@@ -43,4 +43,4 @@ export interface Registry {
   projects: Project[];
 }
 
-export type PageRoute = 'home' | 'guide';
+export type PageRoute = 'home' | 'guide' | 'project';

@@ -238,8 +238,8 @@ function initFilters(sorted: Project[], catMap: Map<string, Category>, _fallback
     const id = card.id.replace('project-', '');
     const p = sorted.find(pr => pr.id === id);
     if (p) {
-      const url = p.liveUrl || p.path || p.repoUrl;
-      if (url) window.open(url, '_blank');
+      // Navigate to in-app project viewer
+      navigate('project', p.id);
     }
   });
 }
