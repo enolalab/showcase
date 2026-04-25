@@ -216,7 +216,7 @@ function initNavbar(): void {
   );
 }
 
-function initFilters(sorted: Project[], catMap: Map<string, Category>, _fallback: Category): void {
+function initFilters(sorted: Project[], _catMap: Map<string, Category>, _fallback: Category): void {
   const bar = document.getElementById('filters');
   if (!bar) return;
   bar.addEventListener('click', (e) => {
@@ -238,8 +238,8 @@ function initFilters(sorted: Project[], catMap: Map<string, Category>, _fallback
     const id = card.id.replace('project-', '');
     const p = sorted.find(pr => pr.id === id);
     if (p) {
-      const url = p.liveUrl || p.path || p.repoUrl;
-      if (url) window.open(url, '_blank');
+      // Navigate to in-app project viewer
+      navigate('project', p.id);
     }
   });
 }
