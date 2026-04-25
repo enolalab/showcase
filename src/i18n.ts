@@ -93,6 +93,10 @@ export interface Translations {
   faq3A: string;
   faq4Q: string;
   faq4A: string;
+  faq5Q: string;
+  faq5A: string;
+  faq6Q: string;
+  faq6A: string;
   guideCta: string;
 }
 
@@ -109,7 +113,7 @@ const vi: Translations = {
   heroSub2: 'Submit qua <strong>GitHub PR</strong> — chúng tôi lo phần còn lại.',
   heroSubmit: 'Submit Project',
   heroExplore: 'Khám phá Projects ↓',
-  terminalSuccess: '✓ Deployed at Enolalab.pages.dev/projects/my-project',
+  terminalSuccess: '✓ Deployed at enolalab.com/projects/my-project',
 
   howTag: 'Quy trình',
   howTitle1: 'Đơn giản như ',
@@ -150,9 +154,9 @@ const vi: Translations = {
   guideSub: 'Chỉ cần vài bước đơn giản, project của bạn sẽ live trên internet.',
   guideReqTitle: '📋 Yêu cầu',
   guideReq1: 'Project phải là <strong>static</strong> (HTML/CSS/JS). Không hỗ trợ backend.',
-  guideReq2: 'Nếu dùng framework (React, Vue, Svelte...) → phải <strong>build ra static files</strong> trước khi submit.',
+  guideReq2: 'Bạn có thể dùng <strong>bất kỳ framework</strong> (React, Vue, Svelte, Angular) hoặc <strong>TypeScript</strong> — nhưng phải <strong>build ra static files</strong> và chỉ submit output.',
   guideReq3: 'Tổng dung lượng project <strong>không quá 10MB</strong>.',
-  guideReq4: 'Không chứa code độc hại, malware, hoặc nội dung vi phạm.',
+  guideReq4: 'Không chứa code độc hại, <code>node_modules/</code>, API keys, hay secrets.',
   guideReq5: 'Phải có file <code>index.html</code> ở root folder của project.',
   guideStepsTitle: '🚀 Các bước thực hiện',
   guideStep1: 'Fork & Clone',
@@ -175,11 +179,15 @@ const vi: Translations = {
   faq1Q: 'Project có cần responsive không?',
   faq1A: 'Không bắt buộc, nhưng khuyến khích để trải nghiệm tốt hơn.',
   faq2Q: 'Tôi có thể dùng framework (React, Vue...)?',
-  faq2A: 'Được! Nhưng bạn phải build ra static files trước khi submit. Chỉ submit output build.',
+  faq2A: 'Được! Nhưng bạn phải build ra static files trước khi submit. Chỉ submit nội dung folder <code>dist/</code> hoặc <code>build/</code>.',
   faq3Q: 'Tôi muốn cập nhật project đã submit?',
   faq3A: 'Tạo PR mới cập nhật files trong folder project của bạn.',
   faq4Q: 'Mất bao lâu để PR được review?',
   faq4A: 'Thường trong vòng 24-48 giờ.',
+  faq5Q: 'Tôi có thể dùng TypeScript không?',
+  faq5A: 'Hoàn toàn được! Compile TypeScript ra JavaScript trước khi submit. Hệ thống chỉ serve file <code>.js</code>, không chạy <code>tsc</code>.',
+  faq6Q: 'Có thể dùng Tailwind CSS / Sass không?',
+  faq6A: 'Được! Compile ra file <code>.css</code> thuần trước khi submit. Submit output đã build, không submit source.',
   guideCta: 'Bắt đầu submit ngay',
 };
 
@@ -196,7 +204,7 @@ const en: Translations = {
   heroSub2: 'Submit via <strong>GitHub PR</strong> — we handle the rest.',
   heroSubmit: 'Submit Project',
   heroExplore: 'Explore Projects ↓',
-  terminalSuccess: '✓ Deployed at Enolalab.pages.dev/projects/my-project',
+  terminalSuccess: '✓ Deployed at enolalab.com/projects/my-project',
 
   howTag: 'Process',
   howTitle1: 'Simple as ',
@@ -237,9 +245,9 @@ const en: Translations = {
   guideSub: 'Just a few simple steps and your project will be live on the internet.',
   guideReqTitle: '📋 Requirements',
   guideReq1: 'Project must be <strong>static</strong> (HTML/CSS/JS). No backend support.',
-  guideReq2: 'If using a framework (React, Vue, Svelte...) → <strong>build to static files</strong> before submitting.',
+  guideReq2: 'You can use <strong>any framework</strong> (React, Vue, Svelte, Angular) or <strong>TypeScript</strong> — but you must <strong>build to static files</strong> and only submit the output.',
   guideReq3: 'Total project size <strong>must not exceed 10MB</strong>.',
-  guideReq4: 'No malicious code, malware, or illegal content.',
+  guideReq4: 'No malicious code, <code>node_modules/</code>, API keys, or secrets.',
   guideReq5: 'Must have an <code>index.html</code> at the project root folder.',
   guideStepsTitle: '🚀 Steps',
   guideStep1: 'Fork & Clone',
@@ -262,11 +270,15 @@ const en: Translations = {
   faq1Q: 'Does the project need to be responsive?',
   faq1A: 'Not required, but recommended for a better experience.',
   faq2Q: 'Can I use a framework (React, Vue...)?',
-  faq2A: 'Yes! But you must build to static files before submitting. Only submit the build output.',
+  faq2A: 'Yes! But you must build to static files before submitting. Only submit the contents of <code>dist/</code> or <code>build/</code>.',
   faq3Q: 'How do I update a submitted project?',
   faq3A: 'Create a new PR updating the files in your project folder.',
   faq4Q: 'How long does the review take?',
   faq4A: 'Usually within 24-48 hours.',
+  faq5Q: 'Can I use TypeScript?',
+  faq5A: 'Absolutely! Compile TypeScript to JavaScript before submitting. The system only serves <code>.js</code> files, it does not run <code>tsc</code>.',
+  faq6Q: 'Can I use Tailwind CSS / Sass?',
+  faq6A: 'Yes! Compile to plain <code>.css</code> files before submitting. Submit the built output, not the source.',
   guideCta: 'Start submitting now',
 };
 

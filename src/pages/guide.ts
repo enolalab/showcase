@@ -144,6 +144,8 @@ git push origin feat/add-my-awesome-project</code></pre>
           <div class="guide__faq">
             <details class="faq-item"><summary>${i.faq1Q}</summary><p>${i.faq1A}</p></details>
             <details class="faq-item"><summary>${i.faq2Q}</summary><p>${i.faq2A}</p></details>
+            <details class="faq-item"><summary>${i.faq5Q}</summary><p>${i.faq5A}</p></details>
+            <details class="faq-item"><summary>${i.faq6Q}</summary><p>${i.faq6A}</p></details>
             <details class="faq-item"><summary>${i.faq3Q}</summary><p>${i.faq3A}</p></details>
             <details class="faq-item"><summary>${i.faq4Q}</summary><p>${i.faq4A}</p></details>
           </div>
