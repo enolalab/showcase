@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "name": "Enolalab Showcase",
+    "description": "Nơi sinh viên biến ý tưởng thành sản phẩm thực tế",
+    "version": "1.0.0",
+    "maintainer": "k0walski"
+  },
+  "categories": [
+    { "id": "web", "name": "Website", "icon": "🌐", "color": "#6C63FF" },
+    { "id": "game", "name": "Game", "icon": "🎮", "color": "#FF6584" },
+    { "id": "tool", "name": "Tool / Utility", "icon": "🛠️", "color": "#43E97B" },
+    { "id": "ai", "name": "AI / ML", "icon": "🤖", "color": "#F7971E" },
+    { "id": "other", "name": "Khác", "icon": "✨", "color": "#A18CD1" }
+  ],
+  "projects": []
+}
