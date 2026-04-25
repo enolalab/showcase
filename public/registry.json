@@ -12,5 +12,24 @@
     { "id": "ai", "name": "AI / ML", "icon": "🤖", "color": "#F7971E" },
     { "id": "other", "name": "Khác", "icon": "✨", "color": "#A18CD1" }
   ],
-  "projects": []
+  "projects": [
+    {
+      "id": "rock-paper-scissors",
+      "name": "Kéo Búa Bao — AI Camera",
+      "description": "Chơi Kéo Búa Bao với AI nhận diện cử chỉ tay qua camera. Hỗ trợ cả chế độ thủ công.",
+      "author": {
+        "name": "k0walski",
+        "github": "k0walski",
+        "avatar": "https://avatars.githubusercontent.com/u/271492227?s=400&u=9220e68198ec3f2a6abf096f9f2aea5655929307&v=4"
+      },
+      "category": "game",
+      "tags": ["game", "ai", "camera", "mediapipe", "hand-gesture"],
+      "thumbnail": null,
+      "path": "projects/rock-paper-scissors",
+      "liveUrl": null,
+      "repoUrl": "https://github.com/enolalab/showcase",
+      "createdAt": "2026-04-25",
+      "featured": true
+    }
+  ]
 }
