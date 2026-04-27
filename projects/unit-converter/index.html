@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniConvert — Chuyển đổi Đo lường & Tỉ giá</title>
+  <meta name="description" content="Ứng dụng chuyển đổi đơn vị đo lường và tỉ giá tiền tệ. Hỗ trợ chiều dài, khối lượng, nhiệt độ, diện tích, thể tích, tốc độ và quy đổi tiền tệ real-time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Background Effects -->
+  <div class="bg-effects">
+    <div class="bg-orb bg-orb--1"></div>
+    <div class="bg-orb bg-orb--2"></div>
+    <div class="bg-orb bg-orb--3"></div>
+    <div class="bg-grid"></div>
+  </div>
+
+  <!-- App Container -->
+  <div class="app" id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header__brand">
+        <div class="header__logo" id="header-logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <defs>
+              <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6C63FF"/>
+                <stop offset="100%" stop-color="#43E97B"/>
+              </linearGradient>
+            </defs>
+            <rect width="32" height="32" rx="8" fill="url(#logo-grad)" opacity="0.15"/>
+            <path d="M10 22V10l6 6 6-6v12" stroke="url(#logo-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="header__title">UniConvert</h1>
+          <p class="header__sub">Đo lường & Tỉ giá</p>
+        </div>
+      </div>
+      <div class="header__actions">
+        <button class="header__btn" id="btn-swap-theme" aria-label="Đổi theme" title="Đổi chế độ sáng/tối">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a href="/" class="header__btn header__btn--back" title="Về trang chủ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Tab Navigation -->
+    <nav class="tabs" id="main-tabs">
+      <button class="tab active" data-tab="measurement" id="tab-measurement">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 20h20"/>
+          <path d="M5 20V8"/>
+          <path d="M9 20V4"/>
+          <path d="M13 20v-8"/>
+          <path d="M17 20V8"/>
+          <path d="M21 20V4"/>
+        </svg>
+        <span>Đo lường</span>
+      </button>
+      <button class="tab" data-tab="currency" id="tab-currency">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        <span>Tỉ giá</span>
+      </button>
+    </nav>
+
+    <!-- Measurement Panel -->
+    <section class="panel active" id="panel-measurement">
+      <!-- Category Selector -->
+      <div class="category-bar" id="category-bar">
+        <button class="cat-btn active" data-cat="length" id="cat-length">
+          <span class="cat-icon">📏</span>
+          <span>Chiều dài</span>
+        </button>
+        <button class="cat-btn" data-cat="mass" id="cat-mass">
+          <span class="cat-icon">⚖️</span>
+          <span>Khối lượng</span>
+        </button>
+        <button class="cat-btn" data-cat="temperature" id="cat-temperature">
+          <span class="cat-icon">🌡️</span>
+          <span>Nhiệt độ</span>
+        </button>
+        <button class="cat-btn" data-cat="area" id="cat-area">
+          <span class="cat-icon">📐</span>
+          <span>Diện tích</span>
+        </button>
+        <button class="cat-btn" data-cat="volume" id="cat-volume">
+          <span class="cat-icon">🧪</span>
+          <span>Thể tích</span>
+        </button>
+        <button class="cat-btn" data-cat="speed" id="cat-speed">
+          <span class="cat-icon">⚡</span>
+          <span>Tốc độ</span>
+        </button>
+        <button class="cat-btn" data-cat="data" id="cat-data">
+          <span class="cat-icon">💾</span>
+          <span>Dữ liệu</span>
+        </button>
+        <button class="cat-btn" data-cat="time" id="cat-time">
+          <span class="cat-icon">⏱️</span>
+          <span>Thời gian</span>
+        </button>
+      </div>
+
+      <!-- Converter Card -->
+      <div class="converter-card" id="converter-card">
+        <div class="converter-card__header">
+          <h2 class="converter-card__title" id="converter-title">📏 Chiều dài</h2>
+        </div>
+
+        <div class="converter-body">
+          <!-- From -->
+          <div class="convert-field">
+            <label class="convert-field__label" for="from-value">Giá trị</label>
+            <div class="convert-field__row">
+              <input type="number" class="convert-field__input" id="from-value" value="1" placeholder="Nhập giá trị..." autocomplete="off" />
+              <select class="convert-field__select" id="from-unit"></select>
+            </div>
+          </div>
+
+          <!-- Swap Button -->
+          <button class="swap-btn" id="btn-swap" aria-label="Hoán đổi" title="Hoán đổi đơn vị">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 1 21 5 17 9"/>
+              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+              <polyline points="7 23 3 19 7 15"/>
+              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+            </svg>
+          </button>
+
+          <!-- To -->
+          <div class="convert-field">
+            <label class="convert-field__label" for="to-value">Kết quả</label>
+            <div class="convert-field__row">
+              <input type="text" class="convert-field__input convert-field__input--result" id="to-value" readonly placeholder="—" />
+              <select class="convert-field__select" id="to-unit"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formula Display -->
+        <div class="formula" id="formula">
+          <span class="formula__label">Công thức:</span>
+          <span class="formula__text" id="formula-text">—</span>
+        </div>
+      </div>
+
+      <!-- Quick Reference Table -->
+      <div class="ref-card" id="ref-card">
+        <div class="ref-card__header">
+          <h3 class="ref-card__title">📊 Bảng quy đổi nhanh</h3>
+          <button class="ref-card__toggle" id="ref-toggle" aria-label="Thu gọn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ref-card__body" id="ref-body">
+          <table class="ref-table" id="ref-table">
+            <thead><tr><th>Đơn vị</th><th>Giá trị quy đổi</th></tr></thead>
+            <tbody id="ref-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Currency Panel -->
+    <section class="panel" id="panel-currency">
+      <div class="converter-card">
+        <div class="converter-card__header">
+          <h2 class="converter-card__title">💱 Quy đổi tỉ giá</h2>
+          <div class="currency-status" id="currency-status">
+            <span class="status-dot"></span>
+            <span class="status-text">Đang tải...</span>
+          </div>
+        </div>
+
+        <div class="converter-body">
+          <!-- From Currency -->
+          <div class="convert-field">
+            <label class="convert-field__label" for="cur-from-value">Số tiền</label>
+            <div class="convert-field__row">
+              <input type="number" class="convert-field__input" id="cur-from-value" value="1" placeholder="Nhập số tiền..." autocomplete="off" />
+              <select class="convert-field__select convert-field__select--currency" id="cur-from-unit"></select>
+            </div>
+            <div class="currency-name" id="cur-from-name">—</div>
+          </div>
+
+          <!-- Swap Button -->
+          <button class="swap-btn" id="btn-cur-swap" aria-label="Hoán đổi tiền tệ" title="Hoán đổi tiền tệ">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="17 1 21 5 17 9"/>
+              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+              <polyline points="7 23 3 19 7 15"/>
+              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+            </svg>
+          </button>
+
+          <!-- To Currency -->
+          <div class="convert-field">
+            <label class="convert-field__label" for="cur-to-value">Kết quả</label>
+            <div class="convert-field__row">
+              <input type="text" class="convert-field__input convert-field__input--result" id="cur-to-value" readonly placeholder="—" />
+              <select class="convert-field__select convert-field__select--currency" id="cur-to-unit"></select>
+            </div>
+            <div class="currency-name" id="cur-to-name">—</div>
+          </div>
+        </div>
+
+        <!-- Rate Info -->
+        <div class="formula" id="cur-rate-info">
+          <span class="formula__label">Tỉ giá:</span>
+          <span class="formula__text" id="cur-rate-text">—</span>
+        </div>
+      </div>
+
+      <!-- Popular Rates -->
+      <div class="ref-card" id="rates-card">
+        <div class="ref-card__header">
+          <h3 class="ref-card__title">🔥 Tỉ giá phổ biến</h3>
+          <button class="ref-card__toggle" id="rates-toggle" aria-label="Thu gọn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="ref-card__body" id="rates-body">
+          <div class="rates-grid" id="rates-grid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer" id="footer">
+      <p>Xây dựng bởi <a href="https://github.com/Enolalab" target="_blank" rel="noopener">Enolalab</a> · Dữ liệu tỉ giá từ <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener">Exchange API</a></p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
