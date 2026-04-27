@@ -61,6 +61,30 @@
       "repoUrl": "https://github.com/Enolalab/showcase",
       "createdAt": "2026-04-25",
       "featured": true
+    },
+    {
+      "id": "unit-converter",
+      "name": "UniConvert — Đo lường & Tỉ giá",
+      "description": "Chuyển đổi đơn vị đo lường (chiều dài, khối lượng, nhiệt độ, diện tích, thể tích, tốc độ, dữ liệu, thời gian) và quy đổi tỉ giá tiền tệ real-time.",
+      "author": {
+        "name": "hieuntg81",
+        "github": "hieuntg81",
+        "avatar": "https://avatars.githubusercontent.com/u/271492227?s=400&u=9220e68198ec3f2a6abf096f9f2aea5655929307&v=4"
+      },
+      "category": "tool",
+      "tags": [
+        "converter",
+        "unit",
+        "currency",
+        "exchange-rate",
+        "measurement"
+      ],
+      "thumbnail": null,
+      "path": "projects/unit-converter",
+      "liveUrl": null,
+      "repoUrl": "https://github.com/Enolalab/showcase",
+      "createdAt": "2026-04-27",
+      "featured": true
     }
   ]
 }
