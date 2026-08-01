@@ -76,16 +76,16 @@ The product registry is a static JSON document in `showcase`. Product entries re
 
 ## Common Docusaurus Convention
 
-Every product repository contains a standard Docusaurus Classic site:
+Every product repository contains a standard Docusaurus Classic site under `website/`. This prevents a collision with Grid Screen's application-owned `src/` directory and keeps public documentation separate from existing internal documentation:
 
 ```text
-docs/                 Public Markdown and MDX documentation
-src/css/custom.css    Enolalab visual tokens and Docusaurus customizations
-src/pages/            Optional product-specific landing content
-static/               Product assets
-docusaurus.config.ts  Site URL, navbar, footer, docs settings
-sidebars.ts           Explicit information architecture
-package.json          Development, build, and serving scripts
+website/docs/                 Public Markdown and MDX documentation
+website/src/css/custom.css    Enolalab visual tokens and Docusaurus customizations
+website/src/pages/            Optional product-specific landing content
+website/static/               Product assets
+website/docusaurus.config.ts  Site URL, navbar, footer, docs settings
+website/sidebars.ts           Explicit information architecture
+website/package.json          Development, build, and serving scripts
 .github/workflows/    Documentation validation and deployment
 ```
 
