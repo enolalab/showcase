@@ -1,89 +1,72 @@
 {
   "meta": {
-    "name": "Enolalab Showcase",
-    "description": "Nơi sinh viên biến ý tưởng thành sản phẩm thực tế",
-    "version": "1.0.0",
-    "maintainer": "hieuntg81"
+    "name": "Enolalab Product Catalogue",
+    "description": "Open-source tools and systems built by Enolalab."
   },
-  "categories": [
+  "products": [
     {
-      "id": "web",
-      "name": "Website",
-      "icon": "🌐",
-      "color": "#6C63FF"
-    },
-    {
-      "id": "game",
-      "name": "Game",
-      "icon": "🎮",
-      "color": "#FF6584"
-    },
-    {
-      "id": "tool",
-      "name": "Tool / Utility",
-      "icon": "🛠️",
-      "color": "#43E97B"
-    },
-    {
-      "id": "ai",
-      "name": "AI / ML",
-      "icon": "🤖",
-      "color": "#F7971E"
-    },
-    {
-      "id": "other",
-      "name": "Khác",
-      "icon": "✨",
-      "color": "#A18CD1"
-    }
-  ],
-  "projects": [
-    {
-      "id": "rock-paper-scissors",
-      "name": "Kéo Búa Bao — AI Camera",
-      "description": "Chơi Kéo Búa Bao với AI nhận diện cử chỉ tay qua camera. Hỗ trợ cả chế độ thủ công.",
-      "author": {
-        "name": "hieuntg81",
-        "github": "hieuntg81",
-        "avatar": "https://avatars.githubusercontent.com/u/271492227?s=400&u=9220e68198ec3f2a6abf096f9f2aea5655929307&v=4"
-      },
-      "category": "game",
-      "tags": [
-        "game",
-        "ai",
-        "camera",
-        "mediapipe",
-        "hand-gesture"
-      ],
+      "id": "dotagen",
+      "name": "dotagen",
+      "summary": "Define AI coding agents and skills once, then render them for multiple agent platforms.",
+      "status": "active",
+      "category": "developer-tools",
+      "techStack": ["Go"],
+      "docsUrl": "https://dotagen.enolalab.com",
+      "repoUrl": "https://github.com/enolalab/dotagen",
+      "releaseUrl": "https://github.com/enolalab/dotagen/releases",
       "thumbnail": null,
-      "path": "projects/rock-paper-scissors",
-      "liveUrl": null,
-      "repoUrl": "https://github.com/Enolalab/showcase",
-      "createdAt": "2026-04-25",
       "featured": true
     },
     {
-      "id": "unit-converter",
-      "name": "UniConvert — Đo lường & Tỉ giá",
-      "description": "Chuyển đổi đơn vị đo lường (chiều dài, khối lượng, nhiệt độ, diện tích, thể tích, tốc độ, dữ liệu, thời gian) và quy đổi tỉ giá tiền tệ real-time.",
-      "author": {
-        "name": "hieuntg81",
-        "github": "hieuntg81",
-        "avatar": "https://avatars.githubusercontent.com/u/271492227?s=400&u=9220e68198ec3f2a6abf096f9f2aea5655929307&v=4"
-      },
-      "category": "tool",
-      "tags": [
-        "converter",
-        "unit",
-        "currency",
-        "exchange-rate",
-        "measurement"
-      ],
+      "id": "sunset",
+      "name": "sunset",
+      "summary": "Tree-sitter codebase indexer that generates structured Markdown documentation.",
+      "status": "active",
+      "category": "developer-tools",
+      "techStack": ["Go"],
+      "docsUrl": "https://sunset.enolalab.com",
+      "repoUrl": "https://github.com/enolalab/sunset",
+      "releaseUrl": "https://github.com/enolalab/sunset/releases",
       "thumbnail": null,
-      "path": "projects/unit-converter",
-      "liveUrl": null,
-      "repoUrl": "https://github.com/Enolalab/showcase",
-      "createdAt": "2026-04-27",
+      "featured": true
+    },
+    {
+      "id": "grid-screen",
+      "name": "grid-screen",
+      "summary": "Linux X11 desktop window arranger with visual zones and saved layouts.",
+      "status": "in-development",
+      "category": "desktop",
+      "techStack": ["Rust", "Tauri", "Svelte"],
+      "docsUrl": "https://grid-screen.enolalab.com",
+      "repoUrl": "https://github.com/enolalab/grid-screen",
+      "releaseUrl": "https://github.com/enolalab/grid-screen/releases",
+      "thumbnail": null,
+      "featured": true
+    },
+    {
+      "id": "linear-cli",
+      "name": "linear-cli",
+      "summary": "Non-interactive Linear CLI designed for AI-agent workflows.",
+      "status": "maintained",
+      "category": "automation",
+      "techStack": ["Go"],
+      "docsUrl": "https://linear-cli.enolalab.com",
+      "repoUrl": "https://github.com/enolalab/linear-cli",
+      "releaseUrl": "https://github.com/enolalab/linear-cli/releases",
+      "thumbnail": null,
+      "featured": true
+    },
+    {
+      "id": "sunbeam",
+      "name": "sunbeam",
+      "summary": "OMR Vision API for automatic exam grading.",
+      "status": "in-development",
+      "category": "computer-vision",
+      "techStack": ["Java", "Spring Boot", "OpenCV"],
+      "docsUrl": "https://sunbeam.enolalab.com",
+      "repoUrl": "https://github.com/enolalab/sunbeam",
+      "releaseUrl": null,
+      "thumbnail": null,
       "featured": true
     }
   ]
