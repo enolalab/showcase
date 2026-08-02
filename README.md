@@ -1,136 +1,38 @@
-# ◈ Enolalab Showcase
+# Enolalab Product Catalogue
 
-> **Nơi sinh viên Việt Nam biến ý tưởng thành sản phẩm thực tế.**
+The Enolalab product catalogue is a Vite site that presents the organisation's five public open-source products. Each card links directly to that product's documentation, source repository, and releases when available.
 
-Nhiều bạn sinh viên có ý tưởng tuyệt vời về web, game, hay tool — nhưng không có domain, không biết deploy. **Enolalab Showcase** giải quyết điều đó: bạn chỉ cần submit project qua một **Pull Request trên GitHub**, chúng tôi lo phần còn lại.
-
-🌐 **Live:** [enolalab.com](https://enolalab.com)
-
----
-
-## ✨ Tính năng
-
-- 🎨 **Showcase Gallery** — Hiển thị project với thumbnail, tags, tên tác giả
-- 🔍 **Filter theo category** — Web, Game, Tool, AI, và nhiều hơn
-- 📝 **Trang hướng dẫn** — Step-by-step guide để submit project
-- 🚀 **Auto Deploy** — Merge PR → Cloudflare Pages tự động deploy
-- 💯 **Miễn phí hoàn toàn** — Không cần domain, không cần hosting
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Language | TypeScript |
-| Build | Vite |
-| Styling | Vanilla CSS (Dark theme, Glassmorphism) |
-| Hosting | Cloudflare Pages |
-| CI/CD | GitHub Actions |
-
-## 🚀 Chạy local
+## Local Development
 
 ```bash
-# Clone repo
-git clone https://github.com/Enolalab/showcase.git
-cd ropascis
-
-# Cài dependencies
 npm install
-
-# Chạy dev server
 npm run dev
 ```
 
-Dev server sẽ chạy tại `http://localhost:5173`.
+Run the full validation suite before opening a pull request:
 
-## 📂 Cấu trúc project
-
-```
-ropascis/
-├── src/
-│   ├── main.ts              # Entry point
-│   ├── types.ts             # TypeScript interfaces
-│   ├── router.ts            # Path-based SPA router
-│   ├── data.ts              # Registry data loader
-│   ├── utils.ts             # DOM utilities & animations
-│   ├── styles/
-│   │   └── index.css        # Design system & all styles
-│   └── pages/
-│       ├── home.ts          # Landing page + showcase gallery
-│       ├── guide.ts         # Hướng dẫn submit project
-│       └── viewer.ts        # Project viewer (iframe wrapper)
-├── public/
-│   └── registry.json        # Project registry (metadata)
-├── projects/                # Thư mục chứa các project được submit
-│   └── <project-name>/
-│       └── index.html
-├── .github/
-│   └── PULL_REQUEST_TEMPLATE/
-│       └── submit_project.md
-├── CONTRIBUTING.md
-├── index.html
-├── tsconfig.json
-└── package.json
-```
-
-## 🤝 Submit project của bạn
-
-Chỉ cần **3 bước**:
-
-### 1. Fork & Clone
 ```bash
-git clone https://github.com/<your-username>/ropascis.git
+npm test && npm run build
 ```
 
-### 2. Thêm project
-- Tạo folder trong `projects/` (ví dụ: `projects/my-project/`)
-- Đảm bảo có file `index.html` ở root folder
-- Thêm entry vào `public/registry.json`
+## Product Registry
 
-### 3. Tạo Pull Request
-```bash
-git checkout -b feat/add-my-project
-git add . && git commit -m "feat: add my-project"
-git push origin feat/add-my-project
-```
+`public/registry.json` is the checked-in source of catalogue metadata. It contains exactly these products:
 
-> 📖 Xem chi tiết tại [CONTRIBUTING.md](CONTRIBUTING.md) hoặc trang **Hướng dẫn** trên website.
+- `dotagen`
+- `sunset`
+- `grid-screen`
+- `linear-cli`
+- `sunbeam`
 
-## 📋 Yêu cầu cho project
+Each entry must include a unique `id`, source-verified `name` and `summary`, `status`, `category`, `techStack`, HTTPS `docsUrl` and `repoUrl`, `releaseUrl` (or `null`), `thumbnail`, and `featured`.
 
-- ✅ **Static only** — HTML/CSS/JS (hoặc build output từ framework)
-- ✅ Phải có `index.html` ở root
-- ✅ Dung lượng tổng **< 10MB**
-- ❌ Không chứa backend, API keys, hoặc nội dung vi phạm
+The supported statuses are `active`, `in-development`, and `maintained`. The supported categories are `developer-tools`, `desktop`, `automation`, and `computer-vision`.
 
-## 📄 Registry Schema
+## Validation
 
-Mỗi project trong `registry.json` có cấu trúc:
+When editing the registry, verify that every documentation, source, and release link is current and uses HTTPS. The registry parser rejects missing required fields, duplicate IDs, invalid statuses or categories, and non-HTTPS documentation or source URLs.
 
-```jsonc
-{
-  "id": "my-project",           // kebab-case, unique
-  "name": "My Project",         // Tên hiển thị
-  "description": "Mô tả...",   // Tối đa 150 ký tự
-  "author": {
-    "name": "your-name",
-    "github": "github-username",
-    "avatar": "https://github.com/username.png"
-  },
-  "category": "web",            // web | game | tool | ai | other
-  "tags": ["tag1", "tag2"],
-  "thumbnail": null,            // hoặc path tới thumbnail
-  "path": "projects/my-project",
-  "liveUrl": null,
-  "repoUrl": "https://github.com/...",
-  "createdAt": "2026-04-25",
-  "featured": false
-}
-```
+## License
 
-## 📜 License
-
-MIT © [hieuntg81](https://github.com/hieuntg81)
-
----
-
-<p align="center">Made with 💜 for Vietnamese students</p>
+MIT
