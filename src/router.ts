@@ -19,8 +19,6 @@ export function navigate(path: string, param?: string): void {
     url = '/';
   } else if (path === 'project' && param) {
     url = `/projects/${param}`;
-  } else if (path === 'guide') {
-    url = '/guide';
   } else {
     url = `/${path}`;
   }
@@ -33,21 +31,12 @@ export interface ParsedRoute {
   param?: string;
 }
 
-export function getCurrentRoute(): ParsedRoute {
-  const path = window.location.pathname;
-
-  // /projects/:id
-  const projectMatch = path.match(/^\/projects\/([^/]+)\/?$/);
+export function getCurrentRoute(pathname = window.location.pathname): ParsedRoute {
+  const projectMatch = pathname.match(/^\/projects\/([^/]+)\/?$/);
   if (projectMatch) {
     return { route: 'project', param: projectMatch[1] };
   }
 
-  // /guide
-  if (path === '/guide' || path === '/guide/') {
-    return { route: 'guide' };
-  }
-
-  // Everything else → home
   return { route: 'home' };
 }
 

@@ -1,136 +1,66 @@
-# ◈ Enolalab Showcase
+# Enolalab Product Catalogue
 
-> **Nơi sinh viên Việt Nam biến ý tưởng thành sản phẩm thực tế.**
+The Enolalab catalogue is a curated, static directory of the organisation's official products. It presents product summaries, status, technology, documentation, source repositories, and release links from `public/registry.json`.
 
-Nhiều bạn sinh viên có ý tưởng tuyệt vời về web, game, hay tool — nhưng không có domain, không biết deploy. **Enolalab Showcase** giải quyết điều đó: bạn chỉ cần submit project qua một **Pull Request trên GitHub**, chúng tôi lo phần còn lại.
+The catalogue currently contains exactly these five products:
 
-🌐 **Live:** [enolalab.com](https://enolalab.com)
+- `dotagen`
+- `sunset`
+- `grid-screen`
+- `linear-cli`
+- `sunbeam`
 
----
+Live site: [enolalab.com](https://enolalab.com)
 
-## ✨ Tính năng
+## Stack
 
-- 🎨 **Showcase Gallery** — Hiển thị project với thumbnail, tags, tên tác giả
-- 🔍 **Filter theo category** — Web, Game, Tool, AI, và nhiều hơn
-- 📝 **Trang hướng dẫn** — Step-by-step guide để submit project
-- 🚀 **Auto Deploy** — Merge PR → Cloudflare Pages tự động deploy
-- 💯 **Miễn phí hoàn toàn** — Không cần domain, không cần hosting
+- TypeScript
+- Vite
+- Vanilla CSS
+- Cloudflare Pages hosting
 
-## 🛠️ Tech Stack
+This is a static Vite site. The build produces the catalogue application in `dist/`; it does not copy or execute product source trees.
 
-| Layer | Technology |
-|-------|-----------|
-| Language | TypeScript |
-| Build | Vite |
-| Styling | Vanilla CSS (Dark theme, Glassmorphism) |
-| Hosting | Cloudflare Pages |
-| CI/CD | GitHub Actions |
-
-## 🚀 Chạy local
+## Local development
 
 ```bash
-# Clone repo
-git clone https://github.com/Enolalab/showcase.git
-cd ropascis
-
-# Cài dependencies
 npm install
-
-# Chạy dev server
 npm run dev
+npm test
+npm run build
 ```
 
-Dev server sẽ chạy tại `http://localhost:5173`.
+`npm run dev` starts the local Vite server. The test and build commands should pass before catalogue changes are shared.
 
-## 📂 Cấu trúc project
+## Registry
 
-```
-ropascis/
-├── src/
-│   ├── main.ts              # Entry point
-│   ├── types.ts             # TypeScript interfaces
-│   ├── router.ts            # Path-based SPA router
-│   ├── data.ts              # Registry data loader
-│   ├── utils.ts             # DOM utilities & animations
-│   ├── styles/
-│   │   └── index.css        # Design system & all styles
-│   └── pages/
-│       ├── home.ts          # Landing page + showcase gallery
-│       ├── guide.ts         # Hướng dẫn submit project
-│       └── viewer.ts        # Project viewer (iframe wrapper)
-├── public/
-│   └── registry.json        # Project registry (metadata)
-├── projects/                # Thư mục chứa các project được submit
-│   └── <project-name>/
-│       └── index.html
-├── .github/
-│   └── PULL_REQUEST_TEMPLATE/
-│       └── submit_project.md
-├── CONTRIBUTING.md
-├── index.html
-├── tsconfig.json
-└── package.json
-```
+The single source of catalogue metadata is [`public/registry.json`](public/registry.json). Each product entry contains:
 
-## 🤝 Submit project của bạn
+| Field | Purpose |
+| --- | --- |
+| `id` | Stable URL-safe product identifier |
+| `name` | Display name |
+| `summary` | Short product description |
+| `status` | `active`, `in-development`, or `maintained` |
+| `category` | Curated product category |
+| `techStack` | Technologies used by the product |
+| `docsUrl` | Official HTTPS documentation URL |
+| `repoUrl` | Official HTTPS source repository URL |
+| `releaseUrl` | Official HTTPS release URL, or `null` when unavailable |
+| `thumbnail` | Catalogue thumbnail URL or `null` |
+| `featured` | Whether the product is highlighted in the catalogue |
 
-Chỉ cần **3 bước**:
+## Metadata rules
 
-### 1. Fork & Clone
-```bash
-git clone https://github.com/<your-username>/ropascis.git
-```
+- Keep the registry limited to the five official product IDs listed above.
+- Keep `docsUrl`, `repoUrl`, and any non-null `releaseUrl` HTTPS-only and verify that each link resolves to the product's official source.
+- Write summaries from the product's official documentation, README, repository, or release notes. Do not add unsupported claims.
+- Preserve stable IDs and the existing field shape so links, validation, and UI rendering remain compatible.
+- Use `null` when an optional URL or thumbnail is not available; do not substitute an unrelated destination.
+- Keep status, category, technology, and featured state aligned with current first-party sources.
 
-### 2. Thêm project
-- Tạo folder trong `projects/` (ví dụ: `projects/my-project/`)
-- Đảm bảo có file `index.html` ở root folder
-- Thêm entry vào `public/registry.json`
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the registry maintenance workflow.
 
-### 3. Tạo Pull Request
-```bash
-git checkout -b feat/add-my-project
-git add . && git commit -m "feat: add my-project"
-git push origin feat/add-my-project
-```
-
-> 📖 Xem chi tiết tại [CONTRIBUTING.md](CONTRIBUTING.md) hoặc trang **Hướng dẫn** trên website.
-
-## 📋 Yêu cầu cho project
-
-- ✅ **Static only** — HTML/CSS/JS (hoặc build output từ framework)
-- ✅ Phải có `index.html` ở root
-- ✅ Dung lượng tổng **< 10MB**
-- ❌ Không chứa backend, API keys, hoặc nội dung vi phạm
-
-## 📄 Registry Schema
-
-Mỗi project trong `registry.json` có cấu trúc:
-
-```jsonc
-{
-  "id": "my-project",           // kebab-case, unique
-  "name": "My Project",         // Tên hiển thị
-  "description": "Mô tả...",   // Tối đa 150 ký tự
-  "author": {
-    "name": "your-name",
-    "github": "github-username",
-    "avatar": "https://github.com/username.png"
-  },
-  "category": "web",            // web | game | tool | ai | other
-  "tags": ["tag1", "tag2"],
-  "thumbnail": null,            // hoặc path tới thumbnail
-  "path": "projects/my-project",
-  "liveUrl": null,
-  "repoUrl": "https://github.com/...",
-  "createdAt": "2026-04-25",
-  "featured": false
-}
-```
-
-## 📜 License
+## License
 
 MIT © [hieuntg81](https://github.com/hieuntg81)
-
----
-
-<p align="center">Made with 💜 for Vietnamese students</p>
