@@ -6,7 +6,7 @@ Date: 2026-08-02
 
 The coordinated final-review fix wave is complete in the canonical template and all five product repositories. Intended changes are committed in each owning repository. Unrelated generated directories, audit artifacts, and debug JPEGs were not staged or modified.
 
-The external Linear custom-DNS mismatch remains unresolved in source. `https://linear-cli.enolalab.com/` currently returns HTTP 200 but serves the older documentation build, so the new content-aware smoke check will fail there until DNS or the Pages custom-domain configuration is corrected.
+The Linear custom hostname is now serving the corrected documentation. A live check on 2026-08-02 returned HTTP 200 from both the Pages project and canonical hostname; neither response contains the API-key placeholder.
 
 ## Fixes
 
@@ -55,12 +55,33 @@ Showcase:
 
 Live Linear content checks:
 
-- `https://linear-cli-docs.pages.dev/`: expected identity present; `lin_api_your_key_here` absent.
-- `https://linear-cli.enolalab.com/`: HTTP 200, expected identity absent, `lin_api_your_key_here` absent. This is the stale custom-DNS site and is intentionally reported rather than hidden by an HTTP-only smoke test.
+- `https://linear-cli-docs.pages.dev/`: HTTP 200, title `Introduction | linear-cli`, expected `linear-cli` identity present; `lin_api_your_key_here` absent.
+- `https://linear-cli.enolalab.com/`: HTTP 200, title `Linear CLI`, expected identity present; `lin_api_your_key_here` absent.
 
 ## Concerns
 
-- Linear custom DNS or Pages custom-domain routing must be corrected externally before the canonical-host smoke step can pass.
+- Linear custom DNS and Pages custom-domain routing were verified serving the current documentation during the live check above.
 - Linear `npm ci` reported 22 existing dependency audit findings: 1 low, 20 moderate, and 1 high. No dependency files were changed in this fix wave.
 - Docusaurus builds retain the existing deprecation warning for `siteConfig.onBrokenMarkdownLinks` and report an available Docusaurus update. These are outside this review scope.
 - Grid Screen `npm run check` retains existing accessibility and CSS warnings; it has no errors.
+
+## Wrangler Invocation Fix Evidence
+
+Date: 2026-08-02
+
+- Updated all six documentation workflows to use `npx --yes wrangler@4.118.0 pages deploy ...`.
+- Preserved Node 22 setup, Cloudflare secrets, main-only deployment conditions, PR triggers, product test gates, and smoke checks.
+- YAML parsing passed for all six `.github/workflows/docs.yml` files using the system Node `yaml` parser.
+- Control assertions passed: each workflow has exactly one `npx --yes wrangler@4.118.0` Pages deployment, no `--no-install` invocation remains, and all main-only deployment conditions remain present.
+- Each repository has a one-line workflow diff with `git diff --check` passing.
+- Canonical and all five product documentation validators passed.
+- Canonical and all five product Docusaurus builds passed.
+
+Commits for this Wrangler fix wave:
+
+- `docs-template`: `42cb9b67`
+- `dotagen`: `ad129fb`
+- `sunset`: `bf31139`
+- `grid-screen`: `ab5777b`
+- `linear-cli`: `527ed6c`
+- `sunbeam`: `635f1d4`
