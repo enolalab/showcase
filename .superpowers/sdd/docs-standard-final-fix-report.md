@@ -132,5 +132,5 @@ Metadata and tag resolution:
 ### Concerns
 
 - Product worktrees retain pre-existing untracked generated directories, audit artifacts, and Sunbeam debug JPEGs. They were not staged or modified by the correction commits.
-- The canonical `v1.0.2` tag intentionally points to `42cb9b67`; the canonical sync-guidance text is committed afterward at `a5565f55`, so the tag remains an exact pointer to the requested current HEAD.
+- The canonical `v1.0.2` tag intentionally points to release commit `42cb9b67`; sync guidance was added afterward at `a5565f55`, so the release tag remains immutable.
 - Existing Docusaurus, Grid Screen accessibility/CSS, Java agent, and dependency warnings remain outside this version-only correction scope.
