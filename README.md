@@ -2,13 +2,14 @@
 
 The Enolalab catalogue is a curated, static directory of the organisation's official products. It presents product summaries, status, technology, documentation, source repositories, and release links from `public/registry.json`.
 
-The catalogue currently contains exactly these five products:
+The catalogue currently contains exactly these six products:
 
 - `dotagen`
 - `sunset`
 - `grid-screen`
 - `linear-cli`
 - `sunbeam`
+- `java-interview-drill`
 
 Live site: [enolalab.com](https://enolalab.com)
 
@@ -52,7 +53,7 @@ The single source of catalogue metadata is [`public/registry.json`](public/regis
 
 ## Metadata rules
 
-- Keep the registry limited to the five official product IDs listed above.
+- Keep the registry limited to the six official product IDs listed above.
 - Keep `docsUrl`, `repoUrl`, and any non-null `releaseUrl` HTTPS-only and verify that each link resolves to the product's official source.
 - Write summaries from the product's official documentation, README, repository, or release notes. Do not add unsupported claims.
 - Preserve stable IDs and the existing field shape so links, validation, and UI rendering remain compatible.

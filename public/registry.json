@@ -68,6 +68,19 @@
       "releaseUrl": null,
       "thumbnail": null,
       "featured": false
+    },
+    {
+      "id": "java-interview-drill",
+      "name": "Java Interview Drill",
+      "summary": "A focused senior-level Java interview practice drill with timed questions, explanations, and progress tracking.",
+      "status": "active",
+      "category": "developer-tools",
+      "techStack": ["HTML", "CSS", "JavaScript"],
+      "docsUrl": "https://enolalab.com/java-interview-drill.html",
+      "repoUrl": "https://github.com/enolalab/showcase",
+      "releaseUrl": null,
+      "thumbnail": null,
+      "featured": true
     }
   ]
 }

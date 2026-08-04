@@ -24,6 +24,7 @@ const officialProductIds = [
   'grid-screen',
   'linear-cli',
   'sunbeam',
+  'java-interview-drill',
 ] as const;
 const officialProductIdSet = new Set<string>(officialProductIds);
 

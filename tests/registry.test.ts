@@ -56,9 +56,28 @@ const products = [
     techStack: ['Java', 'Spring Boot', 'OpenCV'],
     featured: false,
   },
+  {
+    ...product,
+    id: 'java-interview-drill',
+    name: 'Java Interview Drill',
+    summary: 'A focused senior-level Java interview practice drill with timed questions, explanations, and progress tracking.',
+    docsUrl: 'https://enolalab.com/java-interview-drill.html',
+    repoUrl: 'https://github.com/enolalab/showcase',
+    releaseUrl: null,
+    category: 'developer-tools',
+    techStack: ['HTML', 'CSS', 'JavaScript'],
+    featured: true,
+  },
 ];
 
-const officialProductIds = ['dotagen', 'sunset', 'grid-screen', 'linear-cli', 'sunbeam'];
+const officialProductIds = [
+  'dotagen',
+  'sunset',
+  'grid-screen',
+  'linear-cli',
+  'sunbeam',
+  'java-interview-drill',
+];
 
 const registryInput = (products: unknown[]) => ({
   meta: { name: 'Enolalab', description: 'Products' },
@@ -72,6 +91,10 @@ describe('parseRegistry', () => {
     expect(getProductById(registry, 'dotagen')).toMatchObject({
       id: 'dotagen',
       docsUrl: product.docsUrl,
+    });
+    expect(getProductById(registry, 'java-interview-drill')).toMatchObject({
+      docsUrl: 'https://enolalab.com/java-interview-drill.html',
+      featured: true,
     });
   });
 
@@ -91,7 +114,7 @@ describe('parseRegistry', () => {
   });
 
   it('rejects a registry with a missing official product ID', () => {
-    expect(() => parseRegistry(registryInput(products.slice(0, -1)))).toThrow(
+    expect(() => parseRegistry(registryInput(products.filter(({ id }) => id !== 'sunbeam')))).toThrow(
       /Registry product IDs.*missing.*sunbeam/i,
     );
   });
