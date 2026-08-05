@@ -248,6 +248,34 @@ body.nav-open .side{transform:none}
   body.drilling .side-top .t button{display:none}
 }
 
+/* ---------- code block ---------- */
+.codewrap{margin:18px 0 4px}
+.codewrap.inq{margin:0 0 24px}
+.codegrid{display:grid;gap:11px}
+.codegrid.two{grid-template-columns:1fr 1fr}
+@media (max-width:700px){.codegrid.two{grid-template-columns:1fr}}
+.code{border:1px solid var(--line);border-radius:11px;background:#0D1526;overflow:hidden}
+.code.bad{border-color:rgba(226,86,74,.34)}
+.code.good{border-color:rgba(63,208,142,.34)}
+.code-h{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dim);padding:9px 14px;border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.018);display:flex;align-items:center;gap:7px}
+.code.bad .code-h{color:var(--ember);background:rgba(226,86,74,.06)}
+.code.good .code-h{color:var(--mint);background:rgba(63,208,142,.06)}
+.code pre{margin:0;padding:14px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+  line-height:1.72;-webkit-overflow-scrolling:touch;scrollbar-width:thin;tab-size:2}
+.code pre::-webkit-scrollbar{height:6px}
+.code pre::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.code code{background:none;border:none;padding:0;color:var(--paper);font-size:inherit;
+  white-space:pre;display:block}
+.k{color:#C792EA} .s{color:#C3E88D} .cm{color:#5E739A;font-style:italic}
+.an{color:#F5A623} .ty{color:#82D8F5} .nu{color:#F78C6C} .fn{color:#82AAFF}
+.mk{color:var(--ember);font-weight:700} .ok{color:var(--mint);font-weight:700}
+@media (max-width:640px){
+  .code pre{font-size:11.5px;padding:12px;line-height:1.66}
+  .code-h{padding:8px 12px;font-size:9.5px}
+}
+
 /* ---------- responsive ---------- */
 @media (max-width:900px){
   .stats{grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -2185,6 +2213,406 @@ const QUESTIONS_5 = [
  "Tránh 'điểm yếu giả' kiểu 'tôi quá cầu toàn'.",
  "Kết bằng một nguyên tắc cụ thể bạn rút ra và đang áp dụng."]}
 ];
+/* ============ CODE MINH HOẠ ============
+   qc = code hiện KÈM câu hỏi (trước khi lộ đáp án)
+   c  = code minh hoạ trong đáp án
+   @@...@@ tô đỏ (sai / kết quả bất ngờ)   $$...$$ tô xanh (đúng)
+========================================= */
+const CODE = {
+
+"1.2": { c: [
+  { t: "Diamond quay lại từ Java 8", code:
+`interface A { default String hi() { return "A"; } }
+interface B { default String hi() { return "B"; } }
+
+// KHÔNG compile: compiler bắt bạn chọn
+class C implements A, B { }
+// error: class C inherits unrelated defaults for hi()
+
+class D implements A, B {
+    public String hi() {
+        return $$A.super.hi()$$;   // phải chỉ rõ
+    }
+}` } ] },
+
+"1.3": { c: [
+  { t: "Setter công khai — đóng gói chỉ còn hình thức", b: "bad", code:
+`public class Account {
+    private long balance;
+    public void setBalance(long b) { this.balance = b; }
+    public long getBalance() { return balance; }
+}
+
+// Không có chỗ nào chặn được điều này:
+account.setBalance(@@-999@@);` },
+  { t: "Method nghiệp vụ — quy tắc nằm cùng dữ liệu", b: "good", code:
+`public class Account {
+    private long balance;
+
+    public void deposit(long amount) {
+        if (amount <= 0)
+            throw new IllegalArgumentException("amount phải > 0");
+        this.balance += amount;
+    }
+
+    public void withdraw(long amount) {
+        if (amount > balance)
+            throw new InsufficientFundsException();
+        this.balance -= amount;
+    }
+    public long getBalance() { return balance; }
+}` } ] },
+
+"1.5": { qc: { t: "Kết quả in ra là gì?", code:
+`static void show(Object o) { System.out.println("Object"); }
+static void show(String s) { System.out.println("String"); }
+
+Object x = "abc";
+show(x);` },
+  c: [ { t: "In ra: Object", code:
+`// Overload được giải quyết LÚC COMPILE
+// dựa trên KIỂU KHAI BÁO của biến, không phải kiểu thật.
+Object x = "abc";
+show(x);            // -> @@"Object"@@  (không phải "String")
+
+show((String) x);   // -> $$"String"$$  ép kiểu thì compiler mới chọn đúng
+
+// Đối lập: overriding chọn lúc RUNTIME theo object thật
+Animal a = new Dog();
+a.speak();          // -> $$"Gâu"$$ (bản của Dog)` } ] },
+
+"1.6": { c: [
+  { t: "Overriding — runtime, theo object thật", code:
+`class Animal {
+    protected String speak() { return "..."; }
+    Animal reproduce() { return new Animal(); }
+}
+class Dog extends Animal {
+    @Override
+    public String speak() { return "Gâu"; }   // nới rộng access: OK
+
+    @Override
+    $$Dog$$ reproduce() { return new Dog(); }  // covariant return: OK
+}` },
+  { t: "Overloading — compile-time, khác tham số", code:
+`class Printer {
+    void print(int x)    { }
+    void print(long x)   { }
+    void print(String s) { }
+
+    // KHÔNG compile: chỉ khác kiểu trả về
+    // @@int print(String s) { return 0; }@@
+}` } ] },
+
+"1.10": { c: [
+  { t: "Bốn cách chặn override — và hệ quả với Spring", code:
+`@Service
+public class OrderService {
+
+    @Transactional
+    public void ok() { }              // $$được proxy$$
+
+    @Transactional
+    final void a() { }                // @@final: CGLIB không override được@@
+
+    @Transactional
+    private void b() { }              // @@private: proxy không thấy@@
+
+    @Transactional
+    static void c() { }               // @@static: không dynamic dispatch@@
+}
+// a(), b(), c() chạy KHÔNG có transaction — và không hề báo lỗi.` } ] },
+
+"1.12": { qc: { t: "Dòng cuối in ra gì?", code:
+`class Parent {
+    static String who()  { return "Parent"; }
+    String  whoInst()    { return "Parent"; }
+}
+class Child extends Parent {
+    static String who()  { return "Child"; }
+    String  whoInst()    { return "Child"; }
+}
+
+Parent p = new Child();
+System.out.println(p.who() + " / " + p.whoInst());` },
+  c: [ { t: "In ra: Parent / Child", code:
+`Parent p = new Child();
+
+p.who()      // -> @@"Parent"@@   static: chọn theo KIỂU KHAI BÁO (invokestatic)
+p.whoInst()  // -> $$"Child"$$    instance: chọn theo OBJECT THẬT (invokevirtual)
+
+// static không có entry trong virtual method table,
+// nên JVM không có gì để tra cứu lúc runtime.
+
+// Vì dễ nhầm, luôn gọi static qua tên class:
+Parent.who();   // rõ ràng, linter cũng khuyến nghị` } ] },
+
+"1.14": { qc: { t: "Dòng nào KHÔNG compile?", code:
+`final List<String> list = new ArrayList<>();
+
+list.add("a");                    // (1)
+list.clear();                     // (2)
+list = new ArrayList<>();         // (3)` },
+  c: [ { t: "Chỉ dòng (3) lỗi — final khoá reference, không khoá nội dung", code:
+`final List<String> list = new ArrayList<>();
+list.add("a");              // $$OK$$ — sửa nội dung object
+list.clear();               // $$OK$$
+// list = new ArrayList<>(); // @@lỗi compile@@ — gán lại reference
+
+// Muốn thật sự không sửa được nội dung:
+List<String> ro = List.of("a", "b");
+ro.add("c");                // @@UnsupportedOperationException lúc runtime@@` },
+  { t: "Immutable thật cần defensive copy", code:
+`public final class Team {
+    private final List<String> members;
+
+    public Team(List<String> members) {
+        this.members = $$List.copyOf(members)$$;   // copy ở constructor
+    }
+    public List<String> getMembers() {
+        return $$members$$;   // đã bất biến nên trả thẳng được
+    }
+}
+
+// Nếu thiếu copy ở constructor:
+List<String> src = new ArrayList<>(List.of("An"));
+Team t = new Team(src);
+src.add("Bình");            // @@nội dung Team bị đổi từ bên ngoài@@` } ] },
+
+"1.16": { qc: { t: "Sau khi chạy, x.name và y.name là gì?", code:
+`static void swap(User a, User b) { User t = a; a = b; b = t; }
+static void rename(User a)       { a.setName("Z"); }
+
+User x = new User("X");
+User y = new User("Y");
+
+swap(x, y);
+rename(x);`},
+  c: [ { t: "x.name = \"Z\", y.name = \"Y\" — swap không có tác dụng", code:
+`// swap: a, b chỉ là BẢN COPY của địa chỉ, nằm trên stack frame
+// của method swap. Hoán đổi chúng không đụng gì tới x, y bên ngoài.
+swap(x, y);     // @@x vẫn là X, y vẫn là Y@@
+
+// rename: a cũng là bản copy của địa chỉ,
+// nhưng nó trỏ tới CÙNG object trên heap -> sửa được nội dung.
+rename(x);      // $$x.name trở thành "Z"$$
+
+// => Java luôn pass-by-value; với object thì "value" là địa chỉ.` } ] },
+
+"2.4": { qc: { t: "Tạo ra bao nhiêu object String?", code:
+`String s1 = "quan";
+String s2 = "quan";
+String s3 = "hello";
+String s4 = new String("quan");` },
+  c: [ { t: "3 object — literal dùng chung, new luôn tạo mới", code:
+`String s1 = "quan";              // (1) vào String Pool
+String s2 = "quan";              // dùng lại (1), KHÔNG tạo mới
+String s3 = "hello";             // (2) vào Pool
+String s4 = new String("quan");  // (3) trên heap, NGOÀI Pool
+
+s1 == s2              // $$true$$   cùng object trong Pool
+s1 == s4              // @@false@@  khác vùng nhớ
+s1.equals(s4)         // $$true$$   cùng nội dung
+s1 == s4.intern()     // $$true$$   intern trả reference trong Pool` } ] },
+
+"2.5": { c: [
+  { t: "Vì sao == chạy đúng ở dev rồi sai ở production", code:
+`String a = "ADMIN";
+String b = "ADMIN";
+a == b                          // $$true$$  — cả hai là literal, cùng Pool
+
+String c = getRoleFromDb();     // "ADMIN" đọc từ database
+a == c                          // @@false@@ — object mới, ngoài Pool
+a.equals(c)                     // $$true$$
+
+// Nối lúc compile vẫn vào Pool:
+String d = "AD" + "MIN";
+a == d                          // $$true$$  — compiler gộp thành 1 literal
+
+// Nhưng nối lúc runtime thì không:
+String p = "AD";
+String e = p + "MIN";
+a == e                          // @@false@@` },
+  { t: "Cách viết an toàn", code:
+`Objects.equals(a, c)      // $$null-safe cả hai vế$$
+"ADMIN".equals(role)      // $$đảo vế: role null cũng không NPE$$
+role.equals("ADMIN")      // @@NPE nếu role null@@` } ] },
+
+"2.7": { c: [
+  { t: "Nối bằng += trong loop — O(n²)", b: "bad", code:
+`String s = "";
+for (int i = 0; i < 10_000; i++) {
+    @@s += i + ",";@@
+    // mỗi vòng: new StringBuilder -> append(s) -> append(i)
+    //           -> toString() -> String cũ thành rác
+}
+// tổng chi phí copy: 1 + 2 + ... + n = O(n²)` },
+  { t: "StringBuilder ngoài loop — O(n)", b: "good", code:
+`StringBuilder sb = new StringBuilder($$60_000$$);  // đặt sẵn capacity
+for (int i = 0; i < 10_000; i++) {
+    sb.append(i).append(',');
+}
+String s = sb.toString();
+
+// Hoặc gọn hơn nếu đã có collection:
+String s2 = list.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));` } ] },
+
+"2.8": { c: [
+  { t: "Compiler tối ưu được — nhưng chỉ trong MỘT biểu thức", code:
+`// Bạn viết:
+String r = a + b + c;
+
+// Compiler sinh ra (khái niệm, Java 8):
+String r = new StringBuilder().append(a).append(b).append(c).toString();
+// $$một StringBuilder cho cả biểu thức -> hoàn toàn ổn$$` },
+  { t: "Trong loop, mỗi vòng là một biểu thức riêng", code:
+`for (int i = 0; i < n; i++) {
+    s += x;
+    // trở thành:
+    // s = @@new StringBuilder()@@.append(s).append(x).toString();
+    //     ^ tạo mới MỖI VÒNG, và append(s) copy lại toàn bộ chuỗi cũ
+}
+// Java 9+ đổi sang invokedynamic + StringConcatFactory:
+// nhanh hơn trong biểu thức đơn, nhưng @@vẫn O(n²) trong loop@@` } ] },
+
+"3.11": { c: [
+  { t: "Bốn nguồn leak kinh điển", b: "bad", code:
+`// 1. Static collection phình mãi
+private static final Map<String, User> CACHE = new HashMap<>();
+void onRequest(User u) { @@CACHE.put(u.getId(), u);@@ }  // không bao giờ xoá
+
+// 2. ThreadLocal trong thread pool
+private static final ThreadLocal<Context> CTX = new ThreadLocal<>();
+void handle() { CTX.set(new Context()); ... }   // @@thiếu remove()@@
+
+// 3. Listener đăng ký mà không gỡ
+eventBus.register(this);                        // @@thiếu unregister@@
+
+// 4. Cache không TTL, không giới hạn kích thước
+Map<Long, byte[]> images = new ConcurrentHashMap<>();` },
+  { t: "Cách viết an toàn", b: "good", code:
+`// ThreadLocal: luôn remove trong finally
+try {
+    CTX.set(ctx);
+    handle();
+} finally {
+    $$CTX.remove();$$
+}
+
+// Cache: dùng thư viện có TTL và giới hạn
+Cache<Long, byte[]> images = Caffeine.newBuilder()
+        .$$maximumSize(10_000)$$
+        .$$expireAfterWrite(Duration.ofMinutes(30))$$
+        .build();` },
+  { t: "Bật sẵn heap dump để có bằng chứng khi sự cố xảy ra", code:
+`java -XX:+HeapDumpOnOutOfMemoryError \\
+     -XX:HeapDumpPath=/var/log/app/heap.hprof \\
+     -Xlog:gc*:file=/var/log/app/gc.log \\
+     -jar app.jar
+
+# phân tích: mở heap.hprof bằng Eclipse MAT
+#   -> Dominator Tree   : ai đang giữ nhiều bộ nhớ nhất
+#   -> Path to GC Roots : vì sao nó chưa được thu hồi` } ] },
+
+"3.14": { c: [
+  { t: "Vì sao ThreadLocal rò rỉ trong thread pool", code:
+`// Bên trong JDK (rút gọn):
+static class ThreadLocalMap {
+    static class Entry extends @@WeakReference@@<ThreadLocal<?>> {
+        Object $$value$$;   // <- STRONG reference
+    }
+}
+
+// Hệ quả: key (ThreadLocal) bị GC dọn, nhưng value thì không.
+// Thread trong pool sống mãi -> value bị giữ mãi.
+// Tệ hơn: dữ liệu của request trước còn sót lại
+// và có thể lộ sang request sau -> lỗi bảo mật thật sự.` },
+  { t: "Bốn loại reference", code:
+`Object o = new Object();                          // strong
+
+SoftReference<byte[]> soft   = new SoftReference<>(data);
+// dọn khi sắp hết bộ nhớ -> hợp làm cache
+
+WeakReference<Key> weak      = new WeakReference<>(k);
+// dọn ở lần GC kế tiếp -> WeakHashMap, metadata
+
+PhantomReference<Res> ph     = new PhantomReference<>(r, queue);
+// get() luôn null; chỉ để nhận thông báo sau khi đã thu hồi
+// -> dọn tài nguyên native, thay cho finalize()` } ] }
+};
+/* ============ SYNTAX HIGHLIGHT (Java) ============ */
+const KW = ('abstract assert boolean break byte case catch char class const continue default do ' +
+  'double else enum extends final finally float for goto if implements import instanceof int ' +
+  'interface long native new package private protected public return short static strictfp super ' +
+  'switch synchronized this throw throws transient try void volatile while var record yield ' +
+  'sealed permits non-sealed true false null').split(' ');
+
+const TYPES = ('String Integer Long Double Boolean Object List ArrayList LinkedList Map HashMap ' +
+  'TreeMap LinkedHashMap Set HashSet TreeSet Optional Stream Thread Runnable Callable Future ' +
+  'CompletableFuture Exception RuntimeException IOException Error StringBuilder StringBuffer ' +
+  'BigDecimal LocalDate LocalDateTime AtomicInteger AtomicLong ConcurrentHashMap ExecutorService ' +
+  'ThreadPoolExecutor ThreadLocal ReentrantLock Comparator Comparable Iterator Collection ' +
+  'Entry Arrays Collections Objects Math System User Order Item Account Payment Node ' +
+  'Person Product Customer Invoice Repository Service Controller Event Message Record ' +
+  'BlockingQueue LinkedBlockingQueue CountDownLatch Semaphore Class Number Character Byte Short ' +
+  'Float Void Iterable Function Supplier Consumer Predicate Instant Duration UUID').split(' ');
+
+function hl(src) {
+  const store = [];
+  // Placeholder dùng ký tự Private Use Area, KHÔNG dùng chữ số —
+  // nếu dùng số thì chính regex bắt số sẽ nuốt mất placeholder.
+  const keep = t => '\u0000' + String.fromCodePoint(0xE000 + store.push(t) - 1) + '\u0000';
+
+  let s = src
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Dấu đánh dấu thủ công phải xử lý TRƯỚC comment/chuỗi,
+  // vì phần lớn chúng nằm bên trong comment giải thích.
+  s = s.replace(/@@([^@]+)@@/g, (_, t) => keep('<span class="mk">' + t + '</span>'));
+  s = s.replace(/\$\$([^$]+)\$\$/g, (_, t) => keep('<span class="ok">' + t + '</span>'));
+
+  // bảo toàn comment và chuỗi
+  s = s.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, m => keep('<span class="cm">' + m + '</span>'));
+  s = s.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, m => keep('<span class="s">' + m + '</span>'));
+
+  // annotation
+  s = s.replace(/@[A-Z]\w*/g, m => keep('<span class="an">' + m + '</span>'));
+  // số
+  s = s.replace(/\b\d[\d_]*[LlFfDd]?\b/g, m => keep('<span class="nu">' + m + '</span>'));
+  // từ khoá
+  s = s.replace(new RegExp('\\b(' + KW.join('|') + ')\\b', 'g'),
+    m => keep('<span class="k">' + m + '</span>'));
+  // kiểu quen thuộc
+  s = s.replace(new RegExp('\\b(' + TYPES.join('|') + ')\\b', 'g'),
+    m => keep('<span class="ty">' + m + '</span>'));
+  // lời gọi method
+  s = s.replace(/\.([a-z]\w*)(?=\s*\()/g, (_, n) => '.' + keep('<span class="fn">' + n + '</span>'));
+
+  // Khôi phục lặp lại vì placeholder có thể lồng nhau
+  // (ví dụ marker nằm bên trong comment).
+  let guard = 0;
+  while (s.indexOf('\u0000') !== -1 && guard++ < 20) {
+    s = s.replace(/\u0000([\uE000-\uF8FF])\u0000/g,
+      (m, ch) => store[ch.codePointAt(0) - 0xE000] ?? m);
+  }
+  return s;
+}
+
+function codeBlock(list, inQuestion) {
+  const arr = Array.isArray(list) ? list : [list];
+  const two = arr.length === 2 && arr.every(c => (c.code || '').split('\n').length <= 16);
+  return `<div class="codewrap${inQuestion ? ' inq' : ''}">
+    <div class="codegrid${two ? ' two' : ''}">
+      ${arr.map(c => `
+        <div class="code ${c.b || ''}">
+          ${c.t ? `<div class="code-h">${c.b === 'bad' ? '✕' : c.b === 'good' ? '✓' : '›'} ${c.t}</div>` : ''}
+          <pre><code>${hl(c.code.trim())}</code></pre>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
 /* ============ ANIMATION MODULE ============ */
 const ANIM_CSS = `
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -2708,6 +3136,7 @@ const ANIM_TITLE={
 /* ============ APP ============ */
 const ALL = [].concat(QUESTIONS, QUESTIONS_2, QUESTIONS_3, QUESTIONS_4, QUESTIONS_5);
 const TMAP = Object.fromEntries(TOPICS.map(t => [t.id, t]));
+if (typeof CODE === 'object') ALL.forEach(q => { if (CODE[q.id]) Object.assign(q, CODE[q.id]); });
 const app = document.getElementById('app');
 const ctr = document.getElementById('ctr');
 const prog = document.getElementById('prog');
@@ -2858,6 +3287,7 @@ function renderCard() {
     <span class="qid">${q.id}</span>
   </div>
   <div class="q">${q.q}</div>
+  ${q.qc ? codeBlock(q.qc, true) : ''}
   <div class="stage" id="stage">
     <div class="clock" id="clock">0:00</div>
     <p>Nói to câu trả lời của bạn. Nhắm 60–90 giây, đúng nhịp phỏng vấn thật.</p>
@@ -2889,6 +3319,7 @@ function reveal() {
     <ul class="frames">
       ${q.a.map((l, i) => `<li style="animation-delay:${(i * .075).toFixed(2)}s">${l}</li>`).join('')}
     </ul>
+    ${q.c ? codeBlock(q.c) : ''}
     ${q.trap ? `<div class="trapbox"><b>Bẫy</b><span>Câu trả lời theo trực giác thường sai ở đây.
       Nếu bạn vừa trả lời khác đáp án, hãy chấm <i>Trắng đầu</i> — nó sẽ quay lại sớm.</span></div>` : ''}
     ${q.anim && ANIM[q.anim] ? `
