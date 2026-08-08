@@ -228,6 +228,289 @@ const TOPICS = [
   { id: 20, name: "Best Practices", desc: "Performance, testing, architecture" }
 ];
 
+const TUTORIALS = [
+  // Topic 1: Java Basics
+  {
+    id: "t-1-1",
+    topicId: 1,
+    versions: [8, 11, 17, 21],
+    title: "Understanding Java Variables and Primitive Types",
+    content: "Learn about Java's primitive types (int, long, float, double, boolean, char) and how they differ from reference types. Understand type casting and auto-boxing.",
+    example: "int age = 25;\nlong population = 8000000000L;\ndouble pi = 3.14159;\nboolean isActive = true;",
+    keyPoints: ["Primitive types vs reference types", "Type casting and conversion", "Auto-boxing and unboxing"]
+  },
+  {
+    id: "t-1-2",
+    topicId: 1,
+    versions: [8, 11, 17, 21],
+    title: "Control Flow: If-Else, Loops, and Switch",
+    content: "Master conditional statements and loops. Understand the differences between for, while, and enhanced for loops.",
+    example: "for (int i = 0; i < 10; i++) {\n  if (i % 2 == 0) System.out.println(i);\n}\nswitch (day) {\n  case 1: System.out.println(\"Monday\");\n}",
+    keyPoints: ["If-else-if chains", "For and while loops", "Switch statements and break"]
+  },
+  {
+    id: "t-1-3",
+    topicId: 1,
+    versions: [8, 11, 17, 21],
+    title: "Arrays and ArrayLists",
+    content: "Work with arrays and the ArrayList class. Understand fixed-size arrays vs dynamic collections.",
+    example: "int[] numbers = {1, 2, 3, 4, 5};\nList<Integer> list = new ArrayList<>();\nlist.add(10);",
+    keyPoints: ["Fixed-size arrays", "Dynamic ArrayLists", "Iteration and access patterns"]
+  },
+  {
+    id: "t-1-4",
+    topicId: 1,
+    versions: [8, 11, 17, 21],
+    title: "Operators and Operator Precedence",
+    content: "Understand arithmetic, logical, and bitwise operators. Learn operator precedence to avoid bugs.",
+    example: "int result = 5 + 3 * 2;  // 11, not 16\nboolean flag = true && false || true;  // true",
+    keyPoints: ["Arithmetic and logical operators", "Operator precedence", "Ternary operator"]
+  },
+  {
+    id: "t-1-5",
+    topicId: 1,
+    versions: [8, 11, 17, 21],
+    title: "Scope and Variable Lifetime",
+    content: "Understand variable scope (local, class, and parameter). Learn about variable shadowing and the dangers it poses.",
+    example: "{\n  int x = 10;  // local scope\n  {\n    int x = 20;  // shadows outer x\n  }\n}",
+    keyPoints: ["Local vs instance variables", "Variable shadowing", "Scope rules"]
+  },
+
+  // Topic 2: OOP Core
+  {
+    id: "t-2-1",
+    topicId: 2,
+    versions: [8, 11, 17, 21],
+    title: "Classes, Objects, and Constructors",
+    content: "Learn how to define classes and create objects. Understand constructors and constructor overloading.",
+    example: "class Person {\n  String name;\n  int age;\n  Person(String name, int age) {\n    this.name = name;\n    this.age = age;\n  }\n}",
+    keyPoints: ["Class definition", "Constructors", "this keyword"]
+  },
+  {
+    id: "t-2-2",
+    topicId: 2,
+    versions: [8, 11, 17, 21],
+    title: "Inheritance and Method Overriding",
+    content: "Master inheritance hierarchy. Understand method overriding, super keyword, and constructor chaining.",
+    example: "class Animal {\n  void speak() { System.out.println(\"Sound\"); }\n}\nclass Dog extends Animal {\n  @Override\n  void speak() { System.out.println(\"Woof\"); }\n}",
+    keyPoints: ["Extends keyword", "Method overriding", "super keyword", "Constructor chaining"]
+  },
+  {
+    id: "t-2-3",
+    topicId: 2,
+    versions: [8, 11, 17, 21],
+    title: "Interfaces and Abstract Classes",
+    content: "Understand contracts defined by interfaces and abstract classes. Learn when to use each.",
+    example: "interface Animal {\n  void speak();\n}\nabstract class Mammal implements Animal {\n  abstract void sleep();\n}",
+    keyPoints: ["Interface contracts", "Abstract classes", "Multiple interface implementation"]
+  },
+  {
+    id: "t-2-4",
+    topicId: 2,
+    versions: [8, 11, 17, 21],
+    title: "Polymorphism and Dynamic Dispatch",
+    content: "Leverage polymorphism to write flexible code. Understand method resolution order.",
+    example: "List<Animal> animals = Arrays.asList(new Dog(), new Cat());\nfor (Animal a : animals) a.speak();  // Calls overridden methods",
+    keyPoints: ["Runtime polymorphism", "Method resolution", "Liskov Substitution Principle"]
+  },
+  {
+    id: "t-2-5",
+    topicId: 2,
+    versions: [8, 11, 17, 21],
+    title: "Access Modifiers and Encapsulation",
+    content: "Control visibility with public, private, protected. Implement getter/setter pattern.",
+    example: "public class Account {\n  private double balance;\n  public double getBalance() { return balance; }\n  public void deposit(double amount) { balance += amount; }\n}",
+    keyPoints: ["Access modifiers", "Encapsulation", "Information hiding"]
+  },
+
+  // Topic 3: Collections
+  {
+    id: "t-3-1",
+    topicId: 3,
+    versions: [8, 11, 17, 21],
+    title: "List Interface and Implementations",
+    content: "Work with ArrayList, LinkedList, and other List implementations. Understand performance characteristics.",
+    example: "List<String> list = new ArrayList<>();\nlist.add(\"Java\");\nlist.add(0, \"Hello\");\nfor (String item : list) System.out.println(item);",
+    keyPoints: ["ArrayList vs LinkedList", "Add, remove, get operations", "Iteration methods"]
+  },
+  {
+    id: "t-3-2",
+    topicId: 3,
+    versions: [8, 11, 17, 21],
+    title: "Set Interface and Uniqueness",
+    content: "Use HashSet, TreeSet, and LinkedHashSet. Understand how they maintain uniqueness.",
+    example: "Set<Integer> numbers = new HashSet<>(Arrays.asList(1, 2, 2, 3));\nSystem.out.println(numbers);  // [1, 2, 3]",
+    keyPoints: ["HashSet performance", "TreeSet ordering", "LinkedHashSet insertion order"]
+  },
+  {
+    id: "t-3-3",
+    topicId: 3,
+    versions: [8, 11, 17, 21],
+    title: "Map Interface and Key-Value Storage",
+    content: "Store and retrieve data with HashMap, TreeMap, and ConcurrentHashMap.",
+    example: "Map<String, Integer> scores = new HashMap<>();\nscores.put(\"Alice\", 95);\nscores.put(\"Bob\", 87);\nInteger aliceScore = scores.get(\"Alice\");",
+    keyPoints: ["HashMap basics", "Key-value operations", "Iteration patterns"]
+  },
+  {
+    id: "t-3-4",
+    topicId: 3,
+    versions: [8, 11, 17, 21],
+    title: "Iterators and Enhancement for Loop",
+    content: "Master different iteration approaches. Know when to use Iterator vs enhanced for loop.",
+    example: "Iterator<String> it = list.iterator();\nwhile (it.hasNext()) {\n  String item = it.next();\n  it.remove();  // Safe removal\n}",
+    keyPoints: ["Iterator pattern", "ConcurrentModificationException", "Enhanced for loop"]
+  },
+  {
+    id: "t-3-5",
+    topicId: 3,
+    versions: [8, 11, 17, 21],
+    title: "Comparators and Sorting",
+    content: "Implement Comparable and Comparator interfaces. Sort collections efficiently.",
+    example: "List<String> words = Arrays.asList(\"java\", \"python\", \"go\");\nCollections.sort(words);\nwords.sort((a, b) -> b.length() - a.length());  // Reverse by length",
+    keyPoints: ["Comparable interface", "Comparator interface", "Sorting strategies"]
+  },
+
+  // Topic 8: Lambdas (Java 8+)
+  {
+    id: "t-8-1",
+    topicId: 8,
+    versions: [8, 11, 17, 21],
+    title: "Introduction to Lambda Expressions",
+    content: "Learn the basics of lambda syntax. Understand how lambdas replace anonymous inner classes.",
+    example: "// Before Java 8\nRunnable r = new Runnable() {\n  public void run() { System.out.println(\"Hello\"); }\n};\n// Java 8+\nRunnable r = () -> System.out.println(\"Hello\");",
+    keyPoints: ["Lambda syntax", "Functional interfaces", "Closure and variable capture"]
+  },
+  {
+    id: "t-8-2",
+    topicId: 8,
+    versions: [8, 11, 17, 21],
+    title: "Method References and Function Composition",
+    content: "Use method references (::) for cleaner code. Compose functions elegantly.",
+    example: "// Lambda\nlist.forEach(s -> System.out.println(s));\n// Method reference\nlist.forEach(System.out::println);\n// Type constructor reference\nFunction<Integer, String> converter = String::valueOf;",
+    keyPoints: ["Method reference syntax", "Static and instance methods", "Constructor references"]
+  },
+  {
+    id: "t-8-3",
+    topicId: 8,
+    versions: [8, 11, 17, 21],
+    title: "Functional Interfaces and Built-in Types",
+    content: "Master java.util.function interfaces: Function, Predicate, Consumer, Supplier.",
+    example: "Predicate<Integer> isEven = n -> n % 2 == 0;\nConsumer<String> print = System.out::println;\nFunction<Integer, Integer> square = x -> x * x;\nSupplier<LocalDateTime> now = LocalDateTime::now;",
+    keyPoints: ["Predicate interface", "Consumer interface", "Function interface", "Supplier interface"]
+  },
+
+  // Topic 9: Streams API (Java 8+)
+  {
+    id: "t-9-1",
+    topicId: 9,
+    versions: [8, 11, 17, 21],
+    title: "Stream Basics: Creation and Intermediate Operations",
+    content: "Create streams and apply transformations. Master filter, map, and flatMap operations.",
+    example: "List<String> words = Arrays.asList(\"java\", \"python\", \"go\");\nwords.stream()\n  .filter(w -> w.length() > 2)\n  .map(String::toUpperCase)\n  .forEach(System.out::println);",
+    keyPoints: ["Stream creation", "Filter operation", "Map transformation", "Lazy evaluation"]
+  },
+  {
+    id: "t-9-2",
+    topicId: 9,
+    versions: [8, 11, 17, 21],
+    title: "Terminal Operations and Collectors",
+    content: "Collect stream results. Master collect(), reduce(), count(), and aggregation operations.",
+    example: "List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);\nint sum = numbers.stream().reduce(0, Integer::sum);\nList<String> upper = words.stream().map(String::toUpperCase).collect(Collectors.toList());\nMap<Integer, List<String>> grouped = words.stream().collect(Collectors.groupingBy(String::length));",
+    keyPoints: ["Collector interface", "Reduce operation", "groupingBy", "partitioningBy"]
+  },
+  {
+    id: "t-9-3",
+    topicId: 9,
+    versions: [8, 11, 17, 21],
+    title: "Parallel Streams and Performance",
+    content: "Leverage parallel streams for data parallelism. Understand when to use parallel() and performance implications.",
+    example: "List<Integer> numbers = IntStream.rangeClosed(1, 1000000).boxed().collect(Collectors.toList());\nlong count = numbers.parallelStream().filter(n -> isPrime(n)).count();\n// Be careful: parallelStream has overhead for small datasets",
+    keyPoints: ["Parallel streams", "ForkJoinPool", "Performance considerations", "Thread safety"]
+  },
+  {
+    id: "t-9-4",
+    topicId: 9,
+    versions: [8, 11, 17, 21],
+    title: "Advanced Stream Operations: flatMap and Complex Transformations",
+    content: "Use flatMap to flatten nested structures. Chain operations for complex data transformations.",
+    example: "List<List<Integer>> matrix = Arrays.asList(\n  Arrays.asList(1, 2),\n  Arrays.asList(3, 4)\n);\nList<Integer> flattened = matrix.stream().flatMap(List::stream).collect(Collectors.toList());\n// Output: [1, 2, 3, 4]",
+    keyPoints: ["flatMap operation", "Nested stream handling", "Complex pipelines"]
+  },
+
+  // Topic 14: Records (Java 17+)
+  {
+    id: "t-14-1",
+    topicId: 14,
+    versions: [17, 21],
+    title: "Introduction to Records",
+    content: "Replace boilerplate data classes with Records. Understand immutability and compact constructors.",
+    example: "// Before Java 17\npublic class Point {\n  private final int x, y;\n  public Point(int x, int y) { this.x = x; this.y = y; }\n}\n// Java 17+\npublic record Point(int x, int y) { }",
+    keyPoints: ["Record syntax", "Automatic equals/hashCode", "Compact constructors"]
+  },
+  {
+    id: "t-14-2",
+    topicId: 14,
+    versions: [17, 21],
+    title: "Record Components and Custom Methods",
+    content: "Add custom methods and validation to records. Understand component and record patterns.",
+    example: "public record Person(String name, int age) {\n  public Person {\n    if (age < 0) throw new IllegalArgumentException(\"Age must be positive\");\n  }\n  public boolean isAdult() { return age >= 18; }\n}",
+    keyPoints: ["Compact constructors", "Custom methods", "Validation in records"]
+  },
+
+  // Topic 17: Virtual Threads (Java 21+)
+  {
+    id: "t-17-1",
+    topicId: 17,
+    versions: [21],
+    title: "Introduction to Virtual Threads",
+    content: "Replace heavy platform threads with lightweight virtual threads. Handle millions of concurrent operations.",
+    example: "try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {\n  for (int i = 0; i < 1000000; i++) {\n    executor.submit(() -> {\n      // Task runs on virtual thread\n      doWork();\n    });\n  }\n}",
+    keyPoints: ["Virtual threads vs platform threads", "Executor framework", "Structured concurrency"]
+  },
+
+  // Topic 18: Concurrency
+  {
+    id: "t-18-1",
+    topicId: 18,
+    versions: [8, 11, 17, 21],
+    title: "Threads and Thread Lifecycle",
+    content: "Create and manage threads. Understand thread states and lifecycle.",
+    example: "Thread t = new Thread(() -> {\n  System.out.println(\"Running in thread: \" + Thread.currentThread().getName());\n});\nt.start();  // Start thread (don't call run() directly)",
+    keyPoints: ["Thread creation", "Thread states", "Thread naming", "currentThread()"]
+  },
+  {
+    id: "t-18-2",
+    topicId: 18,
+    versions: [8, 11, 17, 21],
+    title: "Synchronization and Locks",
+    content: "Prevent race conditions. Master synchronized keyword and Lock interfaces.",
+    example: "class Counter {\n  private synchronized int getAndIncrement() { return ++count; }\n}\n// Modern approach\nclass SafeCounter {\n  private final Lock lock = new ReentrantLock();\n  public int getAndIncrement() {\n    lock.lock();\n    try { return ++count; } finally { lock.unlock(); }\n  }\n}",
+    keyPoints: ["Synchronized keyword", "Race conditions", "Lock interface", "Deadlock prevention"]
+  },
+
+  // Topic 19: Design Patterns
+  {
+    id: "t-19-1",
+    topicId: 19,
+    versions: [8, 11, 17, 21],
+    title: "Creational Patterns: Singleton and Factory",
+    content: "Implement Singleton and Factory patterns for object creation.",
+    example: "// Singleton\npublic class Database {\n  private static final Database INSTANCE = new Database();\n  private Database() { }\n  public static Database getInstance() { return INSTANCE; }\n}\n// Factory\ninterface Shape { }\nclass ShapeFactory {\n  public static Shape create(String type) {\n    return switch(type) {\n      case \"circle\" -> new Circle();\n      case \"square\" -> new Square();\n      default -> null;\n    };\n  }\n}",
+    keyPoints: ["Singleton pattern", "Factory pattern", "Object creation"]
+  },
+
+  // Topic 20: Best Practices
+  {
+    id: "t-20-1",
+    topicId: 20,
+    versions: [8, 11, 17, 21],
+    title: "Writing Clean, Maintainable Code",
+    content: "Follow naming conventions, keep methods small, and write self-documenting code.",
+    example: "// Bad\nint d = 5;  // days elapsed\nList<String> l1 = getList();\n\n// Good\nint daysElapsed = 5;\nList<String> activeUsers = getUserList();\n\n// Best: Constants\nprivate static final int DEFAULT_CAPACITY = 16;",
+    keyPoints: ["Naming conventions", "Method size", "Comments and documentation"]
+  }
+];
+
 // State
 let currentMode = 'tutorials';
 let currentTopic = 1;
@@ -283,16 +566,54 @@ function selectTopic(id) {
 
 function renderTutorial(topicId) {
   const topic = TOPICS.find(t => t.id === topicId);
+  const tutorialsForTopic = TUTORIALS.filter(t => t.topicId === topicId);
   const content = document.getElementById('tutorials-content');
+
+  if (tutorialsForTopic.length === 0) {
+    content.innerHTML = `
+      <div>
+        <h2>${topic.name}</h2>
+        <p class="lede">${topic.desc}</p>
+        <div class="placeholder" style="margin-top: 40px">
+          📝 Tutorials for ${topic.name} coming soon...
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   content.innerHTML = `
     <div>
       <h2>${topic.name}</h2>
       <p class="lede">${topic.desc}</p>
-      <div class="placeholder" style="margin-top: 40px">
-        📝 Tutorial content for ${topic.name} coming soon...
+      <div class="sec" style="margin-top: 32px">
+        ${tutorialsForTopic.map(t => `
+          <div style="margin-bottom: 32px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel)">
+            <div style="display: flex; gap: 8px; margin-bottom: 12px">
+              ${t.versions.map(v => `<span class="tag v${v}">Java ${v}</span>`).join('')}
+            </div>
+            <h3 style="font-family: var(--disp); font-size: 18px; margin-bottom: 12px">${t.title}</h3>
+            <p style="color: var(--muted); margin-bottom: 16px">${t.content}</p>
+            <div style="background: var(--panel2); padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--line)">
+              <pre style="margin: 0; overflow-x: auto"><code>${escapeHtml(t.example)}</code></pre>
+            </div>
+            <div>
+              <strong style="color: var(--azure)">Key Points:</strong>
+              <ul style="margin: 8px 0 0 20px; color: var(--muted)">
+                ${t.keyPoints.map(kp => `<li>${kp}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        `).join('')}
       </div>
     </div>
   `;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function renderDrillsFilters() {
