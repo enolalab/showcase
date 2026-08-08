@@ -25,6 +25,7 @@ const officialProductIds = [
   'linear-cli',
   'sunbeam',
   'java-interview-drill',
+  'java-core-lts',
 ] as const;
 const officialProductIdSet = new Set<string>(officialProductIds);
 

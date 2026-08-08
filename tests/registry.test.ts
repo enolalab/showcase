@@ -68,6 +68,18 @@ const products = [
     techStack: ['HTML', 'CSS', 'JavaScript'],
     featured: true,
   },
+  {
+    ...product,
+    id: 'java-core-lts',
+    name: 'Java Core LTS Mastery',
+    summary: 'Master Java Core fundamentals across LTS versions (8, 11, 17, 21) with structured tutorials and practical drills.',
+    docsUrl: 'https://enolalab.com/java-core-lts.html',
+    repoUrl: 'https://github.com/enolalab/showcase',
+    releaseUrl: null,
+    category: 'developer-tools',
+    techStack: ['Java', 'HTML', 'CSS', 'JavaScript'],
+    featured: false,
+  },
 ];
 
 const officialProductIds = [
@@ -77,6 +89,7 @@ const officialProductIds = [
   'linear-cli',
   'sunbeam',
   'java-interview-drill',
+  'java-core-lts',
 ];
 
 const registryInput = (products: unknown[]) => ({
