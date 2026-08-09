@@ -121,6 +121,7 @@ h1 em{font-style:normal;color:var(--azure)}
 .tag.v11{color:var(--mint);border-color:rgba(63,208,142,.4);background:rgba(63,208,142,.09)}
 .tag.v17{color:var(--violet);border-color:rgba(155,123,232,.4);background:rgba(155,123,232,.1)}
 .tag.v21{color:var(--amber);border-color:rgba(245,166,35,.35);background:rgba(245,166,35,.08)}
+.tag.topic{color:var(--dim);border-color:var(--line);background:var(--panel2);font-family:var(--sans)}
 .tagrow{display:flex;gap:5px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
 
 /* ---------- code ---------- */
@@ -317,6 +318,9 @@ let currentTopic = TOPICS[0].id;
 let currentDrillTopic = TOPICS[0].id;
 let currentDifficulty = 'all';
 let currentVersion = 'all';
+let drillMode = 'topic';   // 'topic' | 'mixed' | 'wrong'
+let mixedIds = [];         // bộ câu đã trộn, giữ ổn định giữa các lần vẽ lại
+let mistakeIds = [];       // ảnh chụp các câu đang sai lúc vào chế độ ôn lại
 let results = {};   // drillId -> {picked:int, ok:bool}
 
 function loadState() {
@@ -326,12 +330,16 @@ function loadState() {
       const s = JSON.parse(raw);
       results = s.results || {};
       if (s.version) currentVersion = s.version;
+      if (s.drillMode) drillMode = s.drillMode;
+      if (s.drillTopic) currentDrillTopic = s.drillTopic;
     }
   } catch (e) { results = {}; }
 }
 function saveState() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ results, version: currentVersion }));
+    localStorage.setItem(KEY, JSON.stringify({
+      results, version: currentVersion, drillMode, drillTopic: currentDrillTopic
+    }));
   } catch (e) { /* quota/private mode - bỏ qua */ }
 }
 
@@ -416,9 +424,51 @@ function renderTutorial() {
 }
 
 /* ============ render: drills ============ */
+/* Ba chế độ: theo chủ đề / trộn ngẫu nhiên nhiều chủ đề / ôn lại câu đã sai. */
+const MIXED_SIZE = 20;
+
+const wrongDrills = () => DRILLS.filter(d => results[d.id] && !results[d.id].ok && matchVersion(d));
+
+function buildMixed() {
+  const pool = DRILLS.filter(d => matchVersion(d) &&
+    (currentDifficulty === 'all' || d.difficulty === currentDifficulty));
+  for (let i = pool.length - 1; i > 0; i--) {          // Fisher-Yates
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  mixedIds = pool.slice(0, MIXED_SIZE).map(d => d.id);
+}
+
+/* Nguồn sự thật duy nhất cho danh sách đang hiển thị. */
+function visibleDrills() {
+  if (drillMode === 'wrong') return wrongDrills();
+  if (drillMode === 'mixed') {
+    if (!mixedIds.length) buildMixed();
+    const byId = new Map(DRILLS.map(d => [d.id, d]));
+    return mixedIds.map(id => byId.get(id)).filter(Boolean);
+  }
+  return drillsFor(currentDrillTopic);
+}
+
 function renderDrillsFilters() {
   const diffs = [['all', 'Tất Cả'], ['beginner', 'Cơ Bản'], ['intermediate', 'Trung Bình'], ['advanced', 'Nâng Cao']];
+  const nWrong = wrongDrills().length;
+  const modes = [
+    ['topic', 'Theo chủ đề', ''],
+    ['mixed', 'Trộn ngẫu nhiên', ''],
+    ['wrong', 'Câu đã sai', String(nWrong)],
+  ];
   document.getElementById('filters-menu').innerHTML = `
+    <div class="menu-group">
+      <div class="menu-label">Chế Độ</div>
+      <div class="menu-row">
+        ${modes.map(([v, label, cnt]) =>
+          `<div class="menu-item ${drillMode === v ? 'active' : ''}" onclick="setDrillMode('${v}')">
+            <span>${label}</span>${cnt ? `<span class="cnt">${cnt}</span>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>
+    ${drillMode === 'topic' ? `
     <div class="menu-group">
       <div class="menu-label">Chủ Đề</div>
       <div class="menu-row">
@@ -431,56 +481,89 @@ function renderDrillsFilters() {
           </div>`;
         }).join('')}
       </div>
-    </div>
+    </div>` : ''}
+    ${drillMode !== 'wrong' ? `
     <div class="menu-group">
       <div class="menu-label">Độ Khó</div>
       <div class="menu-row">
         ${diffs.map(([v, label]) =>
           `<div class="menu-item ${currentDifficulty === v ? 'active' : ''}" onclick="setDifficulty('${v}')">${label}</div>`).join('')}
       </div>
-    </div>`;
+    </div>` : ''}`;
+}
+function setDrillMode(m) {
+  drillMode = m;
+  if (m === 'mixed') buildMixed();
+  if (m === 'wrong') mistakeIds = wrongDrills().map(d => d.id);
+  saveState();
+  renderDrillsFilters(); renderDrills();
+  document.getElementById('drills-content').scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 function setDrillTopic(id) {
   currentDrillTopic = id;
+  saveState();
   renderDrillsFilters(); renderDrills();
   document.getElementById('drills-content').scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 function setDifficulty(v) {
   currentDifficulty = v;
+  if (drillMode === 'mixed') buildMixed();
   renderDrillsFilters(); renderDrills();
 }
+function reshuffle() {
+  buildMixed();
+  renderDrills();
+  document.getElementById('drills-content').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
 
-function renderDrills() {
-  const list = drillsFor(currentDrillTopic);
-  const el = document.getElementById('drills-content');
-  const topic = TOPICS.find(t => t.id === currentDrillTopic);
-
-  const scope = DRILLS.filter(d => d.topicId === currentDrillTopic && matchVersion(d));
-  const done = scope.filter(d => results[d.id]);
+/* Thanh thống kê — dùng chung cho cả lần vẽ đầu và lúc cập nhật tại chỗ. */
+function statHtml() {
+  const list = visibleDrills();
+  const done = list.filter(d => results[d.id]);
   const right = done.filter(d => results[d.id].ok).length;
   const pct = done.length ? Math.round(right / done.length * 100) : 0;
+  const label = drillMode === 'wrong' ? 'Ôn lại câu đã sai'
+    : drillMode === 'mixed' ? `Trộn ngẫu nhiên (${list.length} câu)`
+    : esc((TOPICS.find(t => t.id === currentDrillTopic) || {}).name || '');
 
-  const stat = `<div class="statbar">
-      <span class="s">Chủ đề: <b>${esc(topic.name)}</b></span>
-      <span class="s">Đã làm <b>${done.length}</b>/${scope.length}</span>
+  if (drillMode === 'wrong') {
+    const fixed = mistakeIds.filter(id => results[id] && results[id].ok).length;
+    return `<span class="s">Chế độ: <b>${label}</b></span>
+      <span class="s no">Còn sai <b>${list.length}</b></span>
+      ${fixed ? `<span class="s ok">Đã sửa được <b>${fixed}</b></span>` : ''}
+      <span class="sp"></span>`;
+  }
+  return `<span class="s">${drillMode === 'mixed' ? 'Chế độ' : 'Chủ đề'}: <b>${label}</b></span>
+      <span class="s">Đã làm <b>${done.length}</b>/${list.length}</span>
       <span class="s ok">Đúng <b>${right}</b></span>
       <span class="s no">Sai <b>${done.length - right}</b></span>
       ${done.length ? `<span class="s">Tỉ lệ <b>${pct}%</b></span>` : ''}
       <span class="sp"></span>
-      ${done.length ? `<button class="reset" onclick="resetTopic()">Làm lại chủ đề</button>` : ''}
-    </div>`;
-
-  if (!list.length) {
-    el.innerHTML = stat + `<div class="placeholder">Không có bài tập nào khớp bộ lọc hiện tại.<br>Thử đổi độ khó hoặc phiên bản.</div>`;
-    return;
-  }
-  el.innerHTML = stat + `<div class="sec-h" style="margin-bottom:14px">Bài Tập (${list.length})</div>` +
-    list.map(d => drillCard(d)).join('');
+      ${drillMode === 'mixed' ? `<button class="reset" onclick="reshuffle()">↻ Trộn bộ khác</button>` : ''}
+      ${drillMode === 'topic' && done.length ? `<button class="reset" onclick="resetTopic()">Làm lại chủ đề</button>` : ''}`;
 }
 
-function drillCard(d) {
+function renderDrills() {
+  const list = visibleDrills();
+  const el = document.getElementById('drills-content');
+  const stat = `<div class="statbar">${statHtml()}</div>`;
+
+  if (!list.length) {
+    const msg = drillMode === 'wrong'
+      ? 'Chưa có câu nào bị sai — hãy làm bài tập trước đã.<br>Những câu bạn trả lời sai sẽ tự động gom về đây để ôn lại.'
+      : 'Không có bài tập nào khớp bộ lọc hiện tại.<br>Thử đổi độ khó hoặc phiên bản.';
+    el.innerHTML = stat + `<div class="placeholder">${msg}</div>`;
+    return;
+  }
+  const heading = drillMode === 'wrong' ? `Câu Đã Sai (${list.length})` : `Bài Tập (${list.length})`;
+  el.innerHTML = stat + `<div class="sec-h" style="margin-bottom:14px">${heading}</div>` +
+    list.map(d => drillCard(d, drillMode !== 'topic')).join('');
+}
+
+function drillCard(d, showTopic) {
   const r = results[d.id];
   const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const topic = showTopic ? (TOPICS.find(t => t.id === d.topicId) || {}).name : null;
   const choices = d.choices.map((c, i) => {
     let cls = 'choice';
     if (r) {
@@ -510,6 +593,7 @@ function drillCard(d) {
       <div class="tagrow">
         <span class="tag ${d.difficulty}">${diffLabel(d.difficulty)}</span>
         ${vtags(d.versions)}
+        ${topic ? `<span class="tag topic">${esc(topic)}</span>` : ''}
       </div>
       <div class="q">${esc(d.question)}</div>
       ${codeBlock(d.code)}
@@ -519,26 +603,27 @@ function drillCard(d) {
 }
 const diffLabel = v => ({ beginner: 'Cơ Bản', intermediate: 'Trung Bình', advanced: 'Nâng Cao' }[v] || v);
 
+/* Vẽ lại đúng một thẻ tại chỗ — không render lại cả danh sách, để ở chế độ
+   "câu đã sai" thẻ vừa trả lời không biến mất trước khi người học kịp đọc. */
+function refreshCard(id) {
+  const d = DRILLS.find(x => x.id === id);
+  const card = document.getElementById('drill-' + id);
+  if (d && card) card.outerHTML = drillCard(d, drillMode !== 'topic');
+  renderDrillsFilters();
+  updateStatbar();
+  updateProgress();
+}
 function answer(id, picked) {
   const d = DRILLS.find(x => x.id === id);
   if (!d || results[id]) return;
   results[id] = { picked, ok: picked === d.correctAnswer };
   saveState();
-  const card = document.getElementById('drill-' + id);
-  if (card) card.outerHTML = drillCard(d);
-  renderDrillsFilters();
-  updateStatbar();
-  updateProgress();
+  refreshCard(id);
 }
 function clearAnswer(id) {
-  const d = DRILLS.find(x => x.id === id);
   delete results[id];
   saveState();
-  const card = document.getElementById('drill-' + id);
-  if (card) card.outerHTML = drillCard(d);
-  renderDrillsFilters();
-  updateStatbar();
-  updateProgress();
+  refreshCard(id);
 }
 function resetTopic() {
   DRILLS.filter(d => d.topicId === currentDrillTopic).forEach(d => delete results[d.id]);
@@ -546,20 +631,8 @@ function resetTopic() {
   renderDrillsFilters(); renderDrills(); updateProgress();
 }
 function updateStatbar() {
-  const scope = DRILLS.filter(d => d.topicId === currentDrillTopic && matchVersion(d));
-  const done = scope.filter(d => results[d.id]);
-  const right = done.filter(d => results[d.id].ok).length;
-  const pct = done.length ? Math.round(right / done.length * 100) : 0;
   const bar = document.querySelector('#drills-content .statbar');
-  if (!bar) return;
-  const topic = TOPICS.find(t => t.id === currentDrillTopic);
-  bar.innerHTML = `<span class="s">Chủ đề: <b>${esc(topic.name)}</b></span>
-      <span class="s">Đã làm <b>${done.length}</b>/${scope.length}</span>
-      <span class="s ok">Đúng <b>${right}</b></span>
-      <span class="s no">Sai <b>${done.length - right}</b></span>
-      ${done.length ? `<span class="s">Tỉ lệ <b>${pct}%</b></span>` : ''}
-      <span class="sp"></span>
-      ${done.length ? `<button class="reset" onclick="resetTopic()">Làm lại chủ đề</button>` : ''}`;
+  if (bar) bar.innerHTML = statHtml();
 }
 
 function updateProgress() {
@@ -575,6 +648,8 @@ function updateProgress() {
 
 function init() {
   loadState();
+  if (drillMode === 'mixed') buildMixed();
+  if (drillMode === 'wrong') mistakeIds = wrongDrills().map(d => d.id);
   renderVersionChips();
   renderTopicsMenu(); renderTutorial();
   renderDrillsFilters(); renderDrills();
