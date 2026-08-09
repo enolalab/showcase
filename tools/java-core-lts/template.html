@@ -67,7 +67,7 @@ h1 em{font-style:normal;color:var(--azure)}
 .chips{display:flex;flex-wrap:wrap;gap:clamp(6px,2vw,8px)}
 .chip{padding:clamp(6px,1.5vw,8px) clamp(11px,2vw,14px);border:1px solid var(--line);border-radius:999px;
   font-size:clamp(12px,2vw,13.5px);color:var(--muted);transition:.15s;background:var(--panel);
-  cursor:pointer;min-height:38px;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}
+  cursor:pointer;min-height:44px;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}
 .chip:hover{border-color:var(--dim);color:var(--paper)}
 .chip.on{background:rgba(76,158,235,.11);border-color:var(--azure);color:var(--azure)}
 .chip .n{font-family:var(--mono);font-size:clamp(9px,1.5vw,11px);opacity:.65;margin-left:5px}
@@ -94,7 +94,7 @@ h1 em{font-style:normal;color:var(--azure)}
 .menu-row::-webkit-scrollbar{height:5px}
 .menu-row::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
 .menu-item{padding:clamp(8px,1.5vw,10px) clamp(11px,2vw,13px);border-radius:6px;font-size:clamp(12px,2vw,13px);
-  color:var(--muted);cursor:pointer;transition:.15s;border:1px solid var(--line);min-height:42px;
+  color:var(--muted);cursor:pointer;transition:.15s;border:1px solid var(--line);min-height:44px;
   display:flex;align-items:center;gap:7px;white-space:nowrap;flex:0 0 auto;-webkit-tap-highlight-color:transparent}
 .menu-item:active{background:var(--panel2)}
 .menu-item:hover{color:var(--paper);border-color:var(--dim)}
@@ -174,6 +174,11 @@ h3{font-family:var(--disp);font-size:clamp(15px,3vw,19px);margin-bottom:6px;font
   background:var(--panel2);cursor:pointer;transition:.14s;-webkit-tap-highlight-color:transparent;
   display:flex;align-items:flex-start;gap:10px;font-size:clamp(12.5px,2vw,14px);text-align:left;width:100%;
   line-height:1.5;color:var(--paper)}
+/* Đáp án và câu hỏi hay chứa chuỗi dài không có khoảng trắng
+   (raw.stream().filter(...).map(...)) — trên màn hình hẹp chúng tràn ngang
+   nếu không cho phép ngắt giữa từ. min-width:0 để con của flex co lại được. */
+.choice > span:last-child,.q,.prose p,.verdict p,.verdict .ww,.kp li,.box{overflow-wrap:anywhere}
+.choice > span:last-child{min-width:0}
 .choice .ltr{font-family:var(--mono);font-size:11px;color:var(--dim);flex:0 0 auto;
   border:1px solid var(--line);border-radius:4px;width:22px;height:22px;display:flex;
   align-items:center;justify-content:center;margin-top:1px}
@@ -198,7 +203,7 @@ h3{font-family:var(--disp);font-size:clamp(15px,3vw,19px);margin-bottom:6px;font
   color:var(--azure);display:block;margin:10px 0 5px}
 .verdict .ww{color:var(--muted);font-size:clamp(12px,1.9vw,13px)}
 .retry{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--dim);
-  border:1px solid var(--line);border-radius:5px;padding:7px 11px;min-height:36px}
+  border:1px solid var(--line);border-radius:5px;padding:7px 11px;min-height:44px}
 .retry:hover{color:var(--paper);border-color:var(--dim)}
 
 /* ---------- stats ---------- */
@@ -210,7 +215,7 @@ h3{font-family:var(--disp);font-size:clamp(15px,3vw,19px);margin-bottom:6px;font
 .statbar .s.no b{color:var(--ember)}
 .statbar .sp{flex:1}
 .reset{font-family:var(--mono);font-size:10.5px;color:var(--dim);border:1px solid var(--line);
-  border-radius:5px;padding:6px 10px;min-height:34px}
+  border-radius:5px;padding:6px 10px;min-height:44px}
 .reset:hover{color:var(--ember);border-color:rgba(226,86,74,.4)}
 
 .placeholder{padding:clamp(24px,4vw,44px) clamp(16px,2vw,20px);text-align:center;color:var(--dim);
