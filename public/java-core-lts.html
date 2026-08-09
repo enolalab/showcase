@@ -31,12 +31,13 @@ code{font-family:var(--mono);font-size:.87em;background:rgba(76,158,235,.13);
 b{font-weight:600;color:#fff}
 i{color:var(--muted)}
 
-.wrap{max-width:860px;margin:0 auto;padding:0 clamp(12px,3vw,20px) 120px}
+.wrap{max-width:860px;margin:0 auto;padding:0 clamp(12px,3vw,20px) calc(clamp(40px,8vw,64px) + env(safe-area-inset-bottom))}
 
 /* ---------- top bar ---------- */
 .bar{position:sticky;top:0;z-index:50;background:rgba(11,17,32,.88);
   backdrop-filter:blur(14px);border-bottom:1px solid var(--line);margin-bottom:20px}
-.bar-in{max-width:860px;margin:0 auto;padding:12px clamp(12px,3vw,20px);display:flex;align-items:center;gap:12px}
+.bar-in{max-width:860px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) clamp(12px,3vw,20px) 12px;
+  display:flex;align-items:center;gap:12px}
 .brand{font-family:var(--disp);font-weight:700;font-size:clamp(13px,2.5vw,15px);letter-spacing:-.01em;white-space:nowrap}
 .brand span{color:var(--azure)}
 .bar-sp{flex:1}
@@ -81,15 +82,26 @@ h1 em{font-style:normal;color:var(--azure)}
 @media(min-width:768px){
   .sidebar{grid-template-columns:200px 1fr}
 }
-.sidebar-menu{display:flex;flex-direction:column;gap:6px;height:fit-content;position:sticky;top:100px}
-.menu-item{padding:clamp(8px,1.5vw,10px) 12px;border-radius:6px;font-size:clamp(12px,2vw,13.5px);
-  color:var(--muted);cursor:pointer;transition:.15s;border:1px solid transparent;min-height:44px;
-  display:flex;align-items:center;-webkit-tap-highlight-color:transparent}
-.menu-item:active{background:var(--panel2)}
-.menu-item:hover{color:var(--paper);border-color:var(--line)}
-.menu-item.active{background:rgba(76,158,235,.07);border-color:var(--azure);color:var(--azure)}
 
-.content{flex:1}
+.sidebar-menu{display:flex;flex-direction:column;gap:16px;height:fit-content}
+.menu-group{display:flex;flex-direction:column;gap:8px}
+.menu-label{font-family:var(--mono);font-size:clamp(10px,1.8vw,12px);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--dim);font-weight:600}
+.menu-row{display:flex;flex-direction:row;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.menu-item{padding:clamp(8px,1.5vw,10px) clamp(12px,2vw,14px);border-radius:6px;font-size:clamp(12px,2vw,13.5px);
+  color:var(--muted);cursor:pointer;transition:.15s;border:1px solid var(--line);min-height:44px;
+  display:flex;align-items:center;white-space:nowrap;flex:0 0 auto;-webkit-tap-highlight-color:transparent}
+.menu-item:active{background:var(--panel2)}
+.menu-item:hover{color:var(--paper);border-color:var(--dim)}
+.menu-item.active{background:rgba(76,158,235,.07);border-color:var(--azure);color:var(--azure)}
+@media(min-width:768px){
+  .sidebar-menu{position:sticky;top:100px}
+  .menu-row{flex-direction:column;overflow-x:visible;padding-bottom:0}
+  .menu-item{white-space:normal;flex:none;border-color:transparent}
+  .menu-item:hover{border-color:var(--line)}
+}
+
+.content{flex:1;min-width:0}
 .tutorial,.drill{display:none}
 .tutorial.active,.drill.active{display:block}
 
@@ -239,36 +251,123 @@ const TOPICS = [
 ];
 
 const TUTORIALS = [
-  { id: "t-1-1", topicId: 1, versions: [8, 11, 17, 21], title: "Biến và Kiểu Dữ Liệu", content: "Tìm hiểu về các kiểu nguyên thủy (int, long, float, double, boolean, char) và kiểu tham chiếu. Hiểu về casting và auto-boxing.", example: "int age = 25;\nlong pop = 8000000000L;\ndouble pi = 3.14159;\nboolean active = true;", keyPoints: ["Kiểu nguyên thủ vs tham chiếu", "Casting và chuyển đổi", "Auto-boxing"] },
-  { id: "t-1-2", topicId: 1, versions: [8, 11, 17, 21], title: "If-Else, Loops, Switch", content: "Thành thạo câu lệnh điều kiện và vòng lặp. Hiểu sự khác biệt giữa for, while và enhanced for.", example: "for (int i = 0; i < 10; i++) {\n  if (i % 2 == 0) println(i);\n}", keyPoints: ["If-else-if chains", "For và while loop", "Switch statement"] },
+  // Topic 1: Java Cơ Bản
+  { id: "t-1-1", topicId: 1, versions: [8, 11, 17, 21], title: "Biến và Kiểu Dữ Liệu", content: "Tìm hiểu về các kiểu nguyên thủy (int, long, float, double, boolean, char) và kiểu tham chiếu. Hiểu về casting và auto-boxing.", example: "int age = 25;\nlong pop = 8000000000L;\ndouble pi = 3.14159;\nboolean active = true;", keyPoints: ["Kiểu nguyên thủy vs tham chiếu", "Casting và chuyển đổi", "Auto-boxing"] },
+  { id: "t-1-2", topicId: 1, versions: [8, 11, 17, 21], title: "If-Else, Loops, Switch", content: "Thành thạo câu lệnh điều kiện và vòng lặp. Hiểu sự khác biệt giữa for, while và enhanced for.", example: "for (int i = 0; i < 10; i++) {\n  if (i % 2 == 0) System.out.println(i);\n}\nswitch (day) {\n  case 1: System.out.println(\"Thứ Hai\");\n}", keyPoints: ["If-else-if chains", "For và while loop", "Switch statement"] },
   { id: "t-1-3", topicId: 1, versions: [8, 11, 17, 21], title: "Arrays và ArrayList", content: "Làm việc với mảng và ArrayList. Hiểu sự khác biệt giữa mảng cố định và collection động.", example: "int[] nums = {1, 2, 3, 4, 5};\nList<Integer> list = new ArrayList<>();\nlist.add(10);", keyPoints: ["Mảng cố định", "ArrayList động", "Các pattern iteration"] },
-  { id: "t-2-1", topicId: 2, versions: [8, 11, 17, 21], title: "Class, Object, Constructor", content: "Học cách định nghĩa class và tạo object. Hiểu constructor và method overloading.", example: "class Person {\n  String name;\n  int age;\n  Person(String name, int age) {\n    this.name = name; this.age = age;\n  }", keyPoints: ["Định nghĩa class", "Constructor", "Từ khóa this"] },
-  { id: "t-2-2", topicId: 2, versions: [8, 11, 17, 21], title: "Kế Thừa và Polymorphism", content: "Nắm vững kế thừa, method overriding và super keyword. Hiểu polymorphism.", example: "class Dog extends Animal {\n  @Override\n  void speak() { println(\"Woof\"); }\n}", keyPoints: ["Kế thừa", "Method overriding", "Đa hình"] },
+  { id: "t-1-4", topicId: 1, versions: [8, 11, 17, 21], title: "Toán Tử và Độ Ưu Tiên", content: "Hiểu các toán tử số học, logic và bitwise. Nắm rõ thứ tự ưu tiên toán tử để tránh lỗi.", example: "int result = 5 + 3 * 2;  // 11, không phải 16\nboolean flag = true && false || true;  // true", keyPoints: ["Toán tử số học và logic", "Độ ưu tiên toán tử", "Toán tử ba ngôi (?:)"] },
+  { id: "t-1-5", topicId: 1, versions: [8, 11, 17, 21], title: "Phạm Vi và Vòng Đời Biến", content: "Hiểu phạm vi biến (local, class, tham số). Tìm hiểu về việc che khuất biến (shadowing) và rủi ro của nó.", example: "{\n  int x = 10;  // phạm vi local\n  {\n    int x = 20;  // che khuất x bên ngoài\n  }\n}", keyPoints: ["Biến local vs biến instance", "Che khuất biến (shadowing)", "Quy tắc phạm vi"] },
+
+  // Topic 2: OOP
+  { id: "t-2-1", topicId: 2, versions: [8, 11, 17, 21], title: "Class, Object, Constructor", content: "Học cách định nghĩa class và tạo object. Hiểu constructor và method overloading.", example: "class Person {\n  String name;\n  int age;\n  Person(String name, int age) {\n    this.name = name; this.age = age;\n  }\n}", keyPoints: ["Định nghĩa class", "Constructor", "Từ khóa this"] },
+  { id: "t-2-2", topicId: 2, versions: [8, 11, 17, 21], title: "Kế Thừa và Ghi Đè Phương Thức", content: "Nắm vững cấu trúc kế thừa. Hiểu về ghi đè phương thức (override), từ khóa super và cách gọi constructor theo chuỗi.", example: "class Animal {\n  void speak() { System.out.println(\"...\"); }\n}\nclass Dog extends Animal {\n  @Override\n  void speak() { System.out.println(\"Woof\"); }\n}", keyPoints: ["Từ khóa extends", "Ghi đè phương thức", "Từ khóa super", "Constructor chaining"] },
+  { id: "t-2-3", topicId: 2, versions: [8, 11, 17, 21], title: "Interface và Abstract Class", content: "Hiểu về hợp đồng (contract) được định nghĩa bởi interface và abstract class. Biết khi nào nên dùng loại nào.", example: "interface Animal {\n  void speak();\n}\nabstract class Mammal implements Animal {\n  abstract void sleep();\n}", keyPoints: ["Hợp đồng của interface", "Abstract class", "Implement nhiều interface"] },
+  { id: "t-2-4", topicId: 2, versions: [8, 11, 17, 21], title: "Đa Hình (Polymorphism)", content: "Tận dụng tính đa hình để viết code linh hoạt. Hiểu về cơ chế phân giải phương thức lúc runtime.", example: "List<Animal> animals = Arrays.asList(new Dog(), new Cat());\nfor (Animal a : animals) a.speak();  // Gọi phương thức đã override", keyPoints: ["Đa hình lúc runtime", "Phân giải phương thức", "Nguyên lý thay thế Liskov"] },
+  { id: "t-2-5", topicId: 2, versions: [8, 11, 17, 21], title: "Access Modifier và Encapsulation", content: "Kiểm soát khả năng truy cập với public, private, protected. Áp dụng pattern getter/setter.", example: "public class Account {\n  private double balance;\n  public double getBalance() { return balance; }\n  public void deposit(double amount) { balance += amount; }\n}", keyPoints: ["Access modifier", "Tính đóng gói (Encapsulation)", "Ẩn thông tin"] },
+
+  // Topic 3: Collections
   { id: "t-3-1", topicId: 3, versions: [8, 11, 17, 21], title: "List Interface", content: "Sử dụng ArrayList, LinkedList và các implementation khác. Hiểu tính năng hiệu suất.", example: "List<String> list = new ArrayList<>();\nlist.add(\"Java\");\nlist.add(0, \"Hello\");", keyPoints: ["ArrayList vs LinkedList", "Add, remove, get", "Iteration"] },
-  { id: "t-8-1", topicId: 8, versions: [8, 11, 17, 21], title: "Lambda Expression", content: "Học cú pháp lambda. Hiểu cách lambdas thay thế anonymous inner class.", example: "// Trước Java 8\nRunnable r = new Runnable() {\n  public void run() { println(\"Hi\"); }\n};\n// Java 8+\nRunnable r = () -> println(\"Hi\");", keyPoints: ["Cú pháp lambda", "Functional interface", "Variable capture"] },
-  { id: "t-9-1", topicId: 9, versions: [8, 11, 17, 21], title: "Streams API Cơ Bản", content: "Tạo stream và áp dụng transformation. Thành thạo filter, map, flatMap.", example: "words.stream()\n  .filter(w -> w.length() > 2)\n  .map(String::toUpperCase)\n  .forEach(println);", keyPoints: ["Tạo stream", "Filter operation", "Map transformation", "Lazy evaluation"] },
+  { id: "t-3-2", topicId: 3, versions: [8, 11, 17, 21], title: "Set Interface và Tính Duy Nhất", content: "Sử dụng HashSet, TreeSet và LinkedHashSet. Hiểu cách chúng đảm bảo tính duy nhất của phần tử.", example: "Set<Integer> numbers = new HashSet<>(Arrays.asList(1, 2, 2, 3));\nSystem.out.println(numbers);  // [1, 2, 3]", keyPoints: ["Hiệu năng HashSet", "Thứ tự trong TreeSet", "Thứ tự chèn của LinkedHashSet"] },
+  { id: "t-3-3", topicId: 3, versions: [8, 11, 17, 21], title: "Map Interface và Lưu Trữ Key-Value", content: "Lưu trữ và truy xuất dữ liệu với HashMap, TreeMap và ConcurrentHashMap.", example: "Map<String, Integer> scores = new HashMap<>();\nscores.put(\"Alice\", 95);\nscores.put(\"Bob\", 87);\nInteger diem = scores.get(\"Alice\");", keyPoints: ["Cơ bản về HashMap", "Thao tác key-value", "Các cách duyệt (iterate)"] },
+  { id: "t-3-4", topicId: 3, versions: [8, 11, 17, 21], title: "Iterator và Enhanced For Loop", content: "Thành thạo các cách duyệt phần tử khác nhau. Biết khi nào dùng Iterator, khi nào dùng enhanced for loop.", example: "Iterator<String> it = list.iterator();\nwhile (it.hasNext()) {\n  String item = it.next();\n  it.remove();  // Xóa an toàn\n}", keyPoints: ["Iterator pattern", "ConcurrentModificationException", "Enhanced for loop"] },
+  { id: "t-3-5", topicId: 3, versions: [8, 11, 17, 21], title: "Comparator và Sắp Xếp", content: "Triển khai interface Comparable và Comparator. Sắp xếp collection hiệu quả.", example: "List<String> words = Arrays.asList(\"java\", \"python\", \"go\");\nCollections.sort(words);\nwords.sort((a, b) -> b.length() - a.length());  // Giảm dần theo độ dài", keyPoints: ["Interface Comparable", "Interface Comparator", "Chiến lược sắp xếp"] },
+
+  // Topic 8: Lambdas
+  { id: "t-8-1", topicId: 8, versions: [8, 11, 17, 21], title: "Lambda Expression", content: "Học cú pháp lambda. Hiểu cách lambdas thay thế anonymous inner class.", example: "// Trước Java 8\nRunnable r = new Runnable() {\n  public void run() { System.out.println(\"Hi\"); }\n};\n// Java 8+\nRunnable r = () -> System.out.println(\"Hi\");", keyPoints: ["Cú pháp lambda", "Functional interface", "Variable capture"] },
+  { id: "t-8-2", topicId: 8, versions: [8, 11, 17, 21], title: "Method Reference và Function Composition", content: "Dùng method reference (::) để code gọn hơn. Kết hợp (compose) các function một cách thanh lịch.", example: "// Lambda\nlist.forEach(s -> System.out.println(s));\n// Method reference\nlist.forEach(System.out::println);\n// Constructor reference\nFunction<Integer, String> converter = String::valueOf;", keyPoints: ["Cú pháp method reference", "Static method và instance method", "Constructor reference"] },
+  { id: "t-8-3", topicId: 8, versions: [8, 11, 17, 21], title: "Functional Interface và Các Kiểu Có Sẵn", content: "Thành thạo các interface trong java.util.function: Function, Predicate, Consumer, Supplier.", example: "Predicate<Integer> isEven = n -> n % 2 == 0;\nConsumer<String> print = System.out::println;\nFunction<Integer, Integer> square = x -> x * x;\nSupplier<LocalDateTime> now = LocalDateTime::now;", keyPoints: ["Interface Predicate", "Interface Consumer", "Interface Function", "Interface Supplier"] },
+
+  // Topic 9: Streams API
+  { id: "t-9-1", topicId: 9, versions: [8, 11, 17, 21], title: "Streams API Cơ Bản", content: "Tạo stream và áp dụng transformation. Thành thạo filter, map, flatMap.", example: "words.stream()\n  .filter(w -> w.length() > 2)\n  .map(String::toUpperCase)\n  .forEach(System.out::println);", keyPoints: ["Tạo stream", "Filter operation", "Map transformation", "Lazy evaluation"] },
+  { id: "t-9-2", topicId: 9, versions: [8, 11, 17, 21], title: "Terminal Operation và Collector", content: "Thu thập kết quả stream. Thành thạo collect(), reduce(), count() và các phép tổng hợp.", example: "List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);\nint sum = numbers.stream().reduce(0, Integer::sum);\nMap<Integer, List<String>> grouped = words.stream().collect(Collectors.groupingBy(String::length));", keyPoints: ["Interface Collector", "Phép reduce", "groupingBy", "partitioningBy"] },
+  { id: "t-9-3", topicId: 9, versions: [8, 11, 17, 21], title: "Parallel Stream và Hiệu Năng", content: "Tận dụng parallel stream để xử lý song song dữ liệu. Hiểu khi nào nên dùng parallel() và ảnh hưởng hiệu năng.", example: "List<Integer> numbers = IntStream.rangeClosed(1, 1000000).boxed().collect(Collectors.toList());\nlong count = numbers.parallelStream().filter(n -> isPrime(n)).count();\n// Lưu ý: parallelStream có overhead với dataset nhỏ", keyPoints: ["Parallel stream", "ForkJoinPool", "Cân nhắc hiệu năng", "An toàn luồng (thread safety)"] },
+  { id: "t-9-4", topicId: 9, versions: [8, 11, 17, 21], title: "flatMap và Biến Đổi Nâng Cao", content: "Dùng flatMap để làm phẳng cấu trúc lồng nhau. Kết hợp nhiều thao tác để xử lý dữ liệu phức tạp.", example: "List<List<Integer>> matrix = Arrays.asList(\n  Arrays.asList(1, 2),\n  Arrays.asList(3, 4)\n);\nList<Integer> flat = matrix.stream().flatMap(List::stream).collect(Collectors.toList());\n// Kết quả: [1, 2, 3, 4]", keyPoints: ["Thao tác flatMap", "Xử lý stream lồng nhau", "Pipeline phức tạp"] },
+
+  // Topic 14: Records (Java 17+)
   { id: "t-14-1", topicId: 14, versions: [17, 21], title: "Records", content: "Thay thế boilerplate data classes với Records. Hiểu immutability.", example: "public record Point(int x, int y) { }\nPoint p = new Point(10, 20);", keyPoints: ["Record syntax", "Auto-generated methods", "Compact constructor"] },
-  { id: "t-18-1", topicId: 18, versions: [8, 11, 17, 21], title: "Threads & Synchronization", content: "Tạo và quản lý threads. Tránh race condition với synchronized.", example: "Thread t = new Thread(() -> {\n  println(\"Running: \" + Thread.currentThread().getName());\n});\nt.start();", keyPoints: ["Thread creation", "Race condition", "Synchronized", "Lock interface"] }
+  { id: "t-14-2", topicId: 14, versions: [17, 21], title: "Record Component và Custom Method", content: "Thêm phương thức tùy chỉnh và validate cho record. Hiểu về compact constructor và record pattern.", example: "public record Person(String name, int age) {\n  public Person {\n    if (age < 0) throw new IllegalArgumentException(\"Tuổi phải dương\");\n  }\n  public boolean isAdult() { return age >= 18; }\n}", keyPoints: ["Compact constructor", "Phương thức tùy chỉnh", "Validate trong record"] },
+
+  // Topic 17: Virtual Threads (Java 21+)
+  { id: "t-17-1", topicId: 17, versions: [21], title: "Giới Thiệu Virtual Threads", content: "Thay thế platform thread nặng nề bằng virtual thread nhẹ. Xử lý hàng triệu tác vụ đồng thời.", example: "try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {\n  for (int i = 0; i < 1000000; i++) {\n    executor.submit(() -> {\n      // Task chạy trên virtual thread\n      doWork();\n    });\n  }\n}", keyPoints: ["Virtual thread vs platform thread", "Executor framework", "Structured concurrency"] },
+
+  // Topic 18: Concurrency
+  { id: "t-18-1", topicId: 18, versions: [8, 11, 17, 21], title: "Thread và Vòng Đời Thread", content: "Tạo và quản lý thread. Hiểu về các trạng thái và vòng đời của thread.", example: "Thread t = new Thread(() -> {\n  System.out.println(\"Đang chạy trong thread: \" + Thread.currentThread().getName());\n});\nt.start();  // Khởi động thread (đừng gọi run() trực tiếp)", keyPoints: ["Tạo thread", "Các trạng thái của thread", "Đặt tên thread", "currentThread()"] },
+  { id: "t-18-2", topicId: 18, versions: [8, 11, 17, 21], title: "Đồng Bộ Hóa và Lock", content: "Tránh race condition. Thành thạo từ khóa synchronized và interface Lock.", example: "class Counter {\n  private synchronized int getAndIncrement() { return ++count; }\n}\n// Cách hiện đại\nclass SafeCounter {\n  private final Lock lock = new ReentrantLock();\n  public int getAndIncrement() {\n    lock.lock();\n    try { return ++count; } finally { lock.unlock(); }\n  }\n}", keyPoints: ["Từ khóa synchronized", "Race condition", "Interface Lock", "Tránh deadlock"] },
+
+  // Topic 19: Design Patterns
+  { id: "t-19-1", topicId: 19, versions: [8, 11, 17, 21], title: "Creational Pattern: Singleton và Factory", content: "Triển khai pattern Singleton và Factory để tạo object.", example: "// Singleton\npublic class Database {\n  private static final Database INSTANCE = new Database();\n  private Database() { }\n  public static Database getInstance() { return INSTANCE; }\n}\n// Factory\ninterface Shape { }\nclass ShapeFactory {\n  public static Shape create(String type) {\n    return switch(type) {\n      case \"circle\" -> new Circle();\n      case \"square\" -> new Square();\n      default -> null;\n    };\n  }\n}", keyPoints: ["Pattern Singleton", "Pattern Factory", "Tạo object"] },
+
+  // Topic 20: Best Practices
+  { id: "t-20-1", topicId: 20, versions: [8, 11, 17, 21], title: "Viết Code Sạch, Dễ Bảo Trì", content: "Tuân thủ quy ước đặt tên, giữ method ngắn gọn và viết code tự giải thích.", example: "// Không tốt\nint d = 5;  // số ngày đã trôi qua\nList<String> l1 = getList();\n\n// Tốt\nint daysElapsed = 5;\nList<String> activeUsers = getUserList();\n\n// Tốt nhất: dùng hằng số\nprivate static final int DEFAULT_CAPACITY = 16;", keyPoints: ["Quy ước đặt tên", "Kích thước method", "Comment và tài liệu hóa"] }
 ];
 
 const DRILLS = [
+  // Topic 1: Java Cơ Bản
   { id: "d-1-1", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Kết quả của: System.out.println(10 + 20 + \"Java\");", choices: ["30Java", "10 20 Java", "Compilation Error", "null"], correctAnswer: 0, explanation: "10 + 20 = 30 (int), rồi 30 + \"Java\" = \"30Java\" (string concatenation)" },
   { id: "d-1-2", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Đâu KHÔNG phải kiểu nguyên thủy?", choices: ["int", "boolean", "String", "double"], correctAnswer: 2, explanation: "String là reference type (class), không phải primitive. Primitive: int, long, float, double, boolean, char, byte, short." },
-  { id: "d-1-3", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Kết quả: int x = 5; x = x++ + ++x; println(x);", choices: ["10", "11", "12", "Undefined"], correctAnswer: 2, explanation: "x++ trả về 5 (x=6). ++x làm x=7. Tổng: 5 + 7 = 12" },
+  { id: "d-1-3", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "5 / 2 trong Java cho kết quả gì?", choices: ["2", "2.5", "2.0", "Lỗi"], correctAnswer: 0, explanation: "Phép chia số nguyên: 5 / 2 = 2 (phần thập phân bị bỏ). Để được 2.5, cần ép kiểu: (double) 5 / 2." },
+  { id: "d-1-4", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Điều gì xảy ra với đoạn code: int[] arr = new int[5]; System.out.println(arr[0]);", choices: ["Lỗi runtime: ArrayIndexOutOfBoundsException", "null", "0", "Không xác định"], correctAnswer: 2, explanation: "Mảng được khởi tạo với giá trị mặc định. Với int[], giá trị mặc định là 0. Object mặc định là null." },
+  { id: "d-1-5", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Phạm vi của biến 'x' là gì? { int x = 5; } System.out.println(x);", choices: ["In ra 5", "Lỗi biên dịch", "Lỗi runtime", "In ra null"], correctAnswer: 1, explanation: "x được khai báo trong phạm vi block và không thể truy cập bên ngoài block đó. Vi phạm phạm vi → lỗi biên dịch." },
+  { id: "d-1-6", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Auto-boxing là gì?", choices: ["Tự động chuyển reference type sang primitive", "Tự động chuyển primitive sang wrapper class", "Cả A và B", "Không cái nào"], correctAnswer: 1, explanation: "Auto-boxing chuyển int → Integer, double → Double, v.v. Unboxing làm ngược lại (Integer → int)." },
+  { id: "d-1-7", topicId: 1, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Kết quả: int x = 5; x = x++ + ++x; System.out.println(x);", choices: ["10", "11", "12", "Không xác định"], correctAnswer: 2, explanation: "x++ trả về 5 (x=6). ++x làm x=7. Tổng: 5 + 7 = 12" },
+  { id: "d-1-8", topicId: 1, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Việc che khuất biến (shadowing) nào xảy ra ở đây? int x = 5; { int x = 10; } System.out.println(x);", choices: ["In ra 5", "In ra 10", "Lỗi biên dịch", "Lỗi runtime"], correctAnswer: 0, explanation: "x bên trong chỉ che khuất x bên ngoài trong phạm vi block đó. Bên ngoài block, x gốc (5) vẫn hiển thị. Đoạn này biên dịch được (nhưng không nên viết vậy)." },
+
+  // Topic 2: OOP
   { id: "d-2-1", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Constructor mặc định là gì?", choices: ["Constructor không param", "Compiler tự tạo", "Cả A và B", "Constructor có param"], correctAnswer: 2, explanation: "Constructor mặc định: không có param. Java tự tạo nếu bạn không định nghĩa." },
-  { id: "d-2-2", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Class có thể kế thừa từ bao nhiêu class?", choices: ["1", "2", "Nhiều", "Unlimited"], correctAnswer: 0, explanation: "Java không hỗ trợ multiple inheritance của class. Nhưng có thể implement nhiều interface." },
-  { id: "d-2-3", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Đâu là polymorphism? class A { void m() {} } class B extends A { void m() {} } A obj = new B(); obj.m();", choices: ["Gọi A.m()", "Gọi B.m()", "Compilation error", "Runtime error"], correctAnswer: 1, explanation: "Polymorphism: kiểu thực tế là B, nên gọi B.m() (prints 'B')" },
+  { id: "d-2-2", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Từ khóa 'this' dùng để tham chiếu đến gì?", choices: ["Class hiện tại", "Object hiện tại", "Class cha", "Superclass"], correctAnswer: 1, explanation: "'this' tham chiếu đến object hiện tại, dùng để truy cập biến instance và gọi phương thức instance." },
+  { id: "d-2-3", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Class có thể kế thừa từ bao nhiêu class?", choices: ["1", "2", "Nhiều", "Unlimited"], correctAnswer: 0, explanation: "Java không hỗ trợ multiple inheritance của class. Nhưng có thể implement nhiều interface." },
+  { id: "d-2-4", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Method overriding là gì?", choices: ["Định nghĩa method cùng tên trong subclass", "Định nghĩa method với tham số khác", "Định nghĩa method static", "Không cái nào"], correctAnswer: 0, explanation: "Override = cùng chữ ký method (signature) trong subclass. Overload = cùng tên, khác tham số." },
+  { id: "d-2-5", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Đâu là polymorphism? class A { void m() {} } class B extends A { void m() {} } A obj = new B(); obj.m();", choices: ["Gọi A.m()", "Gọi B.m()", "Compilation error", "Runtime error"], correctAnswer: 1, explanation: "Polymorphism: kiểu thực tế là B, nên gọi B.m() (prints 'B')" },
+  { id: "d-2-6", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Có thể khai báo constructor trong interface không?", choices: ["Có", "Không", "Chỉ từ Java 11+", "Chỉ từ Java 17+"], correctAnswer: 1, explanation: "Interface không thể có constructor. Chúng chỉ định nghĩa hợp đồng (method signature), không phải logic khởi tạo." },
+  { id: "d-2-7", topicId: 2, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Sự khác biệt giữa abstract class và interface từ Java 8?", choices: ["Abstract class có state, interface thì không", "Abstract class dùng 'extends', interface dùng 'implements'", "Cả hai đều đúng", "Không khác biệt đáng kể"], correctAnswer: 2, explanation: "Abstract class có field, constructor, state. Interface là hợp đồng thuần túy (Java 8 thêm default method, nhưng vẫn không có state)." },
+  { id: "d-2-8", topicId: 2, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Điều gì xảy ra với lệnh gọi super()? class B extends A { B() { super(); } }", choices: ["Gọi constructor mặc định của A", "Gọi lại constructor của B (đệ quy)", "Lỗi biên dịch", "Lỗi runtime"], correctAnswer: 0, explanation: "super() gọi constructor của class cha. Nếu không viết rõ, compiler tự thêm vào (nếu class cha có constructor mặc định)." },
+
+  // Topic 3: Collections
   { id: "d-3-1", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "ArrayList là gì?", choices: ["Mảng cố định", "Mảng động", "Linked list", "Tree"], correctAnswer: 1, explanation: "ArrayList: collection động, có thể resize kích thước." },
-  { id: "d-3-2", topicId: 3, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Sửa: List<Integer> list = ...; for(Integer i : list) { list.remove(i); }", choices: ["Chạy tốt", "ConcurrentModificationException", "Bỏ qua elements", "Compilation error"], correctAnswer: 1, explanation: "Sửa collection khi iterate → ConcurrentModificationException. Dùng Iterator.remove()" },
+  { id: "d-3-2", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Sự khác biệt giữa List và Set là gì?", choices: ["List cho phép trùng lặp, Set thì không", "Set có thứ tự, List thì không", "Cả A và B", "Không khác biệt"], correctAnswer: 0, explanation: "List cho phép phần tử trùng lặp và giữ thứ tự chèn. Set đảm bảo tính duy nhất (thứ tự tùy implementation)." },
+  { id: "d-3-3", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "HashMap lưu trữ gì?", choices: ["Giá trị duy nhất", "Cặp key-value", "Phần tử có thứ tự", "Phần tử trùng lặp"], correctAnswer: 1, explanation: "HashMap lưu cặp key-value. Key phải duy nhất; value có thể trùng." },
+  { id: "d-3-4", topicId: 3, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Sửa: List<Integer> list = ...; for(Integer i : list) { list.remove(i); }", choices: ["Chạy tốt", "ConcurrentModificationException", "Bỏ qua elements", "Compilation error"], correctAnswer: 1, explanation: "Sửa collection khi iterate → ConcurrentModificationException. Dùng Iterator.remove()" },
+  { id: "d-3-5", topicId: 3, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Độ phức tạp thời gian của get() trên ArrayList là gì?", choices: ["O(1)", "O(n)", "O(log n)", "O(n log n)"], correctAnswer: 0, explanation: "ArrayList.get() là O(1) — truy cập trực tiếp qua index mảng. LinkedList.get() là O(n) — phải duyệt qua từng phần tử." },
+  { id: "d-3-6", topicId: 3, versions: [8, 11, 17, 21], difficulty: "advanced", question: "HashSet rehash (resize) khi nào?", choices: ["Khi kích thước vượt quá capacity * load factor", "Khi kích thước bằng capacity", "Ngẫu nhiên", "Không bao giờ"], correctAnswer: 0, explanation: "Rehash xảy ra khi vượt ngưỡng load factor (mặc định 0.75). Capacity mới = 2 * capacity cũ." },
+
+  // Topic 8: Lambdas
   { id: "d-8-1", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "-> là gì trong Java?", choices: ["Lambda operator", "Comparison", "Arrow loop", "Ternary"], correctAnswer: 0, explanation: "-> là lambda operator (Java 8+), ngăn cách param và body" },
-  { id: "d-8-2", topicId: 8, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Functional interface là gì?", choices: ["Interface có 1 abstract method", "Interface implement Function", "Interface có nhiều method", "Bất kỳ interface nào"], correctAnswer: 0, explanation: "@FunctionalInterface: đúng 1 abstract method. Lambda yêu cầu functional interface." },
+  { id: "d-8-2", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Functional interface là gì?", choices: ["Interface có 1 abstract method", "Interface implement Function", "Interface có nhiều method", "Bất kỳ interface nào"], correctAnswer: 0, explanation: "@FunctionalInterface: đúng 1 abstract method. Lambda yêu cầu functional interface." },
+  { id: "d-8-3", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Lambda tương đương là gì cho: Runnable r = new Runnable() { public void run() { System.out.println(\"Hi\"); } };", choices: ["() -> System.out.println(\"Hi\");", "() -> { System.out.println(\"Hi\"); }", "Cả A và B", "Không cái nào"], correctAnswer: 2, explanation: "Cả hai đều đúng. Một dòng: () -> ... Nhiều dòng: () -> { ... }" },
+  { id: "d-8-4", topicId: 8, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "System.out::println nghĩa là gì?", choices: ["Lambda expression", "Method reference", "Static method", "Constructor call"], correctAnswer: 1, explanation: ":: là cú pháp method reference. System.out::println = lambda gọi println trên System.out." },
+  { id: "d-8-5", topicId: 8, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Lambda có thể capture biến local có thể thay đổi (mutable) không?", choices: ["Luôn luôn được", "Không bao giờ", "Chỉ khi effectively final", "Chỉ từ Java 11+"], correctAnswer: 2, explanation: "Lambda chỉ có thể truy cập biến local nếu chúng effectively final (không bị gán lại sau khi khởi tạo)." },
+  { id: "d-8-6", topicId: 8, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Điều gì xảy ra với lambda này? Function<Integer, Integer> f = x -> x * 2; List<Integer> result = list.stream().map(f).collect(...);", choices: ["Chạy tốt", "Lỗi biên dịch", "Lỗi runtime", "Sai kiểu dữ liệu"], correctAnswer: 0, explanation: "Function<Integer, Integer> hoạt động như một lambda (functional interface). Có thể gán vào biến và tái sử dụng." },
+
+  // Topic 9: Streams
   { id: "d-9-1", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Kết quả: Arrays.asList(1,2,3,4,5).stream().filter(x -> x > 2).collect(Collectors.toList());", choices: ["[1,2,3,4,5]", "[3,4,5]", "[2,3,4]", "[]"], correctAnswer: 1, explanation: "filter(x -> x > 2): giữ lại 3, 4, 5" },
   { id: "d-9-2", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "flatMap làm gì? List<List<Integer>> matrix = ...; matrix.stream().flatMap(List::stream)", choices: ["Flatten nested list", "Filter lists", "Group lists", "Count lists"], correctAnswer: 0, explanation: "flatMap: làm phẳng cấu trúc lồng nhau. List<List<Integer>> → List<Integer>" },
+  { id: "d-9-3", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: ".collect(Collectors.toList()) dùng để làm gì?", choices: ["Chuyển stream thành List", "Đếm số phần tử stream", "Lọc stream", "Biến đổi phần tử stream"], correctAnswer: 0, explanation: "collect() là terminal operation. Collectors.toList() chuyển kết quả stream thành một List." },
+  { id: "d-9-4", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Thao tác nào là terminal operation?", choices: ["filter()", "map()", "forEach()", "Tất cả đều là terminal"], correctAnswer: 2, explanation: "Terminal op: forEach, collect, reduce, count, min, max, findFirst,... Intermediate: filter, map, flatMap." },
+  { id: "d-9-5", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Kết quả: Arrays.asList(1,2,3).stream().map(x -> x * 2).collect(Collectors.toList());", choices: ["[1,2,3]", "[2,4,6]", "[2,3,4]", "[0,0,0]"], correctAnswer: 1, explanation: "map(x -> x * 2) biến đổi từng phần tử: 1*2=2, 2*2=4, 3*2=6." },
+  { id: "d-9-6", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Ưu điểm hiệu năng của parallel stream là gì?", choices: ["Luôn luôn nhanh hơn", "Nhanh hơn trên máy nhiều nhân (multi-core)", "Luôn luôn chậm hơn", "Không khác biệt"], correctAnswer: 1, explanation: "parallelStream() dùng ForkJoinPool để xử lý song song. Có lợi trên hệ thống nhiều nhân với dataset lớn." },
+  { id: "d-9-7", topicId: 9, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Lazy evaluation trong stream là gì?", choices: ["Các thao tác thực thi ngay lập tức", "Các thao tác chỉ thực thi khi terminal operation được gọi", "Cả hai", "Không cái nào"], correctAnswer: 1, explanation: "Stream là lazy: intermediate operation không thực thi cho đến khi có terminal operation kích hoạt." },
+  { id: "d-9-8", topicId: 9, versions: [8, 11, 17, 21], difficulty: "advanced", question: ".reduce(0, Integer::sum) làm gì?", choices: ["Tính tổng các phần tử bắt đầu từ 0", "Giảm kích thước list", "Xóa số 0", "Đếm phần tử"], correctAnswer: 0, explanation: "reduce(identity, accumulator) kết hợp các phần tử stream. reduce(0, Integer::sum) tính tổng tất cả: 0 + tất cả phần tử." },
+
+  // Topic 14: Records (Java 17+)
   { id: "d-14-1", topicId: 14, versions: [17, 21], difficulty: "beginner", question: "record keyword làm gì?", choices: ["Record data to file", "Tạo data class", "Implements Serializable", "Mutable class"], correctAnswer: 1, explanation: "record (Java 17+): tạo immutable data class với auto-generated equals, hashCode, toString" },
+  { id: "d-14-2", topicId: 14, versions: [17, 21], difficulty: "beginner", question: "public record Point(int x, int y) { } tự động sinh ra gì?", choices: ["Constructor", "equals() và hashCode()", "toString()", "Tất cả các đáp án trên"], correctAnswer: 3, explanation: "Record tự động sinh: constructor, equals, hashCode, toString, getter (x(), y())." },
+  { id: "d-14-3", topicId: 14, versions: [17, 21], difficulty: "intermediate", question: "Record có thể có custom method không?", choices: ["Có", "Không", "Chỉ từ Java 21+", "Chỉ static method"], correctAnswer: 0, explanation: "Record có thể có custom instance method và static method. Cũng có thể thêm validate trong compact constructor." },
+
+  // Topic 17: Virtual Threads (Java 21+)
+  { id: "d-17-1", topicId: 17, versions: [21], difficulty: "beginner", question: "Virtual thread là gì?", choices: ["Thread nhẹ được quản lý bởi JVM", "Thread OS nặng", "Thread pool", "Tác vụ bất đồng bộ (async task)"], correctAnswer: 0, explanation: "Virtual thread (Java 21+) là thread nhẹ do JVM quản lý, không phải OS. Có thể chạy hàng triệu thread đồng thời." },
+  { id: "d-17-2", topicId: 17, versions: [21], difficulty: "beginner", question: "Executors.newVirtualThreadPerTaskExecutor() dùng để làm gì?", choices: ["Tạo thread pool gồm các virtual thread", "Tạo một virtual thread duy nhất", "Tạo OS thread", "Không hợp lệ"], correctAnswer: 0, explanation: "newVirtualThreadPerTaskExecutor() trả về ExecutorService tạo một virtual thread mới cho mỗi tác vụ." },
+
+  // Topic 18: Concurrency
   { id: "d-18-1", topicId: 18, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Race condition là gì?", choices: ["Threads cạnh tranh resource", "Program chạy quá nhanh", "Threads finish out of order", "Thread scheduling"], correctAnswer: 0, explanation: "Race condition: nhiều thread access shared resource cùng lúc → kết quả không dự đoán" },
   { id: "d-18-2", topicId: 18, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Sự khác biệt giữa wait() vs sleep()?", choices: ["wait() release lock, sleep() không", "sleep() nhanh hơn", "Không khác", "Cả 2 release"], correctAnswer: 0, explanation: "wait(): release lock (threads khác có thể acquire). sleep(): giữ lock." },
+  { id: "d-18-3", topicId: 18, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Từ khóa synchronized làm gì?", choices: ["Làm method thread-safe", "Làm method chạy nhanh hơn", "Làm method private", "Làm method static"], correctAnswer: 0, explanation: "synchronized đảm bảo chỉ một thread thực thi method/block đó tại một thời điểm, tránh race condition." },
+  { id: "d-18-4", topicId: 18, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Deadlock là gì?", choices: ["Thread hoàn thành", "Hai (hoặc nhiều) thread chờ lock của nhau", "Chương trình bị crash", "Thread bị block"], correctAnswer: 1, explanation: "Deadlock: Thread A giữ Lock 1 và chờ Lock 2; Thread B giữ Lock 2 và chờ Lock 1. Cả hai bị kẹt mãi mãi." },
+  { id: "d-18-5", topicId: 18, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Cách nào giúp tránh deadlock? (1) Dùng tryLock() với timeout, (2) Luôn lấy lock theo cùng một thứ tự", choices: ["Chỉ cách (1)", "Chỉ cách (2)", "Cả hai đều giúp tránh", "Không cách nào có tác dụng"], correctAnswer: 2, explanation: "Cả hai chiến lược đều giúp tránh deadlock: tryLock() tránh chờ vô thời hạn; lấy lock theo thứ tự nhất quán tránh chờ vòng tròn (circular wait)." },
+
+  // Topic 20: Best Practices
   { id: "d-20-1", topicId: 20, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Unit test là gì?", choices: ["Test toàn bộ app", "Test single method/class", "Test UI", "Test database"], correctAnswer: 1, explanation: "Unit test: test đơn vị nhỏ nhất (single method/class) một cách cô lập" },
-  { id: "d-20-2", topicId: 20, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Single Responsibility Principle?", choices: ["Class chỉ làm 1 việc", "Method return 1 value", "Variable có 1 value", "Tất cả"], correctAnswer: 0, explanation: "SRP: class nên có DỨ LẬP một lý do duy nhất để thay đổi" }
+  { id: "d-20-2", topicId: 20, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Single Responsibility Principle?", choices: ["Class chỉ làm 1 việc", "Method return 1 value", "Variable có 1 value", "Tất cả"], correctAnswer: 0, explanation: "SRP: class chỉ nên có DUY NHẤT một lý do để thay đổi" },
+  { id: "d-20-3", topicId: 20, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Code smell là gì?", choices: ["Code biên dịch được", "Code chạy nhanh", "Dấu hiệu của vấn đề thiết kế sâu xa hơn", "Code hợp lệ nào cũng vậy"], correctAnswer: 2, explanation: "Code smell: dấu hiệu cảnh báo code có thể có vấn đề thiết kế (method quá dài, code trùng lặp, quá nhiều tham số, v.v.)." }
 ];
 
 // State
@@ -312,11 +411,15 @@ function switchMode(mode) {
 
 function renderTopicsMenu() {
   const menu = document.getElementById('topics-menu');
-  menu.innerHTML = TOPICS.map(t => `
-    <div class="menu-item ${t.id === currentTopic ? 'active' : ''}" onclick="selectTopic(${t.id})">
-      ${t.name}
+  menu.innerHTML = `
+    <div class="menu-row">
+      ${TOPICS.map(t => `
+        <div class="menu-item ${t.id === currentTopic ? 'active' : ''}" onclick="selectTopic(${t.id})">
+          ${t.name}
+        </div>
+      `).join('')}
     </div>
-  `).join('');
+  `;
 }
 
 function selectTopic(id) {
@@ -370,17 +473,25 @@ function escapeHtml(text) {
 function renderDrillsFilters() {
   const menu = document.getElementById('filters-menu');
   menu.innerHTML = `
-    <div style="font-size:clamp(11px,2vw,12px);color:var(--muted);margin-bottom:12px;font-weight:600">Chủ Đề</div>
-    ${TOPICS.map(t => `
-      <div class="menu-item ${t.id === currentDrillFilter.topic ? 'active' : ''}" onclick="filterDrills('topic', ${t.id})">
-        ${t.name}
+    <div class="menu-group">
+      <div class="menu-label">Chủ Đề</div>
+      <div class="menu-row">
+        ${TOPICS.map(t => `
+          <div class="menu-item ${t.id === currentDrillFilter.topic ? 'active' : ''}" onclick="filterDrills('topic', ${t.id})">
+            ${t.name}
+          </div>
+        `).join('')}
       </div>
-    `).join('')}
-    <div style="font-size:clamp(11px,2vw,12px);color:var(--muted);margin:12px 0 8px;font-weight:600">Độ Khó</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'all' ? 'active' : ''}" onclick="filterDrills('difficulty', 'all')">Tất Cả</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'beginner' ? 'active' : ''}" onclick="filterDrills('difficulty', 'beginner')">Cơ Bản</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'intermediate' ? 'active' : ''}" onclick="filterDrills('difficulty', 'intermediate')">Trung Bình</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'advanced' ? 'active' : ''}" onclick="filterDrills('difficulty', 'advanced')">Nâng Cao</div>
+    </div>
+    <div class="menu-group">
+      <div class="menu-label">Độ Khó</div>
+      <div class="menu-row">
+        <div class="menu-item ${currentDrillFilter.difficulty === 'all' ? 'active' : ''}" onclick="filterDrills('difficulty', 'all')">Tất Cả</div>
+        <div class="menu-item ${currentDrillFilter.difficulty === 'beginner' ? 'active' : ''}" onclick="filterDrills('difficulty', 'beginner')">Cơ Bản</div>
+        <div class="menu-item ${currentDrillFilter.difficulty === 'intermediate' ? 'active' : ''}" onclick="filterDrills('difficulty', 'intermediate')">Trung Bình</div>
+        <div class="menu-item ${currentDrillFilter.difficulty === 'advanced' ? 'active' : ''}" onclick="filterDrills('difficulty', 'advanced')">Nâng Cao</div>
+      </div>
+    </div>
   `;
   renderDrills();
 }
@@ -421,16 +532,10 @@ function renderDrills() {
               </div>
             `).join('')}
           </div>
-          <button class="btn" style="width:100%;margin-top:12px" onclick="revealAnswer('${d.id}', ${d.correctAnswer}, '${escapeHtml(d.explanation)}')">
+          <button class="btn" style="width:100%;margin-top:12px" onclick="revealAnswer('${d.id}')">
             Xem Đáp Án
           </button>
-          <div id="answer-${d.id}" style="display:none;margin-top:12px;padding:clamp(10px,2vw,16px);border-radius:6px;background:var(--panel2);border-left:4px solid var(--mint)">
-            <strong style="color:var(--mint)">✓ Đáp Án Đúng:</strong>
-            <p style="margin:6px 0;color:var(--paper);font-size:clamp(12px,2vw,14px)">${d.choices[d.correctAnswer]}</p>
-            <strong style="color:var(--azure);display:block;margin-top:8px">📖 Giải Thích:</strong>
-            <p style="margin:6px 0;color:var(--muted);font-size:clamp(11px,2vw,13px)">${d.explanation}</p>
-            <button class="btn" style="margin-top:12px;width:100%" onclick="markCompleted('${d.id}')">Đánh Dấu Hoàn Thành ✓</button>
-          </div>
+          <div id="answer-${d.id}" style="display:none;margin-top:12px;padding:clamp(10px,2vw,16px);border-radius:6px;background:var(--panel2);border-left:4px solid var(--mint)"></div>
         </div>
       `).join('')}
     </div>
@@ -447,15 +552,24 @@ function selectChoice(drillId, choiceIdx) {
   choices[choiceIdx].classList.add('selected');
 }
 
-function revealAnswer(drillId, correctIdx, explanation) {
+function revealAnswer(drillId) {
+  const d = DRILLS.find(x => x.id === drillId);
   const choicesDiv = document.getElementById(`choices-${drillId}`);
   const choices = choicesDiv.querySelectorAll('.choice');
   choices.forEach((c, i) => {
-    if (i === correctIdx) {
+    if (i === d.correctAnswer) {
       c.classList.add('correct');
     }
   });
-  document.getElementById(`answer-${drillId}`).style.display = 'block';
+  const answerDiv = document.getElementById(`answer-${drillId}`);
+  answerDiv.innerHTML = `
+    <strong style="color:var(--mint)">✓ Đáp Án Đúng:</strong>
+    <p style="margin:6px 0;color:var(--paper);font-size:clamp(12px,2vw,14px)">${escapeHtml(d.choices[d.correctAnswer])}</p>
+    <strong style="color:var(--azure);display:block;margin-top:8px">📖 Giải Thích:</strong>
+    <p style="margin:6px 0;color:var(--muted);font-size:clamp(11px,2vw,13px)">${escapeHtml(d.explanation)}</p>
+    <button class="btn" style="margin-top:12px;width:100%" onclick="markCompleted('${drillId}')">Đánh Dấu Hoàn Thành ✓</button>
+  `;
+  answerDiv.style.display = 'block';
   updateProgress();
 }
 
@@ -467,7 +581,7 @@ function markCompleted(drillId) {
 }
 
 function updateProgress() {
-  const total = 150;
+  const total = DRILLS.length;
   const completed = completedDrills.size;
   document.getElementById('current-count').textContent = completed;
   document.getElementById('total-count').textContent = total;
