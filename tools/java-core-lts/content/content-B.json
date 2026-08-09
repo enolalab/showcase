@@ -1,0 +1,1258 @@
+{
+ "tutorials": [
+  {
+   "id": "t-3-1",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "HashMap hoạt động thế nào bên trong",
+   "summary": "Bucket, hàm trải hash, treeify và resize — điều thực sự xảy ra mỗi khi bạn gọi put() và get().",
+   "sections": [
+    "<b>Cấu trúc cơ bản.</b> HashMap giữ một mảng <code>Node[] table</code>, mỗi ô gọi là một bucket. Vị trí bucket được tính bằng <code>(n - 1) &amp; hash</code>, trong đó <code>n</code> là độ dài bảng và luôn là luỹ thừa của 2. Nhờ n là luỹ thừa của 2, phép chia lấy dư được thay bằng một phép AND bit — nhanh hơn nhiều, và đây chính là lý do bạn không bao giờ thấy HashMap có capacity 15 hay 17.",
+    "<b>Hash spreading — vì sao không dùng thẳng hashCode().</b> Vì chỉ số bucket chỉ lấy các bit thấp của hash, hai key khác nhau ở bit cao nhưng giống nhau ở bit thấp sẽ đâm vào cùng một bucket. HashMap xử lý bằng <code>h ^ (h &gt;&gt;&gt; 16)</code>: trộn 16 bit cao xuống 16 bit thấp để bit cao cũng góp phần vào chỉ số. Một phép XOR rẻ tiền nhưng giảm đáng kể va chạm với những hashCode phân bố kém.",
+    "<b>Xử lý va chạm và treeify (Java 8+).</b> Mỗi bucket ban đầu là một danh sách liên kết. Từ Java 8, khi một bucket đạt 8 node <i>và</i> độ dài bảng đã ít nhất 64, bucket đó chuyển thành cây đỏ-đen, hạ tra cứu trong bucket từ O(k) xuống O(log k). Chi tiết hay bị bỏ sót: nếu bảng còn nhỏ hơn 64, HashMap chọn <b>resize</b> thay vì treeify, vì bảng quá nhỏ mới là nguyên nhân thật của va chạm. Khi cây co lại còn khoảng 6 node, nó quay về danh sách.",
+    "<b>Resize và load factor.</b> Ngưỡng threshold = capacity × loadFactor, mặc định 0.75. Khi size vượt threshold, bảng nhân đôi và mọi entry được phân bổ lại. Vì capacity nhân đôi, mỗi entry chỉ có đúng hai khả năng: ở lại chỉ số cũ, hoặc chuyển tới chỉ số cũ cộng capacity cũ — Java 8 tận dụng điều này để tách mỗi bucket thành hai danh sách mà không phải tính lại hash.",
+    "<b>Khác biệt Java 7 và Java 8 khi resize.</b> Java 7 chèn vào đầu danh sách khi chuyển entry, nên thứ tự bị đảo, và khi nhiều thread cùng resize có thể tạo ra vòng lặp trong danh sách liên kết khiến <code>get()</code> quay 100% CPU vô hạn. Java 8 giữ nguyên thứ tự tương đối khi tách bucket nên không còn lỗi đó — nhưng HashMap vẫn <b>không</b> thread-safe, dùng sai vẫn mất dữ liệu và vẫn có thể hỏng cấu trúc.",
+    "<b>Định cỡ ban đầu là tối ưu rẻ nhất.</b> Nếu biết trước số phần tử, khởi tạo <code>new HashMap&lt;&gt;((int)(n / 0.75f) + 1)</code> để tránh nhiều lần resize (mỗi lần resize là một lượt duyệt lại toàn bộ entry). Constructor làm tròn lên luỹ thừa của 2 gần nhất, nên truyền 1000 thực tế cho bảng 1024 ô."
+   ],
+   "example": "Map<String, Integer> m = new HashMap<>(16);\nm.put(\"a\", 1);\n\n// Khái niệm cách định vị bucket:\n// int h     = key.hashCode();\n// int hash  = h ^ (h >>> 16);          // trải bit cao xuống bit thấp\n// int index = (table.length - 1) & hash;\n\n// threshold = 16 * 0.75 = 12  -> phần tử thứ 13 kích hoạt resize lên 32\n\n// Biết trước ~1000 phần tử thì định cỡ luôn:\nMap<String, Integer> sized = new HashMap<>((int) (1000 / 0.75f) + 1);",
+   "exampleTitle": "Định vị bucket và định cỡ ban đầu",
+   "keyPoints": [
+    "Chỉ số bucket = (n-1) & hash, n luôn là luỹ thừa của 2 nên dùng AND bit thay cho phép chia dư",
+    "h ^ (h >>> 16) trộn bit cao xuống bit thấp để hashCode phân bố kém không dồn hết vào một bucket",
+    "Treeify cần đồng thời hai điều kiện: bucket đạt 8 node VÀ bảng có ít nhất 64 ô; bảng nhỏ hơn thì resize thay vì treeify",
+    "Load factor mặc định 0.75; vượt threshold thì bảng nhân đôi và phân bổ lại toàn bộ entry",
+    "Java 8 sửa lỗi vòng lặp danh sách khi resize đồng thời của Java 7, nhưng HashMap vẫn không thread-safe"
+   ],
+   "trap": "Nói 'HashMap luôn O(1)' mà không nêu điều kiện. Nếu hashCode dồn hết vào một bucket, tra cứu tụt xuống O(n) ở Java 7 và O(log n) ở Java 8 nhờ treeify — mà treeify chỉ xảy ra khi bảng đã đủ lớn (>= 64 ô).",
+   "followUp": [
+    "Vì sao capacity của HashMap bắt buộc là luỹ thừa của 2?",
+    "Truyền new HashMap<>(1000) thì độ dài bảng thực tế là bao nhiêu?",
+    "Vì sao Java 8 đổi từ chèn đầu sang giữ thứ tự khi resize?",
+    "Đặt load factor 1.0 thì được gì và mất gì?"
+   ]
+  },
+  {
+   "id": "t-3-2",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Hợp đồng equals/hashCode và vì sao key phải bất biến",
+   "summary": "Vi phạm hợp đồng không làm chương trình crash — nó làm dữ liệu biến mất một cách im lặng.",
+   "sections": [
+    "<b>Hợp đồng.</b> Nếu <code>a.equals(b)</code> thì bắt buộc <code>a.hashCode() == b.hashCode()</code>. Chiều ngược lại KHÔNG bắt buộc: hai object khác nhau hoàn toàn được phép trùng hashCode (đó chỉ là va chạm, hoàn toàn hợp lệ). Ngoài ra equals phải phản xạ, đối xứng, bắc cầu và nhất quán qua nhiều lần gọi.",
+    "<b>Vi phạm chiều nào gây hậu quả gì.</b> Override <code>equals</code> mà quên <code>hashCode</code>: hai object 'bằng nhau' rơi vào hai bucket khác nhau nên HashSet chứa cả hai và <code>HashMap.get()</code> trả về null dù key logic giống hệt. Ngược lại, override <code>hashCode</code> mà quên <code>equals</code> thì chúng vào cùng bucket nhưng vẫn bị coi là khác nhau — chậm hơn, kết quả vẫn sai theo cách dễ nhận ra hơn.",
+    "<b>Mutate key sau khi đã put.</b> Đây là bẫy hay được hỏi nhất. HashMap lưu sẵn giá trị hash của key trong node. Nếu bạn sửa field tham gia hashCode sau khi put, lần <code>get()</code> sau sẽ tính ra bucket MỚI trong khi entry vẫn nằm ở bucket CŨ — không tìm thấy. Tệ hơn, entry đó cũng không remove được nữa: nó chiếm chỗ vĩnh viễn cho tới khi cả map bị thu hồi.",
+    "<b>Vì sao key nên bất biến.</b> Bất biến là cách duy nhất đảm bảo hashCode không đổi trong suốt vòng đời entry. Đó là lý do <code>String</code>, <code>Integer</code>, <code>LocalDate</code>, <code>enum</code>, <code>UUID</code> là những key lý tưởng. Nếu buộc phải dùng object nghiệp vụ, chỉ đưa vào equals/hashCode những field không bao giờ đổi — thường là id.",
+    "<b>Record (Java 16, có trong LTS 17 và 21).</b> Record tự sinh equals/hashCode dựa trên tất cả component nên rất tiện làm key — nhưng chỉ an toàn khi mọi component bản thân nó cũng bất biến. Record chứa một <code>List</code> mutable hoặc một mảng vẫn hỏng: với mảng, equals sinh ra dùng so sánh tham chiếu chứ không so sánh nội dung.",
+    "<b>TreeMap không dùng equals.</b> Với TreeMap/TreeSet, hai key được coi là trùng khi <code>compareTo</code> (hoặc Comparator) trả về 0, hoàn toàn bỏ qua equals. Nếu thứ tự không 'consistent with equals', cùng một tập dữ liệu sẽ cho kết quả khác nhau giữa HashMap và TreeMap. Ngoài ra TreeMap với thứ tự tự nhiên ném NullPointerException khi put key null, còn HashMap thì chấp nhận đúng một key null."
+   ],
+   "example": "class Key {\n    int id;\n    Key(int id) { this.id = id; }\n\n    @Override public boolean equals(Object o) {\n        return o instanceof Key && ((Key) o).id == this.id;\n    }\n    @Override public int hashCode() { return id; }\n}\n\nMap<Key, String> map = new HashMap<>();\nKey k = new Key(1);\nmap.put(k, \"one\");\n\nk.id = 2;                                  // mutate key ĐANG nằm trong map\n\nSystem.out.println(map.get(k));            // null - hash mới trỏ sang bucket khác\nSystem.out.println(map.get(new Key(1)));   // null - đúng bucket nhưng equals thất bại\nSystem.out.println(map.size());            // 1    - entry kẹt lại, không lấy ra được",
+   "exampleTitle": "Entry bị 'kẹt' sau khi mutate key",
+   "keyPoints": [
+    "equals bằng nhau thì hashCode phải bằng nhau; hashCode bằng nhau không bắt buộc equals bằng nhau",
+    "Override equals mà quên hashCode làm HashMap.get() trả null dù key logic giống hệt",
+    "HashMap cache hash trong node, nên mutate key sau khi put khiến entry không tìm được và không xoá được",
+    "Chỉ đưa vào equals/hashCode những field bất biến, thường là id",
+    "TreeMap so key bằng compareTo chứ không bằng equals, và ném NPE với key null khi dùng thứ tự tự nhiên"
+   ],
+   "trap": "Cho rằng mutate key rồi thì get() sẽ trả về giá trị cũ hoặc ném exception. Thực tế nó lặng lẽ trả null, size vẫn là 1, và bug này thường chỉ lộ ra sau nhiều tháng dưới dạng 'dữ liệu tự nhiên mất'.",
+   "followUp": [
+    "Nếu hashCode() luôn trả về hằng số 42 thì HashMap còn chạy đúng không, và chạy nhanh thế nào?",
+    "Vì sao equals cần tính đối xứng, và kế thừa phá vỡ nó ở đâu?",
+    "HashMap chấp nhận bao nhiêu key null, và key null nằm ở bucket nào?"
+   ]
+  },
+  {
+   "id": "t-3-3",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Fail-fast iterator và ConcurrentModificationException",
+   "summary": "Vì sao xoá phần tử trong for-each có lúc nổ, có lúc lại im lặng chạy sai.",
+   "sections": [
+    "<b>Cơ chế modCount.</b> Các collection <i>có thể sửa đổi</i> trong <code>java.util</code> giữ một bộ đếm <code>modCount</code>, tăng lên mỗi khi cấu trúc thay đổi (add, remove, clear — không tính set). Ngoại lệ đáng nhớ là nhóm bất biến <code>List.of</code>/<code>Set.of</code>/<code>Map.of</code>: chúng không có <code>modCount</code> nào cả, đơn giản vì không có cách nào sửa cấu trúc của chúng để mà đếm. Khi tạo iterator, nó chụp lại giá trị đó vào <code>expectedModCount</code>. Mỗi lần gọi <code>next()</code>, iterator so hai số; lệch nhau là ném <code>ConcurrentModificationException</code>.",
+    "<b>Đây không phải lỗi đa luồng.</b> Tên gọi gây hiểu nhầm rất nhiều: CME xảy ra phổ biến nhất trong code đơn luồng, khi bạn xoá phần tử ngay trong vòng for-each. For-each chỉ là cú pháp đường cho iterator, nên nó chịu đúng ràng buộc của iterator.",
+    "<b>Fail-fast là best-effort, không phải đảm bảo.</b> Iterator chỉ kiểm tra trong <code>next()</code>, còn <code>hasNext()</code> của ArrayList chỉ so <code>cursor != size</code>. Vì vậy khi bạn xoá phần tử <i>áp chót</i>, size giảm đúng bằng cursor, hasNext() trả false, vòng lặp kết thúc êm ru và CME không bao giờ được ném. Javadoc nói rõ: đừng viết code phụ thuộc vào ngoại lệ này để bắt lỗi — nó chỉ dùng để phát hiện bug.",
+    "<b>Cách xoá đúng.</b> Dùng <code>Iterator.remove()</code> (nó tự đồng bộ lại expectedModCount) hoặc <code>Collection.removeIf(predicate)</code> có từ Java 8. <code>removeIf</code> trên ArrayList còn hiệu quả hơn hẳn vòng lặp thủ công vì nó đánh dấu trước rồi dồn mảng một lần, thay vì gọi <code>System.arraycopy</code> cho mỗi lần xoá.",
+    "<b>Đối lập: iterator weakly consistent.</b> <code>ConcurrentHashMap</code>, <code>CopyOnWriteArrayList</code>, <code>ConcurrentLinkedQueue</code> không ném CME. Chúng cho phép duyệt song song với sửa đổi, đổi lại bạn nhận một ảnh chụp 'gần đúng': có thể thấy hoặc không thấy phần tử được thêm sau khi iterator ra đời, nhưng không bao giờ thấy phần tử hai lần hay thấy trạng thái hỏng.",
+    "<b>Bẫy với Map.</b> Trong vòng lặp trên <code>map.keySet()</code> hay <code>map.entrySet()</code>, gọi <code>map.put(keyMoi, v)</code> hoặc <code>map.remove(k)</code> đều làm modCount tăng. Chỉ có <code>entry.setValue(v)</code> và <code>map.put</code> lên key ĐÃ tồn tại là an toàn, vì chúng không đổi cấu trúc."
+   ],
+   "example": "List<String> list = new ArrayList<>(Arrays.asList(\"a\", \"b\", \"c\", \"d\"));\n\n// SAI: ném ConcurrentModificationException\n// for (String s : list) {\n//     if (s.startsWith(\"a\")) list.remove(s);\n// }\n\n// ĐÚNG 1: iterator tự quản lý expectedModCount\nIterator<String> it = list.iterator();\nwhile (it.hasNext()) {\n    if (it.next().startsWith(\"a\")) it.remove();\n}\n\n// ĐÚNG 2: gọn hơn và nhanh hơn trên ArrayList (Java 8+)\nlist.removeIf(s -> s.startsWith(\"b\"));\n\n// Trên Map: sửa value thì an toàn, thêm/xoá key thì không\nMap<String, Integer> m = new HashMap<>();\nfor (Map.Entry<String, Integer> e : m.entrySet()) {\n    e.setValue(e.getValue() + 1);      // OK, không đổi cấu trúc\n}",
+   "exampleTitle": "Ba cách xoá và ranh giới an toàn",
+   "keyPoints": [
+    "modCount tăng khi cấu trúc đổi; iterator so với expectedModCount trong next() và ném CME khi lệch",
+    "CME chủ yếu là lỗi đơn luồng do xoá trong for-each, không phải lỗi đa luồng",
+    "Xoá phần tử áp chót của ArrayList thì hasNext() trả false trước khi next() kịp kiểm tra — không ném CME nhưng vẫn sai logic",
+    "Dùng Iterator.remove() hoặc removeIf(); removeIf trên ArrayList dồn mảng một lần nên nhanh hơn",
+    "ConcurrentHashMap và CopyOnWriteArrayList dùng iterator weakly consistent nên không bao giờ ném CME"
+   ],
+   "trap": "Tin rằng 'không ném CME nghĩa là code đúng'. Fail-fast là best-effort; trường hợp xoá phần tử áp chót chạy trót lọt nhưng bỏ sót phần tử cuối, và bug lặng lẽ đi vào production.",
+   "followUp": [
+    "Vì sao removeIf nhanh hơn vòng lặp gọi list.remove() nhiều lần?",
+    "Iterator weakly consistent của ConcurrentHashMap đảm bảo những gì và không đảm bảo những gì?",
+    "Trong for-each trên entrySet, thao tác nào an toàn và thao tác nào làm tăng modCount?"
+   ]
+  },
+  {
+   "id": "t-3-4",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "ArrayList vs LinkedList: bảng độ phức tạp nói dối như thế nào",
+   "summary": "Vì sao LinkedList gần như luôn thua trong thực tế dù bảng Big-O trông có vẻ ngang ngửa.",
+   "sections": [
+    "<b>Cấu trúc bộ nhớ.</b> ArrayList là một mảng <code>Object[]</code> liên tục: các tham chiếu nằm sát nhau, CPU nạp một cache line là có sẵn nhiều phần tử kế tiếp. LinkedList là chuỗi node rời rạc, mỗi node là một object riêng chứa item cùng hai con trỏ prev/next — nằm rải rác khắp heap. Đây mới là khác biệt quyết định, không phải Big-O.",
+    "<b>Chi phí bộ nhớ.</b> Một phần tử trong ArrayList tốn đúng một ô tham chiếu (4 hoặc 8 byte tuỳ compressed oops). Một node LinkedList tốn header object cộng ba tham chiếu, thường khoảng 24–40 byte cho mỗi phần tử. Với danh sách vài triệu phần tử, chênh lệch là hàng trăm MB và thêm áp lực rất lớn lên GC vì có thêm hàng triệu object nhỏ.",
+    "<b>Big-O đúng nhưng gây hiểu nhầm.</b> LinkedList chèn/xoá là O(1) <i>khi bạn đã cầm sẵn node</i>, tức khi đang duyệt bằng iterator. Còn <code>list.add(i, x)</code> hay <code>list.get(i)</code> vẫn phải đi từ đầu (hoặc từ cuối, tuỳ i gần bên nào) nên là O(n). Ngược lại, việc dịch mảng của ArrayList tuy là O(n) nhưng thực hiện bằng <code>System.arraycopy</code> — một intrinsic được JIT dịch thành lệnh copy khối, nhanh hơn nhiều lần so với việc nhảy con trỏ qua n node rải rác.",
+    "<b>Chiến lược tăng trưởng của ArrayList.</b> Khi đầy, ArrayList cấp mảng mới với capacity <code>old + (old &gt;&gt; 1)</code>, tức khoảng 1.5 lần, rồi copy sang. Vì tăng theo cấp số nhân nên chi phí amortized của <code>add()</code> vẫn là O(1). Với constructor không tham số, mảng nội bộ khởi tạo rỗng và chỉ nở lên 10 ở lần add đầu tiên (JDK-7143928: tối ưu này thực sự vào JDK 8 và được backport về 7u40, nên nói &quot;từ Java 7&quot; chỉ là cách nói tắt, bản 7 GA chưa có) — nên tạo hàng triệu list rỗng không tốn bộ nhớ vô ích.",
+    "<b>Khi nào LinkedList thắng — và câu trả lời thường là không.</b> Trường hợp hợp lý còn lại là hàng đợi hai đầu, nhưng ngay cả khi đó <code>ArrayDeque</code> vẫn nhanh hơn vì dùng mảng vòng. Chính tác giả của Java Collections Framework từng nói ông không nghĩ ai nên dùng LinkedList. Câu trả lời an toàn trong phỏng vấn: mặc định ArrayList, dùng ArrayDeque cho queue/stack, và chỉ đổi khi có số đo cụ thể.",
+    "<b>Java 21 — SequencedCollection.</b> JEP 431 bổ sung <code>SequencedCollection</code> với <code>getFirst()</code>, <code>getLast()</code>, <code>addFirst()</code>, <code>addLast()</code>, <code>reversed()</code> cho List, Deque, LinkedHashSet, LinkedHashMap. Trước đó mỗi kiểu có một cách gọi riêng (<code>list.get(0)</code> so với <code>deque.getFirst()</code>); giờ đã thống nhất. Lưu ý các list bất biến vẫn ném UnsupportedOperationException với addFirst/addLast."
+   ],
+   "example": "// Tăng trưởng của ArrayList: old + (old >> 1)  ~ 1.5x\n// 10 -> 15 -> 22 -> 33 -> 49 ...\nList<Integer> a = new ArrayList<>();     // mảng nội bộ RỖNG cho tới lần add đầu\na.add(1);                                 // lúc này mới cấp capacity 10\n\n// Biết trước kích thước thì tránh hẳn việc copy nhiều lần\nList<Integer> sized = new ArrayList<>(1_000_000);\n\n// LinkedList chèn giữa: O(1) chỉ khi đã cầm iterator ở đúng chỗ\nListIterator<Integer> it = new LinkedList<>(a).listIterator();\nwhile (it.hasNext()) {\n    if (it.next() == 1) it.add(99);       // O(1) thật sự\n}\n\n// Java 21: API đầu/cuối thống nhất\n// var first = a.getFirst();\n// var rev   = a.reversed();",
+   "exampleTitle": "Tăng trưởng, định cỡ và chèn qua iterator",
+   "keyPoints": [
+    "ArrayList tăng capacity khoảng 1.5 lần (old + old>>1), amortized add() vẫn là O(1)",
+    "ArrayList không tham số khởi tạo mảng rỗng, chỉ nở lên 10 ở lần add đầu tiên",
+    "LinkedList chỉ O(1) khi đã cầm sẵn node qua iterator; get(i) và add(i, x) vẫn là O(n)",
+    "System.arraycopy là intrinsic nên dịch mảng thường nhanh hơn duyệt con trỏ qua node rải rác",
+    "Mỗi node LinkedList tốn thêm ~24-40 byte và tạo áp lực GC; ArrayDeque tốt hơn LinkedList cho queue/stack",
+    "Java 21 thêm SequencedCollection: getFirst/getLast/addFirst/addLast/reversed"
+   ],
+   "trap": "Trả lời máy móc 'chèn/xoá nhiều thì dùng LinkedList'. Người phỏng vấn sẽ hỏi lại: chèn ở đâu, và làm sao bạn tới được vị trí đó? Nếu phải gọi get(i) hay add(i, x) thì LinkedList đã thua ngay từ bước tìm vị trí.",
+   "followUp": [
+    "Vì sao ArrayList chọn hệ số 1.5 chứ không phải 2?",
+    "ArrayDeque hơn LinkedList ở điểm nào khi làm hàng đợi?",
+    "Xoá 100.000 phần tử giữa danh sách 1 triệu phần tử, bạn đo và chọn cấu trúc nào?"
+   ]
+  },
+  {
+   "id": "t-3-5",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "List cố định kích thước, list bất biến và map cho môi trường đa luồng",
+   "summary": "Arrays.asList, List.of, unmodifiableList và ConcurrentHashMap khác nhau ở đâu — và vì sao trả nhầm kiểu là một lỗ hổng thiết kế.",
+   "sections": [
+    "<b>Ba mức 'không sửa được' hoàn toàn khác nhau.</b> <code>Arrays.asList(...)</code> trả về một view <i>cố định kích thước</i> bọc quanh mảng gốc: <code>set()</code> chạy được và ghi thẳng vào mảng, còn <code>add()</code>/<code>remove()</code> ném UnsupportedOperationException. <code>Collections.unmodifiableList(l)</code> là view <i>chỉ đọc</i> nhưng vẫn phản chiếu mọi thay đổi của list gốc. <code>List.of(...)</code> (Java 9) mới thực sự bất biến: dữ liệu được sao chép và không ai sửa được nữa.",
+    "<b>Vì sao khác biệt này quan trọng.</b> Trả về <code>Collections.unmodifiableList(internalList)</code> từ getter tưởng là an toàn, nhưng người gọi vẫn thấy dữ liệu đổi dưới chân mình mỗi khi bên trong bạn sửa list gốc — và nếu họ đang duyệt thì nhận CME. Muốn thật sự cắt liên hệ, dùng <code>List.copyOf(internalList)</code> (Java 10) hoặc <code>new ArrayList&lt;&gt;(internalList)</code>.",
+    "<b>Bẫy null của các collection bất biến.</b> <code>List.of</code>, <code>Set.of</code>, <code>Map.of</code> không chấp nhận null: tạo với phần tử null ném NullPointerException. <code>Set.of</code> và <code>Map.of</code> còn ném IllegalArgumentException khi có phần tử/khoá trùng lặp — khác hẳn <code>new HashSet&lt;&gt;()</code> vốn im lặng bỏ qua bản trùng. Trong cài đặt OpenJDK hiện tại, ngay cả <code>contains(null)</code> trên các collection này cũng ném NPE thay vì trả false, nên đừng dùng chúng ở chỗ null là giá trị hợp lệ.",
+    "<b>Stream trả về gì.</b> <code>collect(Collectors.toList())</code> không cam kết trả list sửa được hay không (thực tế OpenJDK trả ArrayList, nhưng đừng phụ thuộc). <code>Collectors.toUnmodifiableList()</code> (Java 10) và <code>stream.toList()</code> (Java 16, có trong LTS 17/21) trả về list không sửa được — điểm khác là <code>stream.toList()</code> vẫn cho phép phần tử null, còn <code>toUnmodifiableList()</code> thì không.",
+    "<b>Ba lựa chọn map cho đa luồng.</b> <code>Collections.synchronizedMap</code> bọc mọi method trong một lock duy nhất: đơn giản nhưng mọi thread tranh nhau một lock, và bạn vẫn phải tự <code>synchronized</code> khi duyệt. <code>ConcurrentHashMap</code> (Java 8+) khoá ở mức từng bucket — CAS khi bucket rỗng, <code>synchronized</code> trên node đầu bucket khi có va chạm — nên nhiều thread ghi vào bucket khác nhau không chặn nhau. <code>Hashtable</code> là di sản, không nên dùng trong code mới.",
+    "<b>Điểm ai cũng quên: thao tác ghép vẫn không nguyên tử.</b> ConcurrentHashMap chỉ đảm bảo từng method là nguyên tử. Chuỗi <code>if (!map.containsKey(k)) map.put(k, v)</code> vẫn có race. Phải dùng method ghép sẵn: <code>putIfAbsent</code>, <code>computeIfAbsent</code>, <code>merge</code>, <code>compute</code>. Và ConcurrentHashMap cấm cả key null lẫn value null, vì trong môi trường không khoá, <code>get()</code> trả null sẽ không phân biệt được 'không có key' với 'giá trị là null'."
+   ],
+   "example": "// 1. Cố định kích thước, ghi xuyên xuống mảng gốc\nString[] arr = {\"a\", \"b\"};\nList<String> fixed = Arrays.asList(arr);\nfixed.set(0, \"z\");                 // OK  -> arr[0] cũng thành \"z\"\n// fixed.add(\"c\");                 // UnsupportedOperationException\n\n// 2. Chỉ đọc nhưng VẪN là view: đổi list gốc thì view đổi theo\nList<String> src  = new ArrayList<>(List.of(\"a\"));\nList<String> view = Collections.unmodifiableList(src);\nsrc.add(\"b\");\nSystem.out.println(view.size());   // 2  <-- không hề bất biến\n\n// 3. Bất biến thật sự: sao chép, cắt hẳn liên hệ\nList<String> snapshot = List.copyOf(src);\nsrc.add(\"c\");\nSystem.out.println(snapshot.size()); // 2\n\n// 4. Thao tác ghép trên map đa luồng\nConcurrentHashMap<String, Integer> counts = new ConcurrentHashMap<>();\ncounts.merge(\"hit\", 1, Integer::sum);                  // nguyên tử\ncounts.computeIfAbsent(\"list\", k -> 0);                // nguyên tử\n// if (!counts.containsKey(k)) counts.put(k, v);       // KHÔNG nguyên tử",
+   "exampleTitle": "Ba mức bất biến và thao tác nguyên tử",
+   "keyPoints": [
+    "Arrays.asList: cố định kích thước, set() ghi xuyên xuống mảng gốc, add/remove ném UnsupportedOperationException",
+    "Collections.unmodifiableList là view chỉ đọc chứ không phải bản sao — list gốc đổi thì view đổi theo",
+    "List.of (Java 9) và List.copyOf (Java 10) mới thực sự bất biến, và đều không chấp nhận null",
+    "stream.toList() (Java 16) trả list không sửa được nhưng cho phép null; Collectors.toUnmodifiableList() thì không",
+    "ConcurrentHashMap khoá theo bucket (CAS + synchronized trên node đầu), cấm null key và null value",
+    "Từng method của ConcurrentHashMap là nguyên tử, nhưng chuỗi thao tác thì không — dùng computeIfAbsent/merge/putIfAbsent"
+   ],
+   "trap": "Trả về Collections.unmodifiableList(internalList) rồi tin rằng đã đóng gói xong. Người gọi không sửa được nhưng vẫn thấy dữ liệu thay đổi, và có thể nhận ConcurrentModificationException giữa lúc duyệt.",
+   "followUp": [
+    "Vì sao ConcurrentHashMap cấm null value trong khi HashMap thì cho phép?",
+    "Arrays.asList(new int[]{1,2,3}) cho ra list có bao nhiêu phần tử, và vì sao?",
+    "Khi nào CopyOnWriteArrayList là lựa chọn đúng, khi nào là thảm hoạ?"
+   ]
+  },
+  {
+   "id": "t-4-1",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "String bất biến: cơ chế và ba lý do thiết kế",
+   "summary": "Vì sao Java chấp nhận trả giá bằng rác bộ nhớ để đổi lấy một kiểu String không bao giờ đổi.",
+   "sections": [
+    "<b>Bất biến nghĩa là gì ở đây.</b> Class <code>String</code> khai báo <code>final</code> nên không ai kế thừa để phá vỡ hành vi; mảng ký tự bên trong là <code>private final</code> và không bao giờ được trả ra ngoài. Mọi method như <code>toUpperCase()</code>, <code>trim()</code>, <code>replace()</code>, <code>substring()</code> đều tạo String mới; object gốc không đổi một bit. Lỗi cơ bản hay gặp là gọi <code>s.trim()</code> rồi tưởng <code>s</code> đã sạch — giá trị trả về bị vứt đi.",
+    "<b>Lý do 1 — an toàn.</b> String được dùng làm tên class khi class loader nạp, đường dẫn file, chuỗi kết nối database, tham số của kiểm tra quyền. Nếu String đổi được, một đoạn code có thể vượt qua bước kiểm tra rồi sửa chính giá trị đó ngay sau đó — đúng dạng lỗi time-of-check to time-of-use. Bất biến khiến cả lớp tấn công này biến mất khỏi bàn cân.",
+    "<b>Lý do 2 — cache hashCode.</b> String tính hashCode một lần rồi lưu vào field và dùng lại mãi mãi. Điều này chỉ hợp lệ khi nội dung không đổi, và chính nó khiến String trở thành key lý tưởng cho HashMap: tra cứu hàng triệu lần mà chỉ tính hash một lần. Chi tiết thú vị: trong cài đặt cổ điển, giá trị 0 vừa nghĩa là 'chưa tính' vừa là hash thật của chuỗi rỗng, nên riêng trường hợp đó bị tính lại mỗi lần; các JDK mới hơn thêm một cờ riêng để tránh việc này.",
+    "<b>Lý do 3 — chia sẻ an toàn giữa thread.</b> Object bất biến không có trạng thái nào để race, nên không cần đồng bộ hoá và có thể publish tự do giữa các thread. Đó cũng là tiền đề để nhiều tham chiếu cùng trỏ vào một literal trong String Pool mà không ai sợ người khác sửa mất.",
+    "<b>Cái giá phải trả.</b> Mỗi phép biến đổi sinh một object mới, nên nối chuỗi trong vòng lặp tạo rác cực nhanh và đẩy áp lực lên GC. Đây chính là lý do tồn tại của <code>StringBuilder</code>: một buffer thay đổi được, chỉ đóng băng thành String đúng một lần ở cuối.",
+    "<b>Bất biến không đồng nghĩa với an toàn trong bộ nhớ.</b> Vì không ghi đè được nội dung, một mật khẩu lưu trong String nằm lại trong heap cho tới khi GC dọn, và có thể lộ nguyên văn trong heap dump. Đó là lý do <code>JPasswordField.getPassword()</code> trả về <code>char[]</code> chứ không phải String — để bạn tự ghi đè mảng ngay sau khi dùng xong. Đây là câu hỏi vặn khá phổ biến sau khi ứng viên vừa ca ngợi tính bất biến."
+   ],
+   "example": "String s = \"  Java  \";\ns.trim();                    // BỎ ĐI kết quả -> s không đổi\nSystem.out.println(\"[\" + s + \"]\");        // [  Java  ]\n\ns = s.trim().toUpperCase();  // phải gán lại\nSystem.out.println(\"[\" + s + \"]\");        // [JAVA]\n\n// hashCode được cache: tính một lần, dùng mãi\nMap<String, Integer> m = new HashMap<>();\nm.put(\"user:1001\", 1);\n\n// Mật khẩu: dùng char[] để ghi đè được sau khi dùng\nchar[] pwd = readPassword();\ntry {\n    authenticate(pwd);\n} finally {\n    java.util.Arrays.fill(pwd, '\\0');     // String không làm được điều này\n}",
+   "exampleTitle": "Bất biến trong thực tế",
+   "keyPoints": [
+    "class String là final, mảng ký tự bên trong private final và không bao giờ lộ ra ngoài",
+    "Mọi method biến đổi đều trả về String mới; quên gán lại là lỗi kinh điển",
+    "Bất biến cho phép cache hashCode, nền tảng cho việc dùng String làm key HashMap",
+    "Object bất biến chia sẻ an toàn giữa thread mà không cần đồng bộ hoá",
+    "Đổi lại là rác bộ nhớ khi biến đổi nhiều lần — lý do StringBuilder tồn tại",
+    "Mật khẩu nên dùng char[] vì String không xoá được khỏi heap theo ý muốn"
+   ],
+   "trap": "Trả lời 'String bất biến nên an toàn' rồi bị hỏi ngược: nếu an toàn thì vì sao API mật khẩu của Java lại trả char[]? Câu trả lời là bất biến chống sửa đổi chứ không chống lộ dữ liệu trong heap dump.",
+   "followUp": [
+    "Vì sao class String phải là final chứ không chỉ cần các field là final?",
+    "hashCode của String được cache ở đâu và trường hợp nào bị tính lại?",
+    "Bất biến giúp gì cho String Pool?"
+   ]
+  },
+  {
+   "id": "t-4-2",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "String Pool, intern() và == so với equals",
+   "summary": "Vì sao hai chuỗi cùng nội dung lúc thì == cho true, lúc thì cho false.",
+   "sections": [
+    "<b>String Pool là gì.</b> JVM giữ một bảng băm nội bộ chứa tham chiếu tới các chuỗi duy nhất. Mọi String literal trong bytecode đều được đưa vào pool khi hằng số đó được phân giải lần đầu, và mọi nơi dùng cùng literal sẽ nhận đúng một object. Đây là lý do <code>\"java\" == \"java\"</code> trả về true.",
+    "<b>Pool nằm ở đâu — chi tiết version rất hay bị hỏi.</b> Tới Java 6, pool nằm trong PermGen với kích thước cố định, nên gọi <code>intern()</code> ồ ạt có thể làm tràn PermGen. Từ Java 7, pool được chuyển sang heap: các chuỗi trong pool trở nên bị GC thu hồi được và không còn giới hạn bởi PermGen. (Riêng PermGen thì mãi tới Java 8 mới bị bỏ hẳn, thay bằng Metaspace — hai thay đổi này khác nhau và khác thời điểm.) Số bucket của bảng có thể chỉnh bằng <code>-XX:StringTableSize</code>.",
+    "<b>new String(\"a\") luôn tạo object mới.</b> Toán tử <code>new</code> theo định nghĩa cấp phát object mới trên heap, chép nội dung từ literal trong pool. Vì vậy <code>new String(\"a\") != \"a\"</code> dù nội dung giống hệt. Trong code thật, viết <code>new String(...)</code> gần như luôn là thừa và là mùi code.",
+    "<b>intern() làm gì.</b> <code>s.intern()</code> tra pool: nếu đã có chuỗi cùng nội dung thì trả về tham chiếu đó, nếu chưa thì thêm vào rồi trả về. Từ Java 7, khi pool nằm trên heap, nó có thể đăng ký chính object đang có thay vì tạo bản sao. intern hữu ích khi bạn nạp hàng triệu chuỗi lặp lại từ file hay database, nhưng đừng dùng bừa: bảng pool cũng có chi phí tra cứu và giữ tham chiếu.",
+    "<b>== so với equals so với compareTo.</b> <code>==</code> so tham chiếu (cùng một object hay không); <code>equals</code> so nội dung từng ký tự; <code>compareTo</code> trả về số âm/0/dương theo thứ tự từ điển dựa trên giá trị char UTF-16, dùng cho sắp xếp chứ không phải để kiểm tra bằng nhau. So chuỗi luôn dùng <code>equals</code>, hoặc <code>Objects.equals(a, b)</code> nếu một vế có thể null.",
+    "<b>Vì sao bẫy này hiệu quả.</b> Với chuỗi nhỏ và literal, <code>==</code> thường 'may mắn' đúng nhờ pool, y hệt việc <code>==</code> trên Integer đúng trong khoảng -128..127 nhờ Integer cache. Code chạy đúng trên môi trường dev rồi sai trên production khi chuỗi tới từ đọc file hay HTTP request. Đừng bao giờ dựa vào sự may mắn đó."
+   ],
+   "example": "String a = \"java\";\nString b = \"java\";\nString c = new String(\"java\");\nString d = c.intern();\n\nSystem.out.println(a == b);        // true  - cùng object trong pool\nSystem.out.println(a == c);        // false - c là object riêng trên heap\nSystem.out.println(a.equals(c));   // true  - cùng nội dung\nSystem.out.println(a == d);        // true  - intern() trả tham chiếu trong pool\n\n// Chuỗi tới từ input thì không nằm trong pool\nString fromInput = new java.util.Scanner(\"java\").next();\nSystem.out.println(a == fromInput);       // false\nSystem.out.println(a.equals(fromInput));  // true\n\n// An toàn với null\nSystem.out.println(java.util.Objects.equals(null, a));   // false, không NPE",
+   "exampleTitle": "Pool, intern và ba cách so sánh",
+   "keyPoints": [
+    "Mọi String literal được đưa vào String Pool nên literal cùng nội dung là cùng một object",
+    "Pool nằm trong PermGen tới Java 6, chuyển sang heap từ Java 7 nên bị GC thu hồi được",
+    "PermGen bị bỏ ở Java 8 và thay bằng Metaspace — sự kiện khác với việc pool chuyển sang heap",
+    "new String(...) luôn tạo object mới nằm ngoài pool",
+    "intern() trả tham chiếu trong pool; hữu ích khi nạp nhiều chuỗi lặp lại nhưng có chi phí tra bảng",
+    "== so tham chiếu, equals so nội dung, compareTo dùng để sắp xếp chứ không phải để kiểm tra bằng nhau"
+   ],
+   "trap": "Kết luận '== đôi khi vẫn đúng nên dùng được với chuỗi ngắn'. Nó đúng vì literal được interned, không phải vì chuỗi ngắn. Ngay khi chuỗi tới từ I/O, nối chuỗi lúc runtime hay deserialize, == trả false.",
+   "followUp": [
+    "String Pool chuyển từ PermGen sang heap ở phiên bản nào và điều đó thay đổi gì?",
+    "Khi nào intern() thực sự tiết kiệm bộ nhớ, và khi nào nó phản tác dụng?",
+    "Vì sao == trên Integer cũng có bẫy tương tự, và biên giá trị là bao nhiêu?"
+   ]
+  },
+  {
+   "id": "t-4-3",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Nối chuỗi: từ StringBuilder tới invokedynamic",
+   "summary": "Compiler tối ưu phép + rất giỏi trong một biểu thức, nhưng không bao giờ tối ưu được qua các vòng lặp.",
+   "sections": [
+    "<b>Java 8 trở về trước: javac sinh StringBuilder.</b> Một biểu thức như <code>\"a\" + x + \"b\"</code> được biên dịch thành <code>new StringBuilder().append(...).append(...).toString()</code>. Đây là lý do câu 'dùng + chậm hơn StringBuilder' là sai khi nói về một biểu thức đơn lẻ — chúng sinh ra bytecode gần như giống hệt nhau.",
+    "<b>Java 9 trở đi: invokedynamic.</b> JEP 280 thay chuỗi lệnh StringBuilder bằng một lệnh <code>invokedynamic</code> trỏ tới <code>StringConcatFactory</code>. Bytecode nhỏ hơn hẳn và chiến lược thực thi được quyết định lúc chạy, thường là tính trước tổng độ dài rồi ghi thẳng một lần vào mảng byte — tránh được việc StringBuilder phải nở buffer và copy. Ưu điểm phụ rất lớn: JDK có thể cải tiến cách nối chuỗi mà không cần biên dịch lại ứng dụng.",
+    "<b>Vì sao vòng lặp vẫn là O(n^2).</b> Cả hai cơ chế trên chỉ áp dụng trong phạm vi MỘT biểu thức. Trong vòng lặp, mỗi lần <code>s += x</code> là một biểu thức độc lập: nó tạo builder/callsite mới, sao chép lại toàn bộ nội dung cũ rồi sinh String mới. Sau n vòng, tổng số ký tự phải sao chép là 1+2+...+n, tức O(n^2). Compiler không thể gộp lại vì mỗi giá trị trung gian là một String hoàn chỉnh có thể bị dùng ở bất kỳ đâu.",
+    "<b>Constant folding.</b> Biểu thức chỉ gồm hằng, như <code>\"ja\" + \"va\"</code>, được ghép ngay lúc biên dịch thành một literal và đưa vào pool — nên <code>(\"ja\" + \"va\") == \"java\"</code> trả về true. Biến <code>final</code> khởi tạo bằng hằng cũng tính là hằng compile-time; biến thường (kể cả effectively final) thì không, và phép nối xảy ra lúc runtime tạo object mới.",
+    "<b>StringBuilder so với StringBuffer.</b> StringBuffer có từ JDK 1.0 và <code>synchronized</code> trên mọi method; StringBuilder ra đời ở Java 5, cùng API nhưng bỏ đồng bộ hoá. Điểm mấu chốt để nói trong phỏng vấn: đồng bộ ở mức từng method gần như không bao giờ đủ, vì một chuỗi thao tác append vẫn cần lock ở tầng ngoài — nên StringBuffer hiếm khi là câu trả lời đúng. Thêm nữa, với builder là biến cục bộ không thoát khỏi method, JIT thường loại bỏ được lock qua escape analysis, khiến khác biệt càng vô nghĩa.",
+    "<b>Chọn công cụ nào.</b> Vài mảnh trong một biểu thức thì cứ dùng <code>+</code> cho dễ đọc. Nối trong vòng lặp hoặc nhánh điều kiện thì giữ một <code>StringBuilder</code> ngoài vòng lặp và ước lượng capacity nếu được (mặc định 16, nở theo công thức khoảng 2 lần cộng 2). Ghép collection thì dùng <code>String.join</code>, <code>StringJoiner</code> hoặc <code>Collectors.joining</code> — vừa gọn vừa xử lý dấu phân cách đúng."
+   ],
+   "example": "// XẤU: mỗi vòng lặp sao chép lại toàn bộ chuỗi -> O(n^2)\nString s = \"\";\nfor (int i = 0; i < 100_000; i++) {\n    s += i;      // ~ s = new StringBuilder().append(s).append(i).toString()\n}\n\n// TỐT: một buffer duy nhất -> O(n)\nStringBuilder sb = new StringBuilder(600_000);\nfor (int i = 0; i < 100_000; i++) {\n    sb.append(i);\n}\nString r = sb.toString();\n\n// Một biểu thức thì dùng + là đủ, không cần StringBuilder thủ công\nString msg = \"user=\" + id + \", role=\" + role;\n\n// Ghép collection\nString csv = String.join(\", \", List.of(\"a\", \"b\", \"c\"));\nString csv2 = list.stream().map(Object::toString)\n                  .collect(java.util.stream.Collectors.joining(\", \", \"[\", \"]\"));",
+   "exampleTitle": "Ba cách nối và chi phí của chúng",
+   "keyPoints": [
+    "Java 8 và trước: javac dịch biểu thức nối thành chuỗi append của StringBuilder",
+    "Java 9+ (JEP 280): javac sinh invokedynamic tới StringConcatFactory, chiến lược do runtime chọn",
+    "Trong vòng lặp, mỗi lần += là một biểu thức riêng nên tổng chi phí vẫn là O(n^2) ở mọi phiên bản",
+    "Biểu thức toàn hằng được ghép lúc biên dịch và vào pool; final khởi tạo bằng hằng cũng vậy, effectively final thì không",
+    "StringBuffer đồng bộ từng method — hiếm khi đủ để đúng, nên StringBuilder là lựa chọn mặc định",
+    "Ghép collection thì dùng String.join / StringJoiner / Collectors.joining"
+   ],
+   "trap": "Nói 'từ Java 9 nối chuỗi đã được tối ưu nên vòng lặp cũng không sao'. Tối ưu chỉ nằm trong phạm vi một biểu thức; vòng lặp vẫn là O(n^2) và đây chính là câu vặn tiếp theo mà người phỏng vấn chờ đợi.",
+   "followUp": [
+    "Vì sao compiler không thể tự gộp phép nối trong vòng lặp thành một StringBuilder?",
+    "invokedynamic mang lại lợi ích gì mà chuỗi lệnh StringBuilder không có?",
+    "Escape analysis ảnh hưởng thế nào tới khác biệt giữa StringBuilder và StringBuffer?"
+   ]
+  },
+  {
+   "id": "t-4-4",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Bộ nhớ của String: Compact Strings và bẫy substring",
+   "summary": "String chiếm bao nhiêu byte, vì sao Java 9 đổi char[] thành byte[], và vì sao substring từng gây memory leak.",
+   "sections": [
+    "<b>Trước Java 9: char[] hai byte cho mọi ký tự.</b> Java lưu chuỗi theo UTF-16, mỗi <code>char</code> chiếm 2 byte kể cả khi nội dung toàn ASCII. Trong ứng dụng web điển hình, String chiếm phần lớn heap và phần lớn trong số đó là ASCII — nghĩa là gần một nửa bộ nhớ dành cho chuỗi bị lãng phí vào các byte 0.",
+    "<b>Java 9 — Compact Strings (JEP 254).</b> Field nội bộ đổi từ <code>char[]</code> sang <code>byte[]</code> kèm một byte <code>coder</code> nhận giá trị LATIN1 hoặc UTF16. Nếu mọi ký tự trong chuỗi nằm trong Latin-1 thì lưu 1 byte mỗi ký tự; chỉ cần một ký tự nằm ngoài là toàn bộ chuỗi chuyển sang chế độ UTF16 với 2 byte mỗi ký tự. Điểm cần nhấn mạnh: quyết định là theo TỪNG String, không phải theo từng ký tự.",
+    "<b>Hệ quả thực tế cho dữ liệu tiếng Việt.</b> Các ký tự có dấu như 'ế' hay 'ộ' nằm ngoài Latin-1, nên chuỗi tiếng Việt có dấu vẫn ở chế độ UTF16 và không hưởng lợi. Đừng hứa với người phỏng vấn rằng Compact Strings giảm một nửa bộ nhớ cho mọi ứng dụng — lợi ích phụ thuộc vào dữ liệu, và trong hệ thống nhiều tiếng Việt thì phần tiết kiệm chủ yếu đến từ các chuỗi kỹ thuật (key, id, header, JSON field name).",
+    "<b>API không đổi.</b> <code>length()</code> và <code>charAt()</code> vẫn tính theo đơn vị char UTF-16, nên thay đổi này hoàn toàn trong suốt với code ứng dụng. Chỉ có những thư viện chạm vào nội bộ String bằng reflection hoặc Unsafe mới bị ảnh hưởng — đó cũng là lý do không nên làm vậy.",
+    "<b>Bẫy substring cũ và cách nó được sửa.</b> Tới Java 6, String có thêm field <code>offset</code> và <code>count</code>, và <code>substring()</code> trả về String dùng CHUNG mảng ký tự với chuỗi gốc. Cắt 10 ký tự từ một file 10MB đã nạp thành String sẽ giữ nguyên 10MB đó sống trong heap — memory leak kinh điển. Từ Java 7 update 6, substring sao chép mảng: hết rò rỉ, nhưng độ phức tạp đổi từ O(1) sang O(n) theo độ dài kết quả.",
+    "<b>Cân nhắc khi parse dữ liệu lớn.</b> Vì substring giờ luôn copy, việc cắt hàng triệu lần trong vòng lặp parse là chi phí thật. Nếu chỉ cần đọc, hãy làm việc trên chỉ số (<code>indexOf</code>, <code>regionMatches</code>, <code>charAt</code>) hoặc dùng <code>CharBuffer</code>/<code>CharSequence</code> làm view, thay vì tạo hàng triệu String trung gian."
+   ],
+   "example": "// Java 9+: byte[] + coder\n// \"abc\"      -> coder = LATIN1, 3 byte\n// \"tiếng\"    -> có ký tự ngoài Latin-1 -> coder = UTF16, 10 byte\n\nString ascii = \"user-id-1001\";      // 1 byte/ký tự từ Java 9\nString viet  = \"Nguyễn Văn A\";      // vẫn 2 byte/ký tự vì có ký tự ngoài Latin-1\n\n// API vẫn tính theo char UTF-16, không đổi\nSystem.out.println(viet.length());\nSystem.out.println(viet.charAt(6));\n\n// Bẫy cũ (<= Java 6): substring chia sẻ mảng nền -> giữ sống cả chuỗi lớn\n// String huge = readWholeFile();     // 10 MB\n// String tiny = huge.substring(0, 10);   // Java 6: vẫn giữ 10 MB sống\n\n// Từ Java 7u6 substring copy mảng: an toàn bộ nhớ nhưng là O(n)\n// Parse dữ liệu lớn thì làm việc trên chỉ số thay vì cắt chuỗi\nint idx = viet.indexOf(' ');\nboolean startsWithNguyen = viet.regionMatches(0, \"Nguyễn\", 0, 6);",
+   "exampleTitle": "Compact Strings và chi phí của substring",
+   "keyPoints": [
+    "Trước Java 9 String lưu char[], 2 byte cho mọi ký tự kể cả ASCII",
+    "Java 9 JEP 254 đổi sang byte[] + cờ coder (LATIN1 hoặc UTF16), quyết định theo từng String",
+    "Chuỗi tiếng Việt có dấu nằm ngoài Latin-1 nên vẫn dùng 2 byte mỗi ký tự",
+    "length() và charAt() vẫn theo đơn vị char UTF-16 nên thay đổi trong suốt với ứng dụng",
+    "Tới Java 6 substring chia sẻ mảng nền và gây memory leak; từ Java 7u6 nó copy nên an toàn nhưng là O(n)",
+    "Parse dữ liệu lớn nên dùng chỉ số hoặc CharSequence view thay vì tạo hàng triệu substring"
+   ],
+   "trap": "Khẳng định 'Compact Strings giúp tiết kiệm một nửa bộ nhớ'. Chỉ đúng với chuỗi toàn ký tự Latin-1; chỉ một ký tự tiếng Việt có dấu là cả chuỗi quay về 2 byte mỗi ký tự.",
+   "followUp": [
+    "Vì sao coder được quyết định theo cả chuỗi chứ không theo từng ký tự?",
+    "Trước Java 7u6, vì sao substring lại gây memory leak và JDK sửa bằng cách nào?",
+    "Muốn cắt chuỗi hàng triệu lần khi parse thì thay substring bằng gì?"
+   ]
+  },
+  {
+   "id": "t-4-5",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "API chuỗi tiến hoá qua các bản LTS: 8 → 11 → 17 → 21",
+   "summary": "Những gì thực sự được thêm vào String qua từng bản LTS, và cái nào đáng đổi thói quen.",
+   "sections": [
+    "<b>Java 7 — switch on String.</b> Từ Java 7 bạn switch được trên String. Bên dưới compiler sinh ra hai bước: switch trên <code>hashCode()</code> để thu hẹp ứng viên, rồi gọi <code>equals()</code> để loại trừ va chạm, cuối cùng switch lần hai trên một chỉ số nội bộ. Nghĩa là nó vẫn dùng equals nên vẫn phân biệt hoa thường, và <code>switch</code> trên biến String null sẽ ném NullPointerException.",
+    "<b>Java 8 — ghép và stream.</b> <code>String.join(delim, parts)</code>, <code>StringJoiner</code> (hỗ trợ cả prefix/suffix và giá trị khi rỗng), <code>Collectors.joining</code>, và <code>chars()</code> trả về IntStream. Đây là bộ công cụ nên dùng thay cho việc tự nối rồi cắt dấu phẩy thừa ở cuối.",
+    "<b>Java 11 — nhóm method nhỏ nhưng dùng hằng ngày.</b> <code>isBlank()</code>, <code>strip()</code>/<code>stripLeading()</code>/<code>stripTrailing()</code>, <code>lines()</code>, <code>repeat(n)</code>. Khác biệt quan trọng giữa <code>strip()</code> và <code>trim()</code>: trim cắt mọi ký tự có mã nhỏ hơn hoặc bằng U+0020, còn strip dùng định nghĩa khoảng trắng theo Unicode (<code>Character.isWhitespace</code>) nên xử lý đúng các khoảng trắng ngoài ASCII. Với dữ liệu người dùng dán từ web, strip là lựa chọn đúng.",
+    "<b>Java 15 — text block, có sẵn trong LTS 17 và 21.</b> Cú pháp <code>\"\"\"</code> cho chuỗi nhiều dòng. Quy tắc cần nhớ: lề phụ (incidental white space) bị cắt dựa trên số dấu cách nhỏ nhất trong các dòng không rỗng, TÍNH CẢ dòng chứa dấu đóng — nên chính vị trí của <code>\"\"\"</code> đóng quyết định lề. Nếu dấu đóng nằm trên dòng riêng thì chuỗi kết thúc bằng ký tự xuống dòng. Dấu <code>\\</code> cuối dòng để nối dòng, <code>\\s</code> để giữ lại khoảng trắng cuối dòng. <code>formatted()</code> cũng ra đời cùng Java 15.",
+    "<b>Java 21 — không đổi gì lớn ở String.</b> Đây là chỗ nên trung thực: Java 21 không mang thay đổi đáng kể cho String API. Những thứ liên quan tới chuỗi trong Java 21 nằm ở nơi khác — chẳng hạn pattern matching cho switch đã chuẩn hoá, cho phép <code>case String s -&gt; ...</code> trên biến kiểu Object. Tính năng String Templates từng xuất hiện dạng preview trong một số bản JDK nhưng chưa chuẩn hoá, nên đừng nêu như một tính năng chính thức của LTS.",
+    "<b>String.format so với nối chuỗi và logging.</b> <code>String.format</code> phải phân tích chuỗi định dạng, boxing các tham số vào mảng varargs và đi qua <code>Formatter</code> — đắt hơn phép nối nhiều lần, nên tránh trong vòng lặp nóng. Đặc biệt với log: viết <code>log.debug(String.format(...))</code> khiến chi phí định dạng luôn phát sinh kể cả khi mức debug đang tắt; dùng placeholder của SLF4J (<code>log.debug(\"user {} role {}\", id, role)</code>) để chi phí chỉ xảy ra khi log thật sự được ghi."
+   ],
+   "example": "// Java 8\nString csv = String.join(\", \", List.of(\"a\", \"b\"));\nStringJoiner j = new StringJoiner(\", \", \"[\", \"]\");\nj.setEmptyValue(\"[rỗng]\");\n\n// Java 11\n\" \\u2003x \".strip();        // \"x\"  - trim() KHÔNG cắt được U+2003\n\"  \".isBlank();              // true\n\"-\".repeat(20);\n\"a\\nb\".lines().count();      // 2\n\n// Java 15+, có trong LTS 17 và 21\nString sql = \"\"\"\n        SELECT id, name\n        FROM users\n        WHERE status = ?\n        \"\"\";\n\n// Logging: dùng placeholder thay vì String.format\n// log.debug(\"user {} role {}\", id, role);",
+   "exampleTitle": "Điểm mốc theo phiên bản",
+   "keyPoints": [
+    "Java 7: switch on String, bên dưới là switch theo hashCode rồi equals; biến null gây NPE",
+    "Java 8: String.join, StringJoiner, Collectors.joining, chars()",
+    "Java 11: isBlank, strip/stripLeading/stripTrailing, lines, repeat — strip dùng định nghĩa Unicode còn trim chỉ cắt ký tự <= U+0020",
+    "Java 15 (có trong LTS 17/21): text block và formatted; vị trí dấu đóng quyết định lề bị cắt",
+    "Java 21 không có thay đổi lớn ở String API — trả lời trung thực tốt hơn là bịa",
+    "Tránh String.format trong hot path và trong lời gọi log; dùng placeholder của logger"
+   ],
+   "trap": "Nói text block là tính năng của Java 17. Nó chuẩn hoá ở Java 15 và chỉ đơn giản là có mặt trong LTS 17. Tương tự, đừng nêu String Templates như tính năng chính thức của Java 21 — nó chưa được chuẩn hoá.",
+   "followUp": [
+    "switch on String được biên dịch thành gì, và vì sao vẫn cần gọi equals?",
+    "strip() khác trim() ở đâu và khi nào khác biệt đó thành bug thật?",
+    "Vì sao log.debug(String.format(...)) là thói quen xấu?"
+   ]
+  },
+  {
+   "id": "t-5-1",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Type erasure: generic biến mất trước khi chương trình chạy",
+   "summary": "Generic là công cụ của compiler, không phải của JVM — và gần như mọi giới hạn của generic đều bắt nguồn từ điều đó.",
+   "sections": [
+    "<b>Compiler làm gì.</b> Sau khi kiểm tra kiểu xong, javac <i>xoá</i> tham số kiểu: <code>T</code> không có bound thành <code>Object</code>, <code>&lt;T extends Number&gt;</code> thành <code>Number</code> (bound trái nhất nếu có nhiều bound), rồi chèn các lệnh <code>checkcast</code> ở nơi cần. Bytecode sinh ra gần như trùng khớp với code viết bằng raw type — nghĩa là JVM chưa bao giờ nhìn thấy <code>List&lt;String&gt;</code>.",
+    "<b>Vì sao Java chọn erasure.</b> Đổi lấy tương thích ngược cả hai chiều: code viết trước Java 5 vẫn chạy trên JVM mới, và class file mới vẫn dùng được với thư viện cũ mà không phải biên dịch lại toàn bộ hệ sinh thái. C# đi hướng ngược lại (reified generics) vì họ đưa generic vào từ CLR 2.0, khi lượng code cũ còn nhỏ. Đây là một quyết định đánh đổi có chủ đích, không phải sự cẩu thả.",
+    "<b>Những gì erasure lấy mất.</b> Không <code>new T()</code>, không <code>new T[n]</code>, không <code>x instanceof List&lt;String&gt;</code> (chỉ được <code>List&lt;?&gt;</code>), không có field <code>static T</code> (tham số kiểu thuộc về instance chứ không thuộc class), không hai method chỉ khác nhau ở tham số kiểu vì sau erasure chúng trùng signature, không tạo <code>new List&lt;String&gt;[10]</code>, và không dùng T làm kiểu trong khối <code>catch</code>.",
+    "<b>Hệ quả quan sát được lúc runtime.</b> <code>new ArrayList&lt;String&gt;().getClass() == new ArrayList&lt;Integer&gt;().getClass()</code> trả về true, vì chỉ tồn tại đúng một class <code>ArrayList</code>. Muốn biết kiểu thật lúc chạy thì phải tự mang theo: truyền một <code>Class&lt;T&gt;</code> làm type token (cách Jackson, Spring và JPA đều dùng), hoặc dùng thủ thuật subclass ẩn danh rồi đọc <code>getGenericSuperclass()</code> (kiểu <code>TypeReference</code> của Jackson).",
+    "<b>Thông tin generic KHÔNG mất hoàn toàn — chỗ này nhiều người nói sai.</b> Class file vẫn lưu attribute <code>Signature</code> cho khai báo class, field, method và tham số. Nhờ đó reflection đọc được rằng một field có kiểu <code>List&lt;String&gt;</code> thông qua <code>ParameterizedType</code>, và đó chính là cơ sở để các framework ánh xạ JSON hay entity. Cái thật sự mất là kiểu của <i>instance</i>: bản thân một object ArrayList không hề biết nó đang chứa gì.",
+    "<b>Unchecked warning nghĩa là gì.</b> Khi compiler nói 'unchecked', nó đang thừa nhận: 'tôi không kiểm chứng được phép chuyển kiểu này, nếu bạn sai thì lỗi sẽ nổ ở một dòng khác'. Vì cast do compiler chèn, ClassCastException thường xuất hiện ở nơi không hề có cast trong source, rất khó lần ngược. Hãy bật <code>-Xlint:unchecked</code> và chỉ dùng <code>@SuppressWarnings(\"unchecked\")</code> ở phạm vi hẹp nhất, kèm comment giải thích vì sao an toàn."
+   ],
+   "example": "List<String> a = new ArrayList<>();\nList<Integer> b = new ArrayList<>();\nSystem.out.println(a.getClass() == b.getClass());   // true - chỉ có một class ArrayList\n\n// Không hợp lệ vì erasure:\n// if (a instanceof List<String>) {}     // lỗi biên dịch, chỉ được List<?>\n// T[] arr = new T[10];                  // lỗi biên dịch\n// static T shared;                      // lỗi biên dịch\n// void f(List<String> l) {}\n// void f(List<Integer> l) {}            // lỗi: trùng erasure f(List)\n\n// Cách vượt qua: mang kiểu theo dưới dạng type token\nstatic <T> T cast(Object raw, Class<T> type) {\n    return type.cast(raw);            // kiểm tra thật lúc runtime\n}\n\n// Thông tin generic của KHAI BÁO vẫn còn trong class file\nclass Holder { List<String> names; }\nField f = Holder.class.getDeclaredField(\"names\");\nParameterizedType pt = (ParameterizedType) f.getGenericType();\nSystem.out.println(pt.getActualTypeArguments()[0]);   // class java.lang.String",
+   "exampleTitle": "Cái gì mất, cái gì còn sau erasure",
+   "keyPoints": [
+    "javac xoá tham số kiểu về bound trái nhất (Object nếu không có bound) và chèn checkcast",
+    "Erasure được chọn để giữ tương thích ngược với code và thư viện trước Java 5",
+    "Không new T(), không new T[n], không instanceof List<String>, không static field kiểu T, không overload trùng erasure",
+    "ArrayList<String> và ArrayList<Integer> có cùng đối tượng Class lúc runtime",
+    "Generic của KHAI BÁO vẫn nằm trong attribute Signature nên reflection đọc được qua ParameterizedType",
+    "Unchecked warning nghĩa là ClassCastException sẽ nổ ở nơi khác — đừng bỏ qua nó"
+   ],
+   "trap": "Nói gọn 'generic bị xoá sạch lúc runtime'. Người phỏng vấn sẽ hỏi lại vì sao Jackson và Spring vẫn đọc được List<String> từ kiểu của field — câu trả lời là attribute Signature giữ generic của khai báo, chỉ có kiểu của instance là mất.",
+   "followUp": [
+    "Vì sao Java chọn erasure trong khi C# chọn reified generics?",
+    "Làm sao viết được một method trả về T[] khi không thể gọi new T[n]?",
+    "Reflection đọc được generic ở đâu và không đọc được ở đâu?"
+   ]
+  },
+  {
+   "id": "t-5-2",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Bridge method: mảnh ghép giữ cho đa hình còn hoạt động sau erasure",
+   "summary": "Method bạn không viết nhưng vẫn xuất hiện trong class file, và ClassCastException phát ra từ chính nó.",
+   "sections": [
+    "<b>Vấn đề mà erasure tạo ra.</b> Khi bạn viết <code>class Box implements Comparable&lt;Box&gt;</code> với method <code>compareTo(Box o)</code>, sau erasure interface <code>Comparable</code> khai báo <code>compareTo(Object)</code>. Method <code>compareTo(Box)</code> có signature khác hẳn nên về mặt JVM nó KHÔNG override method của interface — gọi qua reference kiểu <code>Comparable</code> sẽ không tìm được bản cài đặt.",
+    "<b>Giải pháp của compiler.</b> javac tự sinh thêm một method tổng hợp mang cờ <code>ACC_BRIDGE</code> và <code>ACC_SYNTHETIC</code>: <code>public int compareTo(Object o) { return compareTo((Box) o); }</code>. Nó ép kiểu rồi uỷ quyền sang bản thật. Nhờ vậy bảng method ảo có đúng entry cần thiết và dynamic dispatch hoạt động bình thường.",
+    "<b>Bridge method cũng sinh cho covariant return type.</b> Nếu class cha có <code>Object get()</code> còn class con khai báo <code>String get()</code>, compiler sinh thêm <code>Object get()</code> gọi sang bản trả String. Đây là lý do covariant return type hoạt động được dù JVM phân biệt method theo cả kiểu trả về.",
+    "<b>Quan sát được bằng reflection.</b> <code>getClass().getDeclaredMethods()</code> trả về những method bạn chưa từng viết, và <code>Method.isBridge()</code> trả về true cho chúng. Mọi framework dùng reflection đều phải lọc: Spring có hẳn <code>BridgeMethodResolver</code> để tìm ngược từ bridge method về method gốc, vì annotation bạn đặt trên method thật thường không được sao chép sang bridge method.",
+    "<b>Bẫy thật sự: ClassCastException từ dòng bạn không viết.</b> Nếu ai đó dùng raw type và gọi <code>((Comparable) box).compareTo(someString)</code>, phép cast nằm bên trong bridge method sẽ nổ ClassCastException. Stack trace chỉ tới đúng class của bạn ở một method 'không tồn tại' trong source — rất dễ làm người mới hoang mang. Đó cũng là một minh chứng rằng generic không đảm bảo an toàn kiểu khi có raw type trong hệ thống.",
+    "<b>Vì sao nên biết.</b> Ngoài giá trị hiểu biết, nó giải thích vì sao <code>@Override</code> đôi khi hoạt động kỳ lạ với generic, vì sao annotation trên method generic đôi khi 'biến mất' với thư viện reflection viết cẩu thả, và vì sao số method thực tế trong class file nhiều hơn số method bạn viết."
+   ],
+   "example": "class Box implements Comparable<Box> {\n    int v;\n    Box(int v) { this.v = v; }\n    @Override public int compareTo(Box o) { return Integer.compare(v, o.v); }\n}\n\n// Compiler sinh thêm (KHÔNG có trong source):\n// public synthetic bridge int compareTo(Object o) {\n//     return this.compareTo((Box) o);\n// }\n\nfor (Method m : Box.class.getDeclaredMethods()) {\n    System.out.println(m.getName() + \" bridge=\" + m.isBridge()\n                       + \" synthetic=\" + m.isSynthetic());\n}\n// compareTo bridge=false synthetic=false\n// compareTo bridge=true  synthetic=true\n\n// Raw type + bridge method = ClassCastException từ nơi không có cast trong source\nComparable raw = new Box(1);\n// raw.compareTo(\"abc\");   // ClassCastException phát ra bên trong bridge method",
+   "exampleTitle": "Method compiler tự sinh",
+   "keyPoints": [
+    "Sau erasure, Comparable<Box> trở thành compareTo(Object) nên compareTo(Box) không override được",
+    "Compiler sinh bridge method mang cờ ACC_BRIDGE và ACC_SYNTHETIC, cast rồi uỷ quyền sang method thật",
+    "Covariant return type cũng được hiện thực bằng bridge method",
+    "Method.isBridge() nhận diện chúng; Spring có BridgeMethodResolver để tìm về method gốc",
+    "Annotation thường không có trên bridge method, nên thư viện reflection phải xử lý riêng",
+    "ClassCastException từ bên trong bridge method là dấu hiệu có raw type len lỏi trong hệ thống"
+   ],
+   "trap": "Đếm số method bằng getDeclaredMethods() rồi ngạc nhiên vì có method thừa, hoặc quét annotation mà quên lọc bridge method — annotation nằm trên method gốc chứ không nằm trên bản bridge.",
+   "followUp": [
+    "Vì sao bridge method cần cho covariant return type dù đó không phải chuyện generic?",
+    "Điều gì xảy ra khi gọi method generic qua reference raw type?",
+    "Vì sao Spring cần BridgeMethodResolver?"
+   ]
+  },
+  {
+   "id": "t-5-3",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "PECS: wildcard cho đọc gì và cho ghi gì",
+   "summary": "Vì sao List<? extends Number> không add được, và quy tắc để không bao giờ phải đoán nữa.",
+   "sections": [
+    "<b><code>? extends T</code> là producer — chỉ đọc.</b> <code>List&lt;? extends Number&gt;</code> nghĩa là 'một list của MỘT kiểu con nào đó của Number, nhưng tôi không biết là kiểu nào'. Đọc ra thì an toàn vì bất kỳ kiểu nào cũng là Number. Ghi thì không: list đó có thể thực sự là <code>List&lt;Double&gt;</code>, nên nếu cho phép <code>add(1)</code> thì một Integer sẽ lọt vào list Double. Compiler chặn mọi phép add, trừ <code>null</code> vì null hợp với mọi kiểu tham chiếu.",
+    "<b><code>? super T</code> là consumer — ghi được, đọc hạn chế.</b> <code>List&lt;? super Integer&gt;</code> là 'list của một kiểu cha nào đó của Integer'. Dù kiểu thật là <code>List&lt;Integer&gt;</code>, <code>List&lt;Number&gt;</code> hay <code>List&lt;Object&gt;</code>, ghi một Integer vào đều hợp lệ. Nhưng đọc ra thì chỉ có thể đảm bảo là <code>Object</code>, vì ta không biết cha đó cụ thể ở tầng nào.",
+    "<b>Quy tắc PECS.</b> Producer-Extends, Consumer-Super: tham số mà method chỉ ĐỌC dữ liệu ra thì dùng <code>extends</code>; tham số mà method GHI dữ liệu vào thì dùng <code>super</code>. Thư viện chuẩn tuân thủ triệt để: <code>Collections.copy(List&lt;? super T&gt; dest, List&lt;? extends T&gt; src)</code>, <code>Stream.map(Function&lt;? super T, ? extends R&gt;)</code>, <code>Collections.sort(List&lt;T&gt;, Comparator&lt;? super T&gt;)</code>.",
+    "<b>Wildcard không giới hạn <code>&lt;?&gt;</code>.</b> Đọc ra được Object, không ghi được gì ngoài null. Dùng khi method không quan tâm kiểu phần tử, ví dụ chỉ cần <code>size()</code> hay <code>clear()</code>. Cần phân biệt rõ với <code>List&lt;Object&gt;</code>: <code>List&lt;?&gt;</code> là 'list của một kiểu nào đó chưa rõ' và chỉ nhận được từ mọi loại list; <code>List&lt;Object&gt;</code> là 'list chứa Object' nên ghi được mọi thứ nhưng KHÔNG nhận được <code>List&lt;String&gt;</code>.",
+    "<b>Quy tắc thực hành về vị trí.</b> Wildcard nên xuất hiện ở tham số method để API nhận được nhiều loại đối số hơn; tránh đặt ở kiểu TRẢ VỀ, vì khi đó người gọi buộc phải khai báo biến kiểu wildcard và sự phiền toái lan ra khắp code của họ. Nếu người dùng API phải nghĩ về wildcard thì thiết kế đã sai.",
+    "<b>Wildcard capture khi cần vừa đọc vừa ghi.</b> Trên một <code>List&lt;?&gt;</code> bạn không thể lấy ra rồi đặt lại vào chính nó, vì compiler coi kiểu đọc ra và kiểu ghi vào là hai thứ không liên quan. Mẹo chuẩn là viết một private helper generic <code>&lt;T&gt; void swapHelper(List&lt;T&gt; l, int i, int j)</code> rồi gọi từ method wildcard — compiler sẽ 'bắt' (capture) kiểu ẩn danh đó thành T và mọi thứ khớp trở lại."
+   ],
+   "example": "// Producer: chỉ đọc -> extends\nstatic double sum(List<? extends Number> nums) {\n    double t = 0;\n    for (Number n : nums) t += n.doubleValue();   // đọc: OK\n    // nums.add(1);                                // lỗi biên dịch\n    nums.add(null);                                // hợp lệ duy nhất\n    return t;\n}\n\n// Consumer: ghi vào -> super\nstatic void fill(List<? super Integer> dest) {\n    dest.add(1);                  // ghi Integer: OK\n    // Integer x = dest.get(0);   // lỗi: chỉ đảm bảo Object\n    Object o = dest.get(0);\n}\n\nList<Integer> ints = new ArrayList<>();\nfill(ints);                       // List<Integer> khớp ? super Integer\nList<Object> objs = new ArrayList<>();\nfill(objs);                       // List<Object> cũng khớp\nsum(ints);                        // List<Integer> khớp ? extends Number\n\n// Wildcard capture: helper generic để vừa đọc vừa ghi\nstatic void swap(List<?> list, int i, int j) { swapHelper(list, i, j); }\nprivate static <T> void swapHelper(List<T> list, int i, int j) {\n    list.set(i, list.set(j, list.get(i)));\n}",
+   "exampleTitle": "Producer, consumer và wildcard capture",
+   "keyPoints": [
+    "? extends T: đọc ra được T, không add được gì ngoài null vì kiểu thật là ẩn số",
+    "? super T: add được T và mọi kiểu con của T, nhưng đọc ra chỉ đảm bảo Object",
+    "PECS — Producer Extends, Consumer Super; thư viện chuẩn tuân thủ triệt để",
+    "List<?> khác List<Object>: cái đầu nhận được mọi list nhưng không ghi được, cái sau ghi được nhưng chỉ nhận đúng List<Object>",
+    "Đặt wildcard ở tham số method, tránh đặt ở kiểu trả về vì nó lây phiền toái sang người gọi",
+    "Cần vừa đọc vừa ghi trên List<?> thì dùng private helper generic để compiler capture kiểu ẩn danh"
+   ],
+   "trap": "Giải thích 'không add được vì list là read-only'. Không phải: list bên dưới hoàn toàn ghi được, chỉ là compiler không biết kiểu thật là gì nên không có phép add nào chứng minh được là an toàn.",
+   "followUp": [
+    "Vì sao add(null) lại hợp lệ trên List<? extends Number>?",
+    "Vì sao Comparator trong Collections.sort được khai báo là Comparator<? super T>?",
+    "Wildcard capture là gì và vì sao helper method giải quyết được nó?"
+   ]
+  },
+  {
+   "id": "t-5-4",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Generic bất biến trong khi mảng hiệp biến: hai triết lý trong cùng một ngôn ngữ",
+   "summary": "Vì sao List<String> không phải List<Object> nhưng String[] lại là Object[] — và cái giá của lựa chọn cũ.",
+   "sections": [
+    "<b>Generic là invariant.</b> <code>List&lt;String&gt;</code> KHÔNG phải là kiểu con của <code>List&lt;Object&gt;</code>, dù String là kiểu con của Object. Lý do rất trực tiếp: nếu cho phép, ta có thể gán một <code>List&lt;String&gt;</code> vào biến <code>List&lt;Object&gt;</code> rồi <code>add(42)</code>, và mọi đoạn code đang đọc list đó dưới dạng String sẽ vỡ. Compiler chặn ngay từ dòng gán.",
+    "<b>Mảng thì covariant.</b> <code>String[]</code> LÀ <code>Object[]</code>. Đây là quyết định từ Java 1.0, khi ngôn ngữ chưa có generic mà vẫn cần viết được những method dùng chung như <code>Arrays.sort(Object[])</code> hay <code>System.arraycopy</code>. Không có covariance thì mọi utility trên mảng phải viết lại cho từng kiểu.",
+    "<b>Cái giá: kiểm tra bị đẩy sang runtime.</b> Vì mảng biết kiểu phần tử thật của mình (mảng là reified), mỗi lệnh ghi <code>aastore</code> phải kiểm tra kiểu tại thời điểm chạy. Ghi sai kiểu thì ném <code>ArrayStoreException</code> — một lỗi mà generic bắt được ngay lúc biên dịch. Đây là ví dụ kinh điển cho việc bắt lỗi sớm luôn rẻ hơn.",
+    "<b>Vì vậy không nên trộn mảng với generic.</b> <code>new List&lt;String&gt;[10]</code> bị cấm, vì mảng đó sẽ không kiểm tra được gì lúc runtime (kiểu phần tử của nó sau erasure chỉ là List) trong khi mảng lại tin rằng nó kiểm tra được. Muốn có <code>T[]</code>, bạn chỉ còn hai cách: <code>(T[]) new Object[n]</code> kèm unchecked cast, hoặc <code>Array.newInstance(clazz, n)</code> với một type token.",
+    "<b>Vì sao ArrayList giữ Object[] chứ không giữ E[].</b> Đọc mã nguồn ArrayList sẽ thấy field là <code>transient Object[] elementData</code> và phép cast sang E chỉ xảy ra khi đọc ra. Nếu nó khai báo <code>E[] elementData = (E[]) new Object[n]</code> thì mảng đó vẫn thực sự là Object[]; ngay khi ai đó làm lộ nó ra ngoài dưới kiểu E[], JVM sẽ ném ClassCastException. Giữ Object[] bên trong và cast từng phần tử là cách an toàn.",
+    "<b>Trả lại tính linh hoạt bằng wildcard.</b> Nếu bạn muốn một method nhận được cả <code>List&lt;String&gt;</code> lẫn <code>List&lt;Integer&gt;</code>, đó chính là công việc của wildcard: khai báo tham số là <code>List&lt;? extends Object&gt;</code> hoặc <code>List&lt;?&gt;</code>. Nói cách khác, Java không bỏ covariance — nó chỉ chuyển covariance từ kiểu (như mảng) sang điểm sử dụng (use-site variance), và nhờ đó giữ được an toàn kiểu."
+   ],
+   "example": "// Mảng: hiệp biến, lỗi lộ ra lúc chạy\nObject[] arr = new String[2];\narr[0] = \"ok\";\narr[1] = 42;            // BIÊN DỊCH OK -> ArrayStoreException lúc chạy\n\n// Generic: bất biến, lỗi bị chặn lúc biên dịch\n// List<Object> l = new ArrayList<String>();   // lỗi biên dịch\n\n// Muốn nhận nhiều kiểu thì dùng wildcard\nstatic int size(List<?> any) { return any.size(); }\n\n// ArrayList giữ Object[] bên trong chính vì lý do này\nclass MyList<E> {\n    private Object[] data = new Object[10];\n    @SuppressWarnings(\"unchecked\")\n    E get(int i) { return (E) data[i]; }   // cast bị xoá, an toàn vì mảng không lộ ra ngoài\n    void add(int i, E e) { data[i] = e; }\n}\n\n// Tạo mảng generic đúng cách: dùng type token\nstatic <T> T[] newArray(Class<T> type, int n) {\n    return (T[]) java.lang.reflect.Array.newInstance(type, n);\n}",
+   "exampleTitle": "Hai triết lý, hai thời điểm phát hiện lỗi",
+   "keyPoints": [
+    "Generic invariant: List<String> không phải List<Object>, lỗi bị chặn lúc biên dịch",
+    "Mảng covariant: String[] là Object[], di sản từ Java 1.0 khi chưa có generic",
+    "Mảng là reified nên mỗi phép ghi bị kiểm tra lúc chạy, sai thì ném ArrayStoreException",
+    "new List<String>[10] bị cấm vì mảng generic không kiểm tra được kiểu thật lúc runtime",
+    "ArrayList giữ Object[] bên trong và cast từng phần tử khi đọc, thay vì giữ E[]",
+    "Wildcard là cách Java trả lại tính linh hoạt mà vẫn giữ an toàn kiểu"
+   ],
+   "trap": "Trả lời 'vì Java thiết kế không nhất quán'. Câu trả lời ăn điểm là nêu đúng lý do lịch sử (mảng có trước generic, cần Arrays.sort(Object[]) dùng chung) và nêu đúng cái giá phải trả (kiểm tra dời sang runtime, ArrayStoreException).",
+   "followUp": [
+    "Vì sao new List<String>[10] bị cấm trong khi new List[10] thì được?",
+    "ArrayList lưu Object[] hay E[] bên trong, và vì sao?",
+    "Wildcard giải quyết bài toán covariance mà không phá an toàn kiểu như thế nào?"
+   ]
+  },
+  {
+   "id": "t-5-5",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "title": "Heap pollution, varargs generic, @SafeVarargs và raw type",
+   "summary": "Nguồn gốc của những ClassCastException nổ ở dòng code không hề có phép ép kiểu.",
+   "sections": [
+    "<b>Heap pollution là gì.</b> Đó là tình trạng một biến có kiểu tham số hoá lại đang trỏ tới object không đúng kiểu đó — ví dụ biến <code>List&lt;String&gt;</code> thực chất trỏ tới list chứa Integer. Nó chỉ xảy ra khi có raw type hoặc unchecked cast trong đường đi. Triệu chứng đặc trưng: ClassCastException nổ ở một dòng không có ép kiểu nào trong source, vì cast thật là do compiler chèn khi đọc phần tử ra.",
+    "<b>Vì sao varargs generic sinh cảnh báo.</b> Khai báo <code>void f(List&lt;String&gt;... lists)</code> buộc compiler tạo một mảng <code>List&lt;String&gt;[]</code> để gói tham số — mà mảng generic vốn không an toàn vì mảng thì hiệp biến còn generic thì bất biến. Nếu method chỉ đọc mảng thì thực tế không sao; nhưng nếu nó gán mảng đó ra ngoài (return, gán vào field, hoặc chỉ đơn giản đưa vào một biến <code>Object[]</code>), người khác có thể nhét sai kiểu vào và làm hỏng nó.",
+    "<b><code>@SafeVarargs</code> (Java 7) chỉ là lời cam kết.</b> Nó tắt cảnh báo, hoàn toàn KHÔNG kiểm chứng gì. Bạn đang tuyên bố rằng method không lưu và không lộ mảng varargs ra ngoài. Đặt nhầm chỗ là tự tay tạo bug và còn tắt mất cảnh báo lẽ ra sẽ cứu bạn.",
+    "<b>Vì sao @SafeVarargs bị giới hạn vị trí.</b> Nó chỉ đặt được lên method <code>static</code>, method <code>final</code>, constructor, và từ Java 9 thêm <code>private</code> instance method. Lý do rất logic: đó đúng là tập hợp các method KHÔNG override được. Nếu một method có thể bị override, lời cam kết an toàn của class cha không ràng buộc được class con, nên annotation sẽ vô nghĩa.",
+    "<b>Raw type tắt kiểm tra rộng hơn bạn tưởng.</b> Dùng <code>List</code> thay <code>List&lt;String&gt;</code> không chỉ bỏ kiểm tra cho tham số kiểu đó — nó xoá TOÀN BỘ generic của mọi thành viên trong kiểu đó. Với một <code>Map</code> raw, <code>entrySet()</code> trả về <code>Set</code> raw chứ không phải <code>Set&lt;Map.Entry&lt;K,V&gt;&gt;</code>, kể cả những phần generic hoàn toàn không liên quan. Raw type chỉ còn tồn tại vì lý do tương thích với code trước Java 5.",
+    "<b>Phân biệt <code>List&lt;Object&gt;</code> với raw <code>List</code>.</b> <code>List&lt;Object&gt;</code> vẫn được kiểm tra kiểu đầy đủ và an toàn; raw <code>List</code> thì không kiểm tra gì. Truyền một <code>List&lt;String&gt;</code> vào tham số <code>List&lt;Object&gt;</code> là lỗi biên dịch (invariance), nhưng truyền vào tham số raw <code>List</code> thì được, chỉ kèm cảnh báo — và đó chính là cửa ngõ để heap pollution lọt vào hệ thống."
+   ],
+   "example": "// Heap pollution qua varargs generic\nstatic void unsafe(List<String>... lists) {\n    Object[] arr = lists;             // mảng hiệp biến: hợp lệ\n    arr[0] = List.of(42);             // nhét List<Integer> vào\n    String s = lists[0].get(0);       // ClassCastException - KHÔNG có cast nào trong source\n}\n\n// An toàn: chỉ đọc, không lưu và không lộ mảng ra ngoài\n@SafeVarargs\nstatic <T> List<T> listOf(T... items) {\n    return new ArrayList<>(Arrays.asList(items));\n}\n\n// Heap pollution qua raw type\nList<String> strings = new ArrayList<>();\nList raw = strings;               // raw type\nraw.add(42);                      // chỉ CẢNH BÁO unchecked, không lỗi\nfor (String s : strings) {\n    System.out.println(s.length());   // ClassCastException ở đây\n}\n\n// List<Object> KHÁC raw List: vẫn được kiểm tra đầy đủ\n// List<Object> objs = strings;   // lỗi biên dịch - an toàn",
+   "exampleTitle": "Hai đường vào của heap pollution",
+   "keyPoints": [
+    "Heap pollution: biến kiểu tham số hoá trỏ tới object sai kiểu, luôn bắt nguồn từ raw type hoặc unchecked cast",
+    "Varargs generic buộc compiler tạo mảng generic nên sinh cảnh báo possible heap pollution",
+    "@SafeVarargs chỉ tắt cảnh báo, không kiểm chứng gì — đó là cam kết của tác giả method",
+    "@SafeVarargs chỉ đặt được lên static, final, constructor, và từ Java 9 thêm private instance method — đúng tập method không override được",
+    "Raw type xoá toàn bộ generic của mọi thành viên trong kiểu, kể cả phần không liên quan",
+    "List<Object> vẫn an toàn kiểu; raw List thì không — đừng lẫn hai thứ này"
+   ],
+   "trap": "Tin rằng @SafeVarargs làm cho method trở nên an toàn. Nó không kiểm tra bất cứ điều gì; đặt lên một method có lộ mảng varargs ra ngoài là vừa giữ nguyên bug vừa tắt mất cảnh báo.",
+   "followUp": [
+    "Vì sao @SafeVarargs không đặt được lên instance method thông thường?",
+    "Raw List khác List<Object> ở điểm nào về mặt kiểm tra kiểu?",
+    "Vì sao ClassCastException do heap pollution lại nổ ở dòng không có phép ép kiểu?"
+   ]
+  }
+ ],
+ "drills": [
+  {
+   "id": "d-3-1",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "List<String> list = Arrays.asList(\"a\", \"b\", \"c\");\nlist.set(0, \"z\");\nlist.add(\"d\");\nSystem.out.println(list);",
+   "choices": [
+    "In ra [z, b, c, d]",
+    "In ra [a, b, c, d]",
+    "Ném UnsupportedOperationException tại list.add(\"d\")",
+    "Ném UnsupportedOperationException ngay tại list.set(0, \"z\")"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Arrays.asList không trả về java.util.ArrayList mà trả về lớp nội bộ java.util.Arrays$ArrayList — một view cố định kích thước bọc quanh mảng gốc. set() được hỗ trợ vì nó chỉ ghi đè một ô của mảng nền mà không đổi kích thước, nên dòng thứ hai chạy trót lọt. add() thì làm đổi kích thước nên rơi vào cài đặt mặc định của AbstractList và ném UnsupportedOperationException, chương trình dừng trước khi kịp in. Muốn có list thay đổi được thì bọc lại: new ArrayList<>(Arrays.asList(...)).",
+   "whyWrong": [
+    "Chương trình không in được gì vì add() ném exception trước dòng println.",
+    "Sai ở cả hai chỗ: set() thực sự có hiệu lực nên phần tử đầu là z, và add() không bao giờ thành công.",
+    "",
+    "set() hoàn toàn hợp lệ trên view của Arrays.asList vì nó chỉ ghi vào mảng nền, không đổi kích thước."
+   ]
+  },
+  {
+   "id": "d-3-2",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "List<Integer> list = new ArrayList<>(Arrays.asList(1, 2, 3));\nlist.remove(1);\nSystem.out.println(list);",
+   "choices": [
+    "[2, 3]",
+    "[1, 3]",
+    "[1, 2, 3]",
+    "Ném ClassCastException"
+   ],
+   "correctAnswer": 1,
+   "explanation": "List có hai overload: remove(int index) và remove(Object o). Với literal 1 kiểu int, compiler chọn remove(int) vì nó khớp trực tiếp mà không cần autoboxing — quy tắc overload resolution chỉ xét boxing ở pha sau, khi không còn ứng viên nào khớp trực tiếp. Vì vậy phần tử ở chỉ số 1 (giá trị 2) bị xoá và kết quả là [1, 3]. Muốn xoá theo giá trị phải ép kiểu tường minh: list.remove(Integer.valueOf(1)) hoặc list.remove((Integer) 1).",
+   "whyWrong": [
+    "Đó là kết quả nếu remove(Object) được chọn, nhưng autoboxing chỉ được xét sau khi không còn overload nào khớp trực tiếp.",
+    "",
+    "remove(int) với chỉ số hợp lệ luôn xoá đúng một phần tử, list không thể giữ nguyên.",
+    "Không có phép ép kiểu sai nào ở đây; cả hai overload đều hợp lệ về kiểu, chỉ là compiler chọn bản int."
+   ]
+  },
+  {
+   "id": "d-3-3",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Class P override equals nhưng không override hashCode. Đoạn code sau in ra gì?",
+   "code": "class P {\n    final String name;\n    P(String name) { this.name = name; }\n    @Override public boolean equals(Object o) {\n        return o instanceof P && ((P) o).name.equals(this.name);\n    }\n    // KHÔNG override hashCode()\n}\n\nSet<P> set = new HashSet<>();\nset.add(new P(\"an\"));\nset.add(new P(\"an\"));\nSystem.out.println(set.size());\nSystem.out.println(set.contains(new P(\"an\")));",
+   "choices": [
+    "1 rồi true",
+    "2 rồi true",
+    "2 rồi false",
+    "Không biên dịch được vì override equals mà không override hashCode"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Không override hashCode nên P dùng bản của Object, vốn dựa trên identity — hai instance khác nhau gần như chắc chắn cho hash khác nhau và rơi vào hai bucket khác nhau. HashSet luôn định vị bucket trước rồi mới gọi equals, nên nó không bao giờ chạm tới phần tử kia: set có 2 phần tử và contains trả false. Đây đúng là hệ quả của việc vi phạm hợp đồng 'equals bằng nhau thì hashCode phải bằng nhau'. (Về lý thuyết hai identity hash có thể vô tình rơi cùng bucket, nhưng đó là ngẫu nhiên và không thể trông cậy.)",
+   "whyWrong": [
+    "Đó là kết quả khi hashCode cũng được override theo name; ở đây thì không, nên hai object không bao giờ gặp nhau.",
+    "contains chỉ trả true khi tìm đúng bucket rồi equals khớp; ở đây bucket đã sai ngay từ bước đầu.",
+    "",
+    "Compiler không bắt buộc override song song — hầu hết chỉ là cảnh báo của IDE. Đây là lỗi logic lúc chạy, không phải lỗi biên dịch."
+   ]
+  },
+  {
+   "id": "d-3-4",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "class Box {\n    int v;\n    Box(int v) { this.v = v; }\n    @Override public boolean equals(Object o) {\n        return o instanceof Box && ((Box) o).v == this.v;\n    }\n    @Override public int hashCode() { return v; }\n}\n\nSet<Box> set = new HashSet<>();\nBox b = new Box(1);\nset.add(b);\nb.v = 99;\n\nSystem.out.println(set.contains(b));\nSystem.out.println(set.contains(new Box(1)));\nSystem.out.println(set.size());",
+   "choices": [
+    "true, false, 1",
+    "false, true, 1",
+    "false, false, 1",
+    "false, false, 0"
+   ],
+   "correctAnswer": 2,
+   "explanation": "HashSet dựng trên HashMap và HashMap lưu sẵn giá trị hash của key trong node lúc put. Sau khi đổi b.v thành 99, contains(b) tính hash mới nên đi tìm ở bucket của 99, còn node vẫn nằm ở bucket của 1 — trả false. contains(new Box(1)) tìm đúng bucket của 1 và gặp node chứa b, nhưng equals so 99 với 1 nên cũng false. size vẫn là 1 vì không có gì bị xoá: phần tử đó kẹt lại trong set, không tìm được và cũng không remove được. Quy tắc rút ra: mọi field tham gia hashCode phải bất biến sau khi object được đưa vào collection băm.",
+   "whyWrong": [
+    "contains(b) không thể true: hash của b đã đổi nên nó tìm sang bucket khác chỗ node đang nằm.",
+    "contains(new Box(1)) tìm đúng bucket nhưng equals so v=99 với v=1 nên thất bại.",
+    "",
+    "Không thao tác nào xoá phần tử khỏi set, nên size vẫn là 1 — đây chính là phần 'rò rỉ' của bug này."
+   ]
+  },
+  {
+   "id": "d-3-5",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau chạy ra sao?",
+   "code": "List<String> list = new ArrayList<>(Arrays.asList(\"a\", \"b\", \"c\"));\nfor (String s : list) {\n    if (s.equals(\"b\")) list.remove(s);\n}\nSystem.out.println(list);",
+   "choices": [
+    "Ném ConcurrentModificationException",
+    "In [a, c] và không ném exception",
+    "In [a, b, c]",
+    "Ném UnsupportedOperationException"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Iterator của ArrayList chỉ kiểm tra modCount trong next(), còn hasNext() đơn thuần so cursor != size. Sau khi xoá \"b\", size giảm còn 2 đúng lúc cursor cũng bằng 2, nên hasNext() trả false và vòng lặp kết thúc trước khi next() kịp phát hiện modCount lệch. Đây là lý do câu 'xoá phần tử áp chót thì không ném CME' luôn đúng với ArrayList — và cũng là bằng chứng fail-fast chỉ là best-effort, không phải cơ chế đảm bảo. Đổi \"b\" thành \"a\" thì đúng là CME. Cách viết an toàn là Iterator.remove() hoặc list.removeIf(s -> s.equals(\"b\")).",
+   "whyWrong": [
+    "Sẽ ném nếu xoá phần tử khác, ví dụ \"a\"; nhưng với phần tử áp chót thì vòng lặp dừng trước khi next() kiểm tra modCount.",
+    "",
+    "Phần tử \"b\" thực sự bị xoá khỏi list, chỉ là vòng lặp kết thúc sớm hơn bình thường.",
+    "list được tạo bằng new ArrayList<>(...) nên hoàn toàn thay đổi được; Arrays.asList ở đây chỉ dùng làm nguồn sao chép."
+   ]
+  },
+  {
+   "id": "d-3-6",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Từ Java 8, một bucket của HashMap được chuyển từ danh sách liên kết sang cây đỏ-đen khi nào?",
+   "choices": [
+    "Ngay khi bucket đạt 8 node, không cần điều kiện nào khác",
+    "Khi tổng số phần tử trong map vượt 64",
+    "Khi size vượt threshold = capacity * 0.75",
+    "Khi bucket đạt 8 node VÀ độ dài bảng đã ít nhất 64; nếu bảng nhỏ hơn 64 thì HashMap resize thay vì treeify"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Java 8 đặt hai ngưỡng: số node trong một bucket phải đạt 8, và độ dài bảng phải đạt tối thiểu 64. Lý do của điều kiện thứ hai rất thực tế: khi bảng còn nhỏ, va chạm dồn đống thường là do bảng chật chứ không phải do hashCode xấu, nên nhân đôi bảng vừa rẻ hơn vừa giải quyết đúng nguyên nhân. Chỉ khi bảng đã đủ lớn mà một bucket vẫn dài thì mới đáng đổi sang cây đỏ-đen để hạ tra cứu từ O(k) xuống O(log k). Khi cây co lại còn khoảng 6 node, nó quay về danh sách liên kết.",
+   "whyWrong": [
+    "Thiếu điều kiện độ dài bảng; nếu bảng chưa đủ 64 ô, HashMap gọi resize() chứ không treeify.",
+    "Điều kiện 64 áp cho ĐỘ DÀI BẢNG chứ không phải tổng số phần tử trong map.",
+    "Vượt threshold kích hoạt resize (nhân đôi bảng), hoàn toàn không liên quan tới việc chuyển bucket thành cây.",
+    ""
+   ]
+  },
+  {
+   "id": "d-3-7",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Bạn cần chèn nhiều phần tử vào GIỮA một danh sách lớn rồi duyệt tuần tự nhiều lần. Nhận định nào đúng nhất về ArrayList so với LinkedList?",
+   "choices": [
+    "LinkedList chèn giữa vẫn phải duyệt tới vị trí nên là O(n); thêm nữa mỗi node là một object rời rạc phá cache CPU, nên thực tế ArrayList thường vẫn nhanh hơn dù phải dịch mảng",
+    "LinkedList luôn nhanh hơn vì chèn/xoá là O(1)",
+    "ArrayList không chèn được vào giữa, chỉ append được ở cuối",
+    "Hai cấu trúc tương đương vì cả hai đều là O(n)"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Con số O(1) của LinkedList chỉ đúng khi bạn ĐÃ cầm sẵn node, tức đang duyệt bằng ListIterator. Gọi list.add(i, x) hay list.get(i) vẫn phải đi từ đầu hoặc từ cuối tới vị trí i, nên tổng chi phí là O(n) và mỗi bước là một lần nhảy con trỏ tới object nằm rải rác trên heap — gần như luôn miss cache. ArrayList tuy phải dịch mảng nhưng làm bằng System.arraycopy, một intrinsic được JIT dịch thành lệnh copy khối trên vùng nhớ liên tục. Cộng thêm việc mỗi node LinkedList tốn khoảng 24-40 byte phụ và tạo áp lực GC, kết quả đo thực tế gần như luôn nghiêng về ArrayList. Cho hàng đợi hai đầu thì ArrayDeque còn tốt hơn LinkedList.",
+   "whyWrong": [
+    "",
+    "Đây là câu trả lời máy móc mà người phỏng vấn đang chờ để vặn lại: O(1) chỉ tính riêng thao tác nối lại con trỏ, chưa tính chi phí đi tới vị trí.",
+    "ArrayList có add(int index, E element) hoạt động bình thường, chỉ là phải dịch phần đuôi mảng.",
+    "Cùng ký hiệu Big-O không có nghĩa là cùng tốc độ; hằng số nhân và hành vi cache chênh nhau nhiều lần."
+   ]
+  },
+  {
+   "id": "d-3-8",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "So sánh ConcurrentHashMap (Java 8+) với Collections.synchronizedMap, phát biểu nào đúng?",
+   "choices": [
+    "ConcurrentHashMap cũng khoá toàn bộ map khi ghi giống synchronizedMap, chỉ khác ở chỗ iterator không ném ConcurrentModificationException",
+    "ConcurrentHashMap cho phép null key và null value, còn synchronizedMap thì không",
+    "ConcurrentHashMap khoá ở mức từng bucket (CAS khi bucket rỗng, synchronized trên node đầu bucket khi có va chạm), iterator weakly consistent nên không ném CME, và không chấp nhận null key lẫn null value",
+    "Cả hai đều biến chuỗi thao tác get-rồi-put thành nguyên tử"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Collections.synchronizedMap chỉ bọc một HashMap thường và đặt cùng một lock lên mọi method, nên mọi thread tranh nhau một điểm nghẽn duy nhất, và khi duyệt bạn vẫn phải tự synchronized trên đối tượng bọc. ConcurrentHashMap từ Java 8 bỏ cơ chế segment của Java 7, chuyển sang khoá mịn hơn: CAS để đặt node đầu tiên vào bucket rỗng, và synchronized trên chính node đầu bucket khi phải nối thêm — hai thread ghi vào hai bucket khác nhau hoàn toàn không chặn nhau. Nó cấm null vì trong môi trường không khoá, get() trả null sẽ không phân biệt được 'không có key' với 'giá trị là null', mà cũng không có cách kiểm tra lại một cách nguyên tử. Quan trọng nhất: từng method là nguyên tử nhưng chuỗi thao tác thì không — phải dùng putIfAbsent, computeIfAbsent, merge hoặc compute.",
+   "whyWrong": [
+    "ConcurrentHashMap không khoá toàn bộ map; đó chính là điểm khác biệt về hiệu năng lớn nhất so với synchronizedMap.",
+    "Ngược hoàn toàn: ConcurrentHashMap cấm null ở cả key lẫn value, còn synchronizedMap bọc HashMap nên vẫn cho phép.",
+    "",
+    "Không cấu trúc nào làm được điều đó. Chuỗi get-rồi-put là hai lời gọi riêng biệt, phải dùng method ghép sẵn hoặc lock ngoài."
+   ]
+  },
+  {
+   "id": "d-3-9",
+   "topicId": 3,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Với load factor mặc định, mảng nội bộ của map có độ dài bao nhiêu sau vòng lặp?",
+   "code": "Map<Integer, String> map = new HashMap<>(16);\nfor (int i = 0; i < 13; i++) {\n    map.put(i, \"v\" + i);\n}",
+   "choices": [
+    "16 — vì 13 vẫn nhỏ hơn 16",
+    "32 — vì phần tử thứ 13 làm size vượt threshold 12 nên bảng nhân đôi",
+    "24 — vì bảng tăng 1.5 lần giống ArrayList",
+    "64 — vì bảng phải đạt tối thiểu 64 ô"
+   ],
+   "correctAnswer": 1,
+   "explanation": "threshold = capacity × loadFactor = 16 × 0.75 = 12. HashMap kiểm tra SAU khi chèn: khi size tăng lên vượt threshold thì gọi resize(). Sau 12 lần put, size = 12 và 12 không vượt 12 nên chưa resize. Lần put thứ 13 đưa size lên 13 > 12, bảng nhân đôi thành 32 và threshold thành 24. Lưu ý HashMap luôn nhân đôi để giữ tính chất luỹ thừa của 2 — điều kiện bắt buộc để chỉ số bucket tính được bằng phép AND; hệ số 1.5 là quy tắc của ArrayList.grow(), không phải của HashMap.",
+   "whyWrong": [
+    "So sánh sai đại lượng: ngưỡng là threshold 12 chứ không phải capacity 16.",
+    "",
+    "1.5 lần là chiến lược tăng trưởng của ArrayList; HashMap bắt buộc nhân đôi để capacity luôn là luỹ thừa của 2.",
+    "64 là ngưỡng độ dài bảng tối thiểu để cho phép treeify một bucket, không phải kích thước bắt buộc của bảng."
+   ]
+  },
+  {
+   "id": "d-4-1",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "String a = \"hello\";\nString b = new String(\"hello\");\nString c = b.intern();\n\nSystem.out.println(a == b);\nSystem.out.println(a.equals(b));\nSystem.out.println(a == c);",
+   "choices": [
+    "true, true, true",
+    "false, true, true",
+    "false, true, false",
+    "false, false, true"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Literal \"hello\" nằm trong String Pool nên biến a trỏ tới object trong pool. Toán tử new theo định nghĩa cấp phát object mới trên heap, nên a == b là false dù nội dung giống hệt. equals so từng ký tự nên trả true. intern() tra pool, thấy đã có chuỗi \"hello\" và trả về đúng tham chiếu đó, nên a == c là true. Quy tắc thực hành: so chuỗi luôn dùng equals (hoặc Objects.equals khi có thể null), đừng bao giờ dựa vào == cho dù nó đôi lúc 'may mắn' đúng nhờ pool.",
+   "whyWrong": [
+    "a == b không thể true: new String() luôn tạo object mới nằm ngoài pool.",
+    "",
+    "intern() trả về chính tham chiếu trong pool, mà a cũng trỏ vào pool, nên a == c phải là true.",
+    "equals so sánh nội dung chứ không so tham chiếu, nên a.equals(b) là true."
+   ]
+  },
+  {
+   "id": "d-4-2",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "String s = \"  Java  \";\ns.trim();\ns.toUpperCase();\nSystem.out.println(\"[\" + s + \"]\");",
+   "choices": [
+    "[JAVA]",
+    "[  JAVA  ]",
+    "[Java]",
+    "[  Java  ]"
+   ],
+   "correctAnswer": 3,
+   "explanation": "String bất biến: trim() và toUpperCase() không sửa object gốc mà trả về String MỚI. Ở đây giá trị trả về bị vứt đi nên s giữ nguyên cả khoảng trắng lẫn chữ thường. Muốn có hiệu lực phải gán lại: s = s.trim().toUpperCase(). Đây là lỗi cơ bản nhưng vẫn xuất hiện thường xuyên, và hầu hết IDE đều cảnh báo 'result of String.trim() is ignored' chính vì lý do đó.",
+   "whyWrong": [
+    "Đó là kết quả nếu cả hai lời gọi được gán lại vào s, nhưng ở đây không có phép gán nào.",
+    "toUpperCase() cũng trả về chuỗi mới và bị bỏ đi, nên s không hề in hoa.",
+    "trim() trả về chuỗi mới đã cắt khoảng trắng, nhưng kết quả bị vứt đi nên s vẫn còn khoảng trắng.",
+    ""
+   ]
+  },
+  {
+   "id": "d-4-3",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Khác biệt thực chất giữa StringBuilder và StringBuffer là gì?",
+   "choices": [
+    "StringBuffer nhanh hơn vì được JVM tối ưu đặc biệt",
+    "StringBuilder có capacity động còn StringBuffer thì cố định",
+    "StringBuffer đồng bộ hoá (synchronized) từng method nên an toàn ở mức từng thao tác nhưng chậm hơn; StringBuilder không đồng bộ và là lựa chọn mặc định",
+    "StringBuilder bất biến còn StringBuffer thì thay đổi được"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Hai class có API gần như giống hệt nhau; khác biệt duy nhất đáng kể là StringBuffer (có từ JDK 1.0) đánh dấu synchronized trên mọi method, còn StringBuilder (Java 5) thì không. Điểm nên nói thêm để ghi điểm: đồng bộ ở mức từng method gần như không bao giờ đủ để chương trình đúng, vì một chuỗi append liên tiếp vẫn cần lock ở tầng ngoài — nên StringBuffer hiếm khi là câu trả lời đúng cho bài toán đa luồng thật. Ngoài ra khi builder là biến cục bộ không thoát khỏi method, JIT thường loại bỏ được lock qua escape analysis.",
+   "whyWrong": [
+    "Ngược lại: chi phí đồng bộ hoá khiến StringBuffer chậm hơn hoặc bằng, không bao giờ nhanh hơn.",
+    "Cả hai đều có capacity động và cùng cơ chế nở buffer; đây không phải điểm khác biệt.",
+    "",
+    "Cả hai đều thay đổi được — đó chính là lý do chúng tồn tại bên cạnh String bất biến."
+   ]
+  },
+  {
+   "id": "d-4-4",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "String a = \"ja\";\nString b = \"va\";\nfinal String c = \"ja\";\nfinal String d = \"va\";\n\nSystem.out.println((\"ja\" + \"va\") == \"java\");\nSystem.out.println((a + b) == \"java\");\nSystem.out.println((c + d) == \"java\");",
+   "choices": [
+    "true, true, true",
+    "true, false, true",
+    "true, false, false",
+    "false, false, false"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Dòng đầu là biểu thức hằng compile-time: javac ghép ngay lúc biên dịch thành literal \"java\", mà literal thì nằm trong pool nên cùng object với \"java\" — true. Dòng hai dùng biến thường nên phép nối xảy ra lúc runtime và tạo String mới nằm ngoài pool — false. Dòng ba: c và d là biến final khởi tạo bằng literal nên chúng cũng là hằng compile-time, javac lại folding thành \"java\" — true. Chi tiết hay bị bỏ sót: chỉ từ khoá final mới biến biến thành hằng compile-time; 'effectively final' không có tác dụng này.",
+   "whyWrong": [
+    "Dòng hai không thể true: a và b là biến thường nên phép nối diễn ra lúc chạy và sinh object mới.",
+    "",
+    "Dòng ba là true vì c và d được khai báo final với giá trị hằng, nên javac gộp chúng lúc biên dịch.",
+    "Dòng đầu chắc chắn true vì javac gộp hai literal thành một literal duy nhất trong pool."
+   ]
+  },
+  {
+   "id": "d-4-5",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Vì sao nối chuỗi bằng += trong vòng lặp n lần vẫn là O(n^2), dù từ Java 9 compiler đã dùng invokedynamic và StringConcatFactory?",
+   "choices": [
+    "Vì invokedynamic chậm hơn chuỗi lệnh StringBuilder của Java 8",
+    "Vì mỗi lần lặp là một biểu thức nối độc lập: kết quả cũ bị sao chép lại toàn bộ vào chuỗi mới, tổng chi phí sao chép là 1+2+...+n",
+    "Vì String không có capacity nên phải tính lại hash sau mỗi lần nối",
+    "Vì GC bắt buộc phải chạy sau mỗi lần nối chuỗi"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Cả cơ chế StringBuilder của Java 8 lẫn invokedynamic của Java 9+ chỉ tối ưu trong phạm vi MỘT biểu thức. Trong vòng lặp, biến trung gian s là một String hoàn chỉnh có thể bị dùng ở bất kỳ đâu, nên compiler không được phép gộp các lần lặp lại thành một buffer chung. Kết quả là mỗi vòng đều phải sao chép lại toàn bộ nội dung đã tích luỹ; sau n vòng tổng số ký tự phải copy là 1+2+...+n, tức O(n^2). Cách sửa duy nhất là tự giữ một StringBuilder ngoài vòng lặp, hoặc dùng Collectors.joining.",
+   "whyWrong": [
+    "invokedynamic thường nhanh hơn vì runtime có thể tính trước tổng độ dài và ghi một lần; nó không phải nguyên nhân.",
+    "",
+    "hashCode của String chỉ được tính khi có ai gọi tới, và hoàn toàn không liên quan tới chi phí nối chuỗi.",
+    "GC chạy theo lịch của JVM chứ không bị ép chạy sau mỗi lần nối; rác sinh ra là hệ quả chứ không phải nguyên nhân của O(n^2)."
+   ]
+  },
+  {
+   "id": "d-4-6",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "String Pool nằm ở đâu, và điều đó thay đổi ra sao qua các phiên bản?",
+   "choices": [
+    "Luôn nằm trong stack của thread đang chạy",
+    "Nằm trong PermGen tới Java 6; từ Java 7 chuyển sang heap, nên chuỗi trong pool bị GC thu hồi được và intern() nhiều không còn làm tràn PermGen",
+    "Nằm trong Metaspace từ Java 8, trước đó nằm trong heap",
+    "Nằm trong vùng nhớ native ngoài heap ở mọi phiên bản"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Tới Java 6, String Pool nằm trong PermGen vốn có kích thước cố định, nên gọi intern() ồ ạt (ví dụ khi nạp hàng triệu chuỗi từ file) có thể ném OutOfMemoryError: PermGen space. Java 7 chuyển pool sang heap: pool lớn theo heap, và các entry không còn tham chiếu nào có thể bị GC thu hồi. Cần tách bạch hai mốc thường bị gộp làm một: pool chuyển sang heap ở Java 7, còn PermGen bị bỏ hẳn và thay bằng Metaspace ở Java 8. Số bucket của bảng pool chỉnh được bằng -XX:StringTableSize.",
+   "whyWrong": [
+    "Stack chỉ chứa frame và biến cục bộ; mọi object String đều nằm trên heap.",
+    "",
+    "Đảo ngược trình tự: pool ở PermGen trước rồi mới chuyển sang heap ở Java 7; pool chưa bao giờ nằm trong Metaspace.",
+    "Pool là cấu trúc trong JVM trỏ tới các object String nằm trong vùng nhớ do JVM quản lý, không phải vùng native ngoài heap."
+   ]
+  },
+  {
+   "id": "d-4-7",
+   "topicId": 4,
+   "versions": [
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Compact Strings (Java 9) thay đổi gì trong cách String lưu dữ liệu?",
+   "choices": [
+    "String lưu byte[] kèm một cờ coder (LATIN1 hoặc UTF16): chuỗi chỉ gồm ký tự Latin-1 dùng 1 byte mỗi ký tự, còn chỉ cần một ký tự nằm ngoài Latin-1 là cả chuỗi dùng 2 byte mỗi ký tự",
+    "String tự nén dữ liệu bằng thuật toán nén khi chuỗi đủ dài",
+    "String chuyển sang lưu UTF-8 nên tiếng Việt có dấu cũng chỉ tốn 1 byte mỗi ký tự",
+    "String dùng byte[] và mọi ký tự luôn chiếm đúng 1 byte"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Trước Java 9, String lưu char[] với 2 byte cho mọi ký tự, lãng phí phân nửa bộ nhớ với dữ liệu ASCII vốn chiếm đa số trong ứng dụng thực tế. JEP 254 đổi sang byte[] cộng một byte coder, và quyết định là theo TỪNG String chứ không theo từng ký tự — chỉ một ký tự ngoài Latin-1 là cả chuỗi rơi về chế độ UTF16. Với dữ liệu tiếng Việt có dấu (ví dụ 'ế' nằm ngoài Latin-1) chuỗi vẫn dùng 2 byte mỗi ký tự, nên đừng hứa mức tiết kiệm đồng đều. API bên ngoài không đổi: length() và charAt() vẫn tính theo đơn vị char UTF-16.",
+   "whyWrong": [
+    "",
+    "Không có bước nén nào; đây chỉ là chọn giữa hai cách mã hoá cố định, không tốn CPU giải nén.",
+    "Chế độ tiết kiệm là Latin-1 chứ không phải UTF-8, và ký tự tiếng Việt có dấu nằm ngoài Latin-1 nên vẫn dùng 2 byte.",
+    "Chỉ đúng khi toàn bộ chuỗi nằm trong Latin-1; ngoài phạm vi đó chuỗi dùng 2 byte mỗi ký tự."
+   ]
+  },
+  {
+   "id": "d-4-8",
+   "topicId": 4,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "StringBuilder a = new StringBuilder(\"java\");\nStringBuilder b = new StringBuilder(\"java\");\n\nSystem.out.println(a.equals(b));\nSystem.out.println(a.toString().equals(b.toString()));\n\nSet<StringBuilder> set = new HashSet<>();\nset.add(a);\nSystem.out.println(set.contains(b));",
+   "choices": [
+    "true, true, true",
+    "false, true, false",
+    "false, true, true",
+    "true, true, false"
+   ],
+   "correctAnswer": 1,
+   "explanation": "StringBuilder và StringBuffer KHÔNG override equals/hashCode, nên chúng dùng bản identity của Object: hai builder cùng nội dung vẫn là hai object khác nhau và không bao giờ 'bằng nhau'. Vì thế a.equals(b) là false, còn so sánh sau khi gọi toString() thì đúng vì lúc đó là hai String. Hệ quả trực tiếp: đừng bao giờ dùng StringBuilder làm key của Map hay phần tử của Set, và luôn gọi toString() trước khi so sánh. (Java 11 có bổ sung compareTo cho StringBuilder/StringBuffer, nhưng equals thì vẫn giữ nguyên hành vi identity.)",
+   "whyWrong": [
+    "a.equals(b) không thể true vì StringBuilder không override equals; nó rơi về so sánh tham chiếu.",
+    "",
+    "contains(b) phải dùng hashCode và equals của StringBuilder, cả hai đều theo identity nên không tìm thấy a.",
+    "Kết quả đầu tiên sai: equals của StringBuilder là so sánh tham chiếu nên trả false."
+   ]
+  },
+  {
+   "id": "d-4-9",
+   "topicId": 4,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Với text block sau, nội dung của biến s là gì? (bốn dấu cách trước Hello, sáu dấu cách trước World, bốn dấu cách trước dấu đóng)",
+   "code": "String s = \"\"\"\n    Hello\n      World\n    \"\"\";\nSystem.out.print(\"[\" + s + \"]\");",
+   "choices": [
+    "Hello, xuống dòng, hai dấu cách, World, xuống dòng — toàn bộ lề chung 4 dấu cách bị cắt và có ký tự xuống dòng ở cuối",
+    "Giữ nguyên 4 dấu cách ở đầu mỗi dòng vì text block không tự cắt lề",
+    "Hello, xuống dòng, hai dấu cách, World — lề bị cắt nhưng KHÔNG có ký tự xuống dòng ở cuối",
+    "Không biên dịch được vì dấu mở \"\"\" phải đi kèm nội dung trên cùng một dòng"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Lề phụ (incidental white space) được xác định bằng số dấu cách nhỏ nhất trong các dòng không rỗng, TÍNH CẢ dòng chứa dấu đóng. Ở đây Hello thụt 4, World thụt 6, dòng đóng thụt 4, nên lề chung là 4 và bị cắt hết; World còn dư 2 dấu cách nên giữ lại phần thụt tương đối đó. Vì dấu đóng nằm trên dòng riêng nên dòng cuối cùng có nội dung vẫn kết thúc bằng ký tự xuống dòng. Muốn bỏ ký tự xuống dòng cuối, đặt dấu đóng ngay sau World, hoặc thêm dấu gạch chéo ngược ở cuối dòng để nối dòng. Text block chuẩn hoá ở Java 15 nên có mặt trong LTS 17 và 21.",
+   "whyWrong": [
+    "",
+    "Text block cắt lề phụ theo thuật toán chuẩn hoá của Java 15; đây chính là điểm khác biệt so với chuỗi thường nối bằng \\n.",
+    "Dấu đóng nằm trên dòng riêng nên dòng nội dung cuối cùng vẫn được kết thúc bằng ký tự xuống dòng.",
+    "Ngược lại mới đúng: dấu mở \"\"\" bắt buộc phải là ký tự cuối của dòng đó, nội dung chỉ được bắt đầu từ dòng kế tiếp — đúng như code ở trên, nên nó biên dịch bình thường."
+   ]
+  },
+  {
+   "id": "d-5-1",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Vì sao dòng lệnh List<Object> l = new ArrayList<String>(); không biên dịch được?",
+   "choices": [
+    "Vì ArrayList không implement List",
+    "Vì generic là bất biến (invariant): List<String> không phải kiểu con của List<Object> dù String là kiểu con của Object — nếu cho phép thì có thể add một Integer vào list vốn chỉ chứa String",
+    "Vì phải dùng toán tử diamond new ArrayList<>()",
+    "Vì type erasure xoá tham số kiểu nên compiler không so sánh được hai kiểu"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Quan hệ kiểu con giữa các tham số kiểu KHÔNG được nâng lên kiểu chứa chúng: List<String> và List<Object> là hai kiểu không liên quan. Nếu Java cho phép phép gán này thì qua biến l bạn có thể gọi l.add(42) một cách hoàn toàn hợp lệ về kiểu, và đoạn code khác đang đọc list đó dưới dạng String sẽ ném ClassCastException. Đây chính là điểm khác biệt then chốt với mảng: String[] gán được vào Object[] và lỗi tương ứng chỉ lộ ra lúc chạy dưới dạng ArrayStoreException. Muốn nhận được nhiều kiểu list thì dùng wildcard: List<? extends Object> hoặc List<?>.",
+   "whyWrong": [
+    "ArrayList có implement List; nếu vấn đề nằm ở đó thì new ArrayList<String>() gán vào List<String> cũng phải lỗi.",
+    "",
+    "Diamond chỉ là cú pháp rút gọn; viết new ArrayList<>() thì compiler suy ra String từ vế trái và lỗi vẫn còn nguyên bản chất.",
+    "Erasure diễn ra SAU khi kiểm tra kiểu. Chính vì kiểm tra kiểu xảy ra trước erasure nên compiler mới bắt được lỗi này."
+   ]
+  },
+  {
+   "id": "d-5-2",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "List<String> a = new ArrayList<>();\nList<Integer> b = new ArrayList<>();\n\nSystem.out.println(a.getClass() == b.getClass());\nSystem.out.println(a.getClass().getName());",
+   "choices": [
+    "true rồi java.util.ArrayList",
+    "false rồi java.util.ArrayList<java.lang.String>",
+    "true rồi java.util.ArrayList<java.lang.String>",
+    "false rồi java.util.ArrayList"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Type erasure xoá tham số kiểu trước khi sinh bytecode, nên lúc runtime chỉ tồn tại đúng một class java.util.ArrayList. Cả hai biến đều trỏ tới instance của cùng class đó, và getClass() trả về cùng một đối tượng Class nên so sánh bằng == cho true. getName() cũng chỉ trả tên class thuần, không có phần tham số kiểu. Hệ quả thực tế: không thể phân biệt List<String> với List<Integer> lúc runtime — muốn biết kiểu thật thì phải tự mang theo một Class<T> (type token) như cách Jackson hay Spring làm.",
+   "whyWrong": [
+    "",
+    "Chỉ có một class ArrayList lúc runtime nên phép so sánh phải trả true, và tên class không bao giờ chứa tham số kiểu.",
+    "Vế đầu đúng nhưng vế sau sai: getName() trả về java.util.ArrayList, tham số kiểu đã bị xoá khỏi bytecode.",
+    "Hai instance thuộc cùng một class nên getClass() trả về cùng một đối tượng Class, so sánh bằng == cho true."
+   ]
+  },
+  {
+   "id": "d-5-3",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Vì sao hai method sau không thể cùng tồn tại trong một class: void f(List<String> l) và void f(List<Integer> l)?",
+   "choices": [
+    "Vì Java không cho phép overload method có tham số kiểu generic",
+    "Vì lúc runtime hai kiểu giống hệt nhau nên lời gọi sẽ nhập nhằng và JVM không chọn được bản nào",
+    "Vì sau erasure cả hai đều trở thành f(List) — trùng signature nên compiler từ chối ngay lúc biên dịch, chương trình không bao giờ chạy tới runtime",
+    "Vì chúng chỉ khác nhau ở kiểu trả về"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Overload được phân biệt bằng signature, và signature sau erasure của cả hai method đều là f(List). Compiler báo lỗi 'name clash: both methods have same erasure' ngay tại chỗ khai báo, chứ không đợi tới lúc gọi. Đây là một trong những giới hạn trực tiếp nhất của erasure và rất hay được dùng để kiểm tra xem ứng viên hiểu erasure ở mức khái niệm hay chỉ thuộc lòng. Cách vòng tránh trong thực tế là đặt tên method khác nhau — điều mà thư viện chuẩn cũng làm.",
+   "whyWrong": [
+    "Java cho phép overload với tham số generic bình thường, miễn là erasure của chúng khác nhau, ví dụ f(List<String>) và f(Set<String>).",
+    "Gần đúng về nguyên nhân nhưng sai về thời điểm: lỗi xảy ra lúc biên dịch tại chỗ khai báo, chương trình không bao giờ được sinh ra để chạy.",
+    "",
+    "Hai method này có cùng kiểu trả về void; vấn đề nằm hoàn toàn ở danh sách tham số sau erasure."
+   ]
+  },
+  {
+   "id": "d-5-4",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau có vấn đề gì?",
+   "code": "List<Integer> ints = new ArrayList<>(Arrays.asList(1, 2, 3));\nList<? extends Number> nums = ints;\n\nNumber n = nums.get(0);\nnums.add(4);",
+   "choices": [
+    "Chạy bình thường, nums có 4 phần tử",
+    "Lỗi biên dịch tại nums.add(4) — với ? extends Number, compiler không biết kiểu thật là gì nên không chấp nhận add bất cứ giá trị nào ngoài null",
+    "Lỗi biên dịch tại dòng Number n = nums.get(0)",
+    "Biên dịch được nhưng ném UnsupportedOperationException lúc chạy"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Kiểu ? extends Number nghĩa là 'một kiểu con nào đó của Number, nhưng không rõ là kiểu nào'. Đọc thì luôn an toàn vì bất kỳ kiểu con nào cũng là Number, nên dòng get(0) hợp lệ. Ghi thì không: nums hoàn toàn có thể là một List<Double>, khi đó add(4) sẽ nhét Integer vào list Double. Vì compiler không thể chứng minh phép add nào là an toàn, nó chặn tất cả, trừ null vì null hợp với mọi kiểu tham chiếu. Đây đúng là vế Producer-Extends của PECS: dùng extends cho tham số mà bạn chỉ đọc ra.",
+   "whyWrong": [
+    "Chương trình không biên dịch được nên không bao giờ chạy tới bước có 4 phần tử.",
+    "",
+    "Đọc ra dưới dạng Number là thao tác an toàn duy nhất mà wildcard extends đảm bảo, nên dòng đó hoàn toàn hợp lệ.",
+    "Đây là lỗi ở tầng kiểu nên bị chặn lúc biên dịch; UnsupportedOperationException là chuyện của list bất biến như List.of, không liên quan tới wildcard."
+   ]
+  },
+  {
+   "id": "d-5-5",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau chạy ra sao?",
+   "code": "Object[] arr = new String[3];\narr[0] = \"ok\";\narr[1] = 42;\nSystem.out.println(\"done\");",
+   "choices": [
+    "In done — mảng Object[] nhận được mọi kiểu",
+    "Lỗi biên dịch tại arr[1] = 42",
+    "Ném ArrayStoreException lúc chạy tại arr[1] = 42, vì mảng thật là String[] và mảng trong Java là hiệp biến nên phép kiểm tra kiểu bị dời sang runtime",
+    "Ném ClassCastException ngay tại dòng gán đầu tiên"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Mảng trong Java là covariant: String[] được coi là Object[] nên phép gán ở dòng đầu hợp lệ về mặt biên dịch. Nhưng mảng cũng là reified — object mảng biết chính xác kiểu phần tử thật của nó — nên mỗi lệnh ghi phần tử đều bị JVM kiểm tra và ném ArrayStoreException khi kiểu không khớp. Đây chính là cái giá của covariance: lỗi chỉ lộ ra lúc chạy. Generic chọn hướng ngược lại (invariant) nên phép gán tương đương List<Object> l = new ArrayList<String>() bị chặn ngay lúc biên dịch — an toàn hơn hẳn.",
+   "whyWrong": [
+    "Kiểu khai báo là Object[] nhưng object thật là String[], và mảng kiểm tra kiểu phần tử ở mỗi lần ghi.",
+    "Compiler không báo lỗi: về mặt kiểu tĩnh, gán một Integer đã boxing vào phần tử Object[] là hoàn toàn hợp lệ.",
+    "",
+    "ClassCastException là lỗi khi ép kiểu một tham chiếu; ở đây không có phép ép kiểu nào, lỗi phát sinh khi GHI vào mảng nên là ArrayStoreException."
+   ]
+  },
+  {
+   "id": "d-5-6",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Sau erasure, tham số kiểu <T extends Number & Comparable<T>> được thay bằng gì trong bytecode?",
+   "choices": [
+    "Object",
+    "Comparable",
+    "Một kiểu tổng hợp kết hợp cả Number và Comparable",
+    "Number — bound trái nhất; những bound còn lại được xử lý bằng checkcast ở nơi cần"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Erasure của một tham số kiểu là bound trái nhất (leftmost bound); nếu không khai báo bound nào thì là Object. Vì vậy <T extends Number & Comparable<T>> erase thành Number, và ở những chỗ cần gọi method của bound thứ hai, compiler chèn checkcast sang Comparable. Chi tiết đi kèm đáng nói trong phỏng vấn: khi có nhiều bound, nếu một trong số đó là class thì nó BẮT BUỘC phải đứng đầu về mặt cú pháp — nên thứ tự bound vừa là ràng buộc ngôn ngữ vừa quyết định signature sau erasure, và điều đó ảnh hưởng tới việc method có bị coi là trùng erasure với method khác hay không.",
+   "whyWrong": [
+    "Object chỉ là kết quả erasure khi tham số kiểu không có bound nào.",
+    "Comparable là bound thứ hai; erasure luôn lấy bound trái nhất.",
+    "JVM không tạo kiểu tổng hợp nào; erasure chỉ đơn thuần chọn một kiểu đã có sẵn.",
+    ""
+   ]
+  },
+  {
+   "id": "d-5-7",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau chạy ra sao?",
+   "code": "List<String> strings = new ArrayList<>();\nList raw = strings;\nraw.add(42);\n\nfor (String s : strings) {\n    System.out.println(s.length());\n}",
+   "choices": [
+    "Lỗi biên dịch tại raw.add(42)",
+    "In ra 2, tức độ dài của chuỗi \"42\"",
+    "Biên dịch được (chỉ có cảnh báo unchecked) rồi ném ClassCastException trong vòng lặp, ở dòng không hề có phép ép kiểu nào trong source",
+    "Biên dịch được và bỏ qua phần tử 42 khi duyệt vì nó không phải String"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Đây là heap pollution kinh điển: biến strings có kiểu List<String> nhưng list thật sự bên dưới đang chứa một Integer. Raw type tắt toàn bộ kiểm tra generic nên raw.add(42) chỉ sinh cảnh báo unchecked chứ không phải lỗi. Phép ép kiểu thật nằm ở lệnh checkcast mà compiler chèn vào vòng lặp for-each khi lấy phần tử ra gán cho biến String, nên ClassCastException nổ tại một dòng bạn không hề viết cast — rất khó lần ngược về nguyên nhân. Đó chính là lý do phải coi mọi unchecked warning là lỗi cần xử lý chứ không phải tiếng ồn.",
+   "whyWrong": [
+    "Raw type khiến add(Object) được chọn, nên về mặt kiểu không có gì sai và compiler chỉ cảnh báo.",
+    "Số 42 vào list dưới dạng Integer chứ không phải String, nên phép gán cho biến String thất bại trước khi kịp gọi length().",
+    "",
+    "Vòng lặp for-each không lọc kiểu; nó lấy tuần tự từng phần tử rồi ép kiểu, gặp phần tử sai kiểu là ném exception ngay."
+   ]
+  },
+  {
+   "id": "d-5-8",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Khi biên dịch class Box implements Comparable<Box> với method compareTo(Box o), compiler sinh thêm một method tổng hợp int compareTo(Object). Vì sao?",
+   "choices": [
+    "Để hỗ trợ cơ chế tuần tự hoá (serialization)",
+    "Vì sau erasure interface Comparable khai báo compareTo(Object); nếu Box chỉ có compareTo(Box) thì về mặt JVM nó không override được method của interface, nên compiler sinh bridge method để cast rồi uỷ quyền sang compareTo(Box)",
+    "Để cho phép so sánh Box với mọi kiểu object khác",
+    "Vì Java yêu cầu mọi class implement interface phải có ít nhất một method nhận tham số Object"
+   ],
+   "correctAnswer": 1,
+   "explanation": "JVM phân biệt method theo signature đầy đủ, mà compareTo(Box) và compareTo(Object) là hai signature khác nhau. Nếu không có gì bù đắp, gọi qua reference kiểu Comparable sẽ không dispatch được tới bản cài đặt của Box. Compiler giải quyết bằng cách sinh một bridge method mang cờ ACC_BRIDGE và ACC_SYNTHETIC, thân hàm chỉ ép kiểu tham số rồi gọi method thật. Hai hệ quả đáng nhớ: Method.isBridge() nhận diện được chúng nên framework dùng reflection phải lọc (Spring có BridgeMethodResolver), và nếu ai đó dùng raw type truyền sai kiểu thì ClassCastException sẽ phát ra từ bên trong bridge method, tức từ một dòng không tồn tại trong source của bạn. Covariant return type cũng được hiện thực bằng đúng cơ chế này.",
+   "whyWrong": [
+    "Serialization không liên quan; nó dùng reflection trên field chứ không cần bridge method.",
+    "",
+    "Bridge method cast tham số về Box và ném ClassCastException nếu sai kiểu, nên nó không hề mở rộng khả năng so sánh.",
+    "Không có yêu cầu như vậy. Method này được sinh riêng cho tình huống erasure làm lệch signature giữa interface và class cài đặt."
+   ]
+  },
+  {
+   "id": "d-5-9",
+   "topicId": 5,
+   "versions": [
+    8,
+    11,
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "@SafeVarargs làm gì, và đặt được lên những loại method nào?",
+   "choices": [
+    "Nó kiểm tra lúc biên dịch rằng method thực sự an toàn về kiểu",
+    "Nó ép JVM kiểm tra kiểu từng phần tử của mảng varargs lúc chạy",
+    "Nó chỉ tắt cảnh báo heap pollution — là cam kết của tác giả rằng method không lưu và không lộ mảng varargs ra ngoài; chỉ đặt được lên method static, method final, constructor, và từ Java 9 thêm private instance method",
+    "Nó cho phép truyền số lượng tham số generic không giới hạn, điều mà bình thường bị cấm"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Nguyên nhân của cảnh báo là compiler buộc phải tạo một mảng generic (T[] hoặc List<String>[]) để gói tham số varargs, mà mảng generic không an toàn vì mảng thì hiệp biến còn generic thì bất biến. Nếu method chỉ đọc mảng thì thực tế không có rủi ro; nhưng nếu nó return mảng, gán mảng vào field, hoặc chỉ cần gán vào một biến Object[], người khác có thể nhét sai kiểu vào và gây ClassCastException ở chỗ khác. @SafeVarargs không kiểm chứng bất cứ điều gì — nó chỉ tắt cảnh báo, nên đặt nhầm chỗ là vừa giữ nguyên bug vừa mất luôn tín hiệu cảnh báo. Giới hạn về vị trí có logic rõ ràng: đó đúng là tập các method không override được, vì lời cam kết an toàn của class cha không thể ràng buộc class con.",
+   "whyWrong": [
+    "Compiler không kiểm chứng gì cả; toàn bộ trách nhiệm nằm ở người viết method.",
+    "Không có kiểm tra runtime nào được thêm vào; annotation này chỉ tác động tới cảnh báo lúc biên dịch.",
+    "",
+    "Số lượng tham số varargs vốn đã không bị giới hạn; annotation này không liên quan gì tới số lượng đối số."
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1201 @@
+{
+  "tutorials": [
+    {
+      "id": "t-11-1",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "JPMS ra đời để giải quyết vấn đề gì?",
+      "summary": "Classpath phẳng khiến phụ thuộc không kiểm chứng được và public nghĩa là public với cả thế giới — module hoá là câu trả lời của Java 9.",
+      "sections": [
+        "<b>Classpath là một danh sách phẳng, không phải một đồ thị phụ thuộc.</b> Trước Java 9, mọi JAR được đổ chung vào một không gian tên duy nhất và JVM nạp class theo thứ tự xuất hiện. Nếu hai JAR cùng chứa <code>org/example/Foo.class</code>, bản đứng trước sẽ thắng một cách âm thầm — không cảnh báo, không lỗi. Đây chính là <i>JAR hell</i>: hậu quả chỉ lộ ra lúc runtime dưới dạng <code>NoSuchMethodError</code> hoặc <code>NoClassDefFoundError</code>, thường là sau khi đã deploy.",
+        "<b>Không có kiểm tra phụ thuộc lúc khởi động.</b> Classpath không mô tả 'tôi cần những gì'. Thiếu một JAR thì chương trình vẫn khởi động bình thường và chỉ chết khi chạy đúng vào nhánh code cần class đó. Module path thì ngược lại: JVM chạy bước <i>module resolution</i> ngay lúc khởi động, thiếu module nào là báo lỗi ngay và dừng — fail fast thay vì fail muộn.",
+        "<b>Không có mức đóng gói nào cao hơn package.</b> Một class <code>public</code> trong package nội bộ vẫn public với toàn thế giới. Thư viện muốn tách code ra nhiều package để tổ chức cho gọn thì buộc phải để chúng public, và người dùng lập tức phụ thuộc vào những thứ tác giả không hề coi là API. JPMS bổ sung đúng mức thiếu đó: chỉ package nào được <code>exports</code> mới nhìn thấy được từ module khác, kể cả nó có public đi nữa.",
+        "<b>JDK là một khối liền.</b> Trước Java 9, <code>rt.jar</code> chứa toàn bộ thư viện chuẩn, kể cả CORBA hay applet mà hầu như không ai còn dùng. Java 9 tách JDK thành hơn 70 module (<code>java.base</code>, <code>java.sql</code>, <code>java.xml</code>, <code>java.logging</code>...), nhờ đó JVM có thể chỉ nạp phần cần thiết và <code>jlink</code> có thể dựng runtime image gọn. Nói cho chính xác về mốc: <code>java.net.http</code> <b>chưa</b> có trong Java 9 — lúc đó HttpClient mới chỉ là module incubator <code>jdk.incubator.httpclient</code> (package <code>jdk.incubator.http</code>); phải tới Java 11 (JEP 321) nó mới thành module chuẩn <code>java.net.http</code>.",
+        "<b>Module trong Java là gì.</b> Một module gồm ba thứ: một cái tên duy nhất, tập package nó cho phép người khác dùng, và tập module nó cần. Ba thứ này được khai báo trong <code>module-info.java</code> đặt ở gốc source root và được biên dịch thành <code>module-info.class</code> — nghĩa là metadata này được compiler và JVM cùng đọc, chứ không phải một quy ước xây dựng ở tầng Maven/Gradle.",
+        "<b>Góc LTS quan trọng nhất khi lên Java 11.</b> JEP 320 xoá hẳn các module Java EE khỏi JDK 11: <code>java.xml.bind</code> (JAXB), <code>java.activation</code>, <code>java.xml.ws</code>, <code>java.transaction</code>, <code>java.corba</code> và aggregator <code>java.se.ee</code>. Ở Java 9/10 chúng chỉ bị deprecate và còn cứu được bằng <code>--add-modules java.xml.bind</code>; từ Java 11 cờ đó vô nghĩa vì module không còn tồn tại, buộc phải thêm dependency Maven tương ứng. Đây là nguyên nhân số một khiến dự án 8 → 11 vỡ với <code>NoClassDefFoundError: javax/xml/bind/JAXBException</code>."
+      ],
+      "example": "// src/main/java/module-info.java\nmodule com.acme.order {\n    requires java.sql;                 // cần lúc compile va runtime\n    requires transitive com.acme.model; // ai dung minh cung thay duoc com.acme.model\n    requires static org.projectlombok;  // chi can luc compile\n\n    exports com.acme.order.api;         // API cong khai\n    // com.acme.order.internal KHONG export -> module khac khong dung duoc\n\n    opens com.acme.order.dto;           // cho phep reflection sau luc runtime\n\n    uses com.acme.order.spi.PricingRule;              // consumer cua service\n    provides com.acme.order.spi.PricingRule\n        with com.acme.order.internal.DefaultPricingRule; // provider\n}",
+      "exampleTitle": "Một module-info.java đầy đủ các mệnh đề",
+      "keyPoints": [
+        "Classpath không mô tả phụ thuộc nên lỗi thiếu class chỉ lộ lúc runtime; module path kiểm tra ngay khi khởi động",
+        "Trước Java 9 không có mức đóng gói nào giữa package và toàn hệ thống — public là public với tất cả",
+        "module-info.java được biên dịch thành module-info.class, compiler và JVM cùng đọc",
+        "Java 9 tách JDK thành hơn 70 module, mở đường cho jlink; java.net.http thì tới Java 11 mới có",
+        "JEP 320 xoá module Java EE khỏi Java 11 — đây là lỗi migration 8 → 11 phổ biến nhất"
+      ],
+      "trap": "Nhiều người nghĩ phải module hoá thì mới chạy được Java 9+. Sai: code để nguyên trên classpath vẫn chạy bình thường vì nó nằm trong unnamed module. JPMS là tuỳ chọn, không bắt buộc.",
+      "followUp": [
+        "Nếu dự án vẫn dùng classpath thì Java 9+ có thay đổi gì với code của bạn không?",
+        "Vì sao lỗi JAXB lại xuất hiện đúng lúc nâng từ Java 8 lên Java 11?"
+      ]
+    },
+    {
+      "id": "t-11-2",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "requires, exports, opens, uses/provides — đọc hiểu module-info",
+      "summary": "Mỗi mệnh đề trong module-info trả lời một câu hỏi khác nhau về khả năng đọc và khả năng truy cập.",
+      "sections": [
+        "<b><code>requires</code> — quan hệ readability.</b> <code>requires B</code> nghĩa là module hiện tại <i>đọc được</i> B, điều kiện cần để dùng bất cứ thứ gì B export. Readability không bắc cầu theo mặc định: A requires B, B requires C thì A vẫn <b>không</b> đọc được C. Đây là điểm khiến người mới bối rối nhất vì trực giác từ Maven (transitive dependency) hoàn toàn ngược lại.",
+        "<b><code>requires transitive</code> — implied readability.</b> Khi B khai báo <code>requires transitive C</code>, mọi module requires B sẽ tự động đọc được C. Quy tắc thực hành: nếu kiểu của C <b>xuất hiện trong chữ ký API</b> của bạn (tham số, kiểu trả về, kiểu cha), bạn <i>phải</i> dùng <code>transitive</code>, nếu không người gọi sẽ không compile được chính dòng họ gọi API của bạn. Nếu C chỉ dùng nội bộ thì để <code>requires</code> thường.",
+        "<b><code>requires static</code> — phụ thuộc tuỳ chọn.</b> Module bắt buộc phải có lúc compile nhưng được phép vắng mặt lúc runtime, và module resolution sẽ không lỗi nếu thiếu. Dùng cho annotation processor, các annotation chỉ tồn tại lúc biên dịch, hoặc tích hợp tuỳ chọn mà code có nhánh dự phòng. Đổi lại, code phải tự chịu trách nhiệm không chạm tới class đó khi nó vắng mặt.",
+        "<b><code>exports</code> — khả năng truy cập lúc compile và runtime.</b> <code>exports p</code> cho phép module khác dùng các thành viên <code>public</code> và <code>protected</code> của các kiểu public trong package <code>p</code>. Có biến thể qualified: <code>exports p to com.acme.web, com.acme.batch</code> chỉ mở cho đúng những module được liệt kê — rất hữu ích để chia sẻ code nội bộ giữa các module của cùng một sản phẩm mà không mở ra ngoài.",
+        "<b><code>opens</code> — chỉ runtime, nhưng cho reflection sâu.</b> <code>opens p</code> cho phép mọi thao tác reflection trên package <code>p</code> lúc runtime, kể cả <code>setAccessible(true)</code> trên field và method <code>private</code>. Nó <b>không</b> cấp quyền truy cập lúc compile — code module khác vẫn không import được kiểu trong <code>p</code>. Khai báo <code>open module M { }</code> thì mở toàn bộ package của module.",
+        "<b><code>uses</code>/<code>provides ... with</code> — ServiceLoader ở cấp module.</b> <code>uses S</code> khai báo module này sẽ tra cứu implementation của interface <code>S</code> qua <code>ServiceLoader</code>; <code>provides S with Impl</code> khai báo module này cung cấp một implementation. Cơ chế này thay cho file <code>META-INF/services</code> và có ưu điểm là được compiler kiểm tra: <code>Impl</code> phải thực sự implement <code>S</code> và phải có constructor không tham số hoặc method <code>provider()</code> static, nếu không sẽ lỗi biên dịch. Đáng chú ý: class <code>Impl</code> không cần nằm trong package được export."
+      ],
+      "example": "// Module cung cap service\nmodule com.acme.payment.momo {\n    requires com.acme.payment.spi;\n    provides com.acme.payment.spi.Gateway\n        with com.acme.payment.momo.MomoGateway; // khong can exports package nay\n}\n\n// Module tieu thu service\nmodule com.acme.checkout {\n    requires com.acme.payment.spi;\n    uses com.acme.payment.spi.Gateway;\n}\n\n// Trong code cua com.acme.checkout\nServiceLoader<Gateway> loaded = ServiceLoader.load(Gateway.class);\nGateway gw = loaded.findFirst()\n        .orElseThrow(() -> new IllegalStateException(\"Khong co Gateway nao\"));",
+      "exampleTitle": "uses/provides thay cho META-INF/services",
+      "keyPoints": [
+        "readability không bắc cầu; muốn bắc cầu phải dùng requires transitive",
+        "Quy tắc: kiểu lộ ra trong chữ ký API thì module chứa nó phải requires transitive",
+        "requires static = bắt buộc lúc compile, tuỳ chọn lúc runtime",
+        "exports có biến thể qualified (exports p to M1, M2) để mở giới hạn",
+        "provides ... with được compiler kiểm tra, an toàn hơn META-INF/services"
+      ],
+      "trap": "Quên requires transitive cho kiểu xuất hiện trong chữ ký public. Module của bạn compile sạch, nhưng mọi module dùng API của bạn đều lỗi biên dịch — và thông báo lỗi trỏ vào code của họ chứ không phải của bạn.",
+      "followUp": [
+        "Khi nào bạn dùng exports ... to thay vì exports thường?",
+        "Vì sao class implementation trong provides ... with lại không cần được export?"
+      ]
+    },
+    {
+      "id": "t-11-3",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "exports vs opens — vì sao Spring và Hibernate cần opens",
+      "summary": "Khác biệt giữa hai mệnh đề này là nguyên nhân trực tiếp của InaccessibleObjectException trong mọi framework dùng reflection.",
+      "sections": [
+        "<b>Hai trục hoàn toàn khác nhau: thời điểm và độ sâu.</b> <code>exports</code> cấp quyền ở <i>cả compile lẫn runtime</i> nhưng chỉ tới mức <i>public API</i>. <code>opens</code> cấp quyền <i>chỉ runtime</i> nhưng tới mức <i>mọi thành viên, kể cả private</i>. Chúng không phải là hai mức mạnh yếu của cùng một thứ, mà là hai chiều vuông góc — đó là lý do một package có thể vừa <code>exports</code> vừa <code>opens</code>, và cả hai khai báo đều có ý nghĩa riêng.",
+        "<b>Deep reflection là gì.</b> Đó là các thao tác cần <code>setAccessible(true)</code>: đọc/ghi field <code>private</code>, gọi constructor không public, gọi method private. Với package chỉ được <code>exports</code>, reflection lên thành viên <b>public</b> vẫn hoạt động bình thường; nhưng <code>setAccessible(true)</code> lên thành viên private sẽ ném <code>InaccessibleObjectException</code> (một <code>RuntimeException</code>, kế thừa <code>RuntimeException</code> chứ không phải checked).",
+        "<b>Vì sao framework cần điều đó.</b> Hibernate ghi thẳng vào field private của entity khi hydrate object từ ResultSet để tránh gọi setter (setter có thể chứa logic, và entity có thể không có setter). Jackson đọc/ghi field private khi không có getter/setter. Spring inject vào field <code>@Autowired</code> private, và tạo bean qua constructor có thể không public. Tất cả đều là deep reflection, nên module chứa entity/DTO phải <code>opens</code> package đó.",
+        "<b>Vì sao không mở tất cả cho xong.</b> Vì <code>opens</code> phá bỏ đóng gói ở đúng nơi mà JPMS sinh ra để bảo vệ. Cách làm chuẩn là <code>opens</code> có định danh: <code>opens com.acme.entity to org.hibernate.orm.core;</code> — chỉ Hibernate mới soi được vào entity, phần còn lại của hệ thống vẫn bị chặn. Nếu dùng <code>open module</code> cho cả module thì bạn đã tự nguyện quay về mô hình classpath.",
+        "<b>Ranh giới thường bị hiểu nhầm.</b> <code>opens</code> không giúp gì lúc compile: nếu module khác cần <code>import</code> kiểu trong package đó, bạn vẫn phải <code>exports</code>. Ngược lại, entity của bạn thường <b>không</b> cần export ra ngoài mà chỉ cần <code>opens</code> cho ORM — đây là trường hợp <code>opens</code> đơn độc rất hợp lý.",
+        "<b>Liên hệ với JDK internals.</b> Cùng cơ chế đó áp dụng cho chính JDK. Các thủ thuật cũ như <code>setAccessible</code> vào <code>java.lang.String.value</code> hay <code>ClassLoader</code> nay bị chặn vì <code>java.base</code> không <code>opens</code> các package đó. Java 9–15 còn cho qua kèm cảnh báo (<code>--illegal-access=permit</code> mặc định); Java 16 (JEP 396) đổi mặc định thành <code>deny</code>; Java 17 (JEP 403) đóng hẳn và cờ <code>--illegal-access</code> không còn tác dụng. Từ đó, muốn dùng phải khai báo tường minh <code>--add-opens</code>."
+      ],
+      "example": "// Module cua ung dung\nmodule com.acme.app {\n    requires org.hibernate.orm.core;\n    requires com.fasterxml.jackson.databind;\n\n    exports com.acme.app.api;                  // API cho module khac dung\n\n    opens com.acme.app.entity to org.hibernate.orm.core;      // ORM ghi vao field private\n    opens com.acme.app.dto to com.fasterxml.jackson.databind; // Jackson serialize\n}\n\n// Neu chi exports ma khong opens, dong duoi day se nem\n// InaccessibleObjectException luc runtime:\nField f = Order.class.getDeclaredField(\"total\");\nf.setAccessible(true);   // <-- deep reflection",
+      "exampleTitle": "opens có định danh cho đúng framework cần",
+      "keyPoints": [
+        "exports = compile + runtime, chỉ tới public API",
+        "opens = chỉ runtime, nhưng cho phép setAccessible trên thành viên private",
+        "Một package có thể vừa exports vừa opens; hai mệnh đề độc lập nhau",
+        "opens có định danh (opens ... to tên module) giữ được phần lớn tính đóng gói",
+        "Java 16 đổi mặc định sang deny, Java 17 (JEP 403) đóng hẳn JDK internals"
+      ],
+      "trap": "Thêm exports rồi vẫn gặp InaccessibleObjectException và tưởng cấu hình sai. Không sai — exports không bao giờ cho phép deep reflection; phải dùng opens.",
+      "followUp": [
+        "Nếu entity chỉ dùng nội bộ, bạn cần exports, opens, hay cả hai?",
+        "Vì sao Hibernate lại ghi thẳng vào field thay vì gọi setter?"
+      ]
+    },
+    {
+      "id": "t-11-4",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "Migration từng bước: unnamed module, automatic module, split package",
+      "summary": "JPMS được thiết kế để cho phép chuyển dần — hiểu ba khái niệm này là hiểu toàn bộ con đường migration.",
+      "sections": [
+        "<b>Unnamed module — tất cả những gì nằm trên classpath.</b> Mọi class nạp từ classpath thuộc về một module đặc biệt không tên. Nó <i>đọc được mọi module</i> và <i>export toàn bộ package</i> của mình, nên code cũ chạy y như trước. Chiều ngược lại là giới hạn then chốt: một named module <b>không thể</b> <code>requires</code> unnamed module, vì unnamed module không có tên để mà khai báo. Hệ quả thực tế: bạn phải module hoá từ dưới lên, thư viện nền trước, ứng dụng sau.",
+        "<b>Automatic module — cầu nối cho JAR chưa module hoá.</b> Đặt một JAR không có <code>module-info.class</code> lên <b>module path</b> thì nó trở thành automatic module. Tên lấy từ manifest <code>Automatic-Module-Name</code> nếu có; nếu không, suy ra từ tên file (bỏ phần version, thay ký tự không hợp lệ bằng dấu chấm) — cách thứ hai rất mong manh vì đổi tên file là đổi tên module. Automatic module <i>export toàn bộ</i> package và <i>đọc được</i> mọi module đã resolve, kể cả unnamed module. Nhưng phần implied readability phải nói cho đúng, vì rất hay bị phóng đại: automatic module chỉ <code>requires transitive</code> <b>các automatic module khác</b>. Nghĩa là module của bạn <code>requires auto.one</code> thì đọc ké được <code>auto.two</code>, nhưng <b>không</b> vì thế mà đọc được một explicit module như <code>java.sql</code> — javac vẫn báo &quot;package java.sql is declared in module java.sql, but module com.acme.app does not read it&quot;, kể cả khi bạn đã <code>--add-modules java.sql</code>. Muốn dùng thì vẫn phải tự <code>requires java.sql</code>. Nó là lối thoát để module của bạn <code>requires</code> được thư viện chưa module hoá.",
+        "<b>Vì sao Automatic-Module-Name quan trọng với tác giả thư viện.</b> Chỉ cần thêm một dòng vào manifest là thư viện có tên module ổn định, người dùng <code>requires</code> được, mà không phải cam kết gì về cấu trúc module thật. Đây là bước 'nửa vời' được khuyến nghị chính thức và rất nhiều thư viện phổ biến dừng lại ở đúng bước này.",
+        "<b>Split package — lỗi chặn đứng migration hay gặp nhất.</b> JPMS cấm hai module cùng chứa class trong một package; JVM sẽ từ chối khởi động với thông báo kiểu <code>Package ... in both module A and module B</code>. Trong hệ sinh thái cũ điều này rất phổ biến: các JAR JAXB/annotation tách nhỏ cùng đóng góp vào <code>javax.annotation</code>, hay các JAR shaded chồng lấn nhau. Cách xử lý là gộp JAR, loại bớt dependency, hoặc để cả hai trên classpath (unnamed module không bị luật này ràng buộc).",
+        "<b>Chiến lược thực tế: bottom-up.</b> Bắt đầu bằng <code>jdeps</code> để phát hiện phụ thuộc vào JDK internals và các split package. Sau đó chuyển dependency lên module path dần, giữ code ứng dụng trên classpath càng lâu càng tốt. Chỉ khi mọi thứ mình cần đã có tên module ổn định thì mới viết <code>module-info.java</code> cho ứng dụng — viết sớm quá sẽ mắc kẹt vì phải <code>requires</code> những automatic module có tên suy ra từ tên file.",
+        "<b>Cờ thoát hiểm khi không sửa được thư viện bên thứ ba.</b> <code>--add-opens</code> mở deep reflection lúc runtime, <code>--add-exports</code> mở public API ở cả javac lẫn runtime, <code>--add-reads</code> thêm quan hệ đọc. Đích <code>ALL-UNNAMED</code> nghĩa là 'cho mọi thứ trên classpath'. Lưu ý <code>--add-opens</code> là cờ <b>thuần runtime</b>: <code>javac</code> vẫn <i>nhận</i> nó nhưng bỏ qua và cảnh báo <code>warning: [options] --add-opens has no effect at compile time</code>, chứ không báo lỗi — nên đừng nói &quot;javac không nhận&quot;, hãy nói &quot;javac nhận nhưng nó không có tác dụng lúc biên dịch&quot;. Với JAR chạy bằng <code>java -jar</code>, có thể ghi các attribute <code>Add-Opens</code>/<code>Add-Exports</code> vào manifest thay vì bắt người dùng gõ cờ."
+      ],
+      "example": "# Phat hien phu thuoc vao JDK internals truoc khi nang phien ban\njdeps --jdk-internals --multi-release 21 target/app.jar\n\n# Sinh module-info goi y cho cac JAR chua module hoa\njdeps --generate-module-info ./out target/lib/legacy-1.2.jar\n\n# Cho thu vien cu dung reflection vao java.base\njava --add-opens java.base/java.lang=ALL-UNNAMED \\\n     --add-opens java.base/java.util=ALL-UNNAMED \\\n     -jar app.jar\n\n# Mo public API noi bo cua JDK cho ca javac va runtime\njavac --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED ...",
+      "exampleTitle": "jdeps và các cờ thoát hiểm",
+      "keyPoints": [
+        "Unnamed module đọc được mọi thứ, nhưng named module không thể requires nó",
+        "Automatic module = JAR không có module-info nhưng đặt trên module path",
+        "Automatic-Module-Name trong manifest cho tên ổn định, không phụ thuộc tên file",
+        "Split package làm JVM từ chối khởi động — đây là rào cản migration lớn nhất",
+        "--add-opens là cờ thuần runtime: javac nhận nhưng chỉ cảnh báo 'has no effect at compile time'; --add-exports thì có tác dụng ở cả javac lẫn runtime"
+      ],
+      "trap": "Nghĩ rằng cứ để JAR ở đâu cũng như nhau. Cùng một JAR: nằm trên classpath thì thuộc unnamed module, nằm trên module path thì thành automatic module — hai hành vi khác hẳn nhau về đóng gói và về luật split package.",
+      "followUp": [
+        "Vì sao phải module hoá từ thư viện nền lên chứ không phải từ ứng dụng xuống?",
+        "Automatic module suy tên từ tên file thì rủi ro gì khi nâng version dependency?"
+      ]
+    },
+    {
+      "id": "t-11-5",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "jlink, runtime image gọn, và trade-off: có nên module hoá không?",
+      "summary": "Lợi ích lớn nhất của JPMS trong thực tế lại là công cụ đóng gói, chứ không phải mô hình đóng gói code.",
+      "sections": [
+        "<b><code>jlink</code> làm gì.</b> Nó ghép các module bạn chỉ định cùng phần JDK cần thiết thành một runtime image độc lập có sẵn launcher — người dùng không cần cài JRE. Với ứng dụng chỉ dùng <code>java.base</code>, image có thể xuống quanh mức vài chục MB thay vì hàng trăm MB của JDK đầy đủ; con số cụ thể phụ thuộc nền tảng và các tuỳ chọn nén nên đừng học thuộc một con số. Điều này rất có giá trị cho image Docker và cho công cụ CLI.",
+        "<b>Điều kiện ngặt của jlink.</b> <code>jlink</code> chỉ nhận modular JAR — nó <b>từ chối automatic module</b>. Nghĩa là muốn dựng image chỉ chứa đúng phần cần, toàn bộ cây phụ thuộc phải đã có <code>module-info</code> thật. Đây là lý do nhiều dự án muốn dùng jlink nhưng không dùng được. Giải pháp thường thấy là chỉ jlink phần JDK (chọn các module <code>java.*</code> cần thiết) rồi vẫn chạy ứng dụng trên classpath bên trong image đó — cách này hoàn toàn hợp lệ và phổ biến hơn nhiều so với module hoá toàn bộ.",
+        "<b><code>jdeps</code> là công cụ đi kèm quan trọng.</b> Nó phân tích bytecode để liệt kê module JDK mà code bạn thực sự chạm tới, phát hiện việc dùng JDK internals (<code>--jdk-internals</code>), và sinh khung <code>module-info</code> (<code>--generate-module-info</code>). Ngay cả khi không định module hoá, chạy <code>jdeps --jdk-internals</code> trước mỗi lần nâng LTS là việc nên làm để biết trước cái gì sẽ vỡ.",
+        "<b>Lợi ích thật của strong encapsulation.</b> Với thư viện có nhiều người dùng, việc chặn được truy cập vào package nội bộ là giá trị lớn: bạn refactor bên trong mà không sợ phá vỡ ai. Với ứng dụng nghiệp vụ nội bộ nơi mọi thứ nằm cùng một repo và một team, lợi ích này nhỏ hơn nhiều so với chi phí.",
+        "<b>Chi phí thực tế — nên nói thẳng khi phỏng vấn.</b> Rất nhiều thư viện phổ biến chỉ dừng ở <code>Automatic-Module-Name</code> chứ không có module-info thật. Các framework dựa nặng vào reflection và classpath scanning (Spring Boot với fat JAR, các agent instrumentation) không hợp với mô hình module. Công cụ build, IDE và test runner đều cần cấu hình thêm. Vì thế phần lớn ứng dụng doanh nghiệp hiện nay vẫn chạy trên classpath — điều đó là hợp lý chứ không phải lạc hậu.",
+        "<b>Câu trả lời cân bằng cho câu hỏi 'dự án anh có dùng module không'.</b> Nói rõ rằng bạn hưởng lợi từ JPMS <i>gián tiếp</i> mỗi ngày: JDK đã được module hoá, strong encapsulation của JDK internals buộc code phải sạch hơn, và các cờ <code>--add-opens</code> trong cấu hình build là hệ quả trực tiếp. Còn module hoá code ứng dụng thì chỉ đáng làm khi bạn phát hành thư viện, cần jlink thật sự, hoặc muốn ép ranh giới kiến trúc ở mức compiler."
+      ],
+      "example": "# Xem ung dung can nhung module JDK nao\njdeps --print-module-deps --ignore-missing-deps target/app.jar\n# vi du ket qua: java.base,java.sql,java.net.http\n\n# Dung runtime image chi chua nhung module do\n# Tu JDK 21, --compress=2 da bi deprecated; dung dang zip-N (mac dinh zip-6)\njlink \\\n  --add-modules java.base,java.sql,java.net.http \\\n  --strip-debug --no-header-files --no-man-pages \\\n  --compress=zip-6 \\\n  --output ./runtime\n\n# Chay ung dung tren classpath ben trong image vua dung\n./runtime/bin/java -cp app.jar:lib/* com.acme.Main",
+      "exampleTitle": "jlink phần JDK nhưng vẫn chạy app trên classpath",
+      "keyPoints": [
+        "jlink dựng runtime image độc lập, rất hợp cho Docker và CLI",
+        "jlink không chấp nhận automatic module — đây là rào cản lớn nhất",
+        "Có thể jlink riêng phần JDK rồi vẫn chạy ứng dụng trên classpath",
+        "jdeps --jdk-internals nên chạy trước mỗi lần nâng LTS",
+        "Đa số ứng dụng doanh nghiệp vẫn dùng classpath; điều đó là lựa chọn hợp lý"
+      ],
+      "trap": "Nói 'module giúp app nhẹ hơn' mà không phân biệt được rằng cái làm image nhẹ là jlink chứ không phải bản thân module-info, và jlink lại đòi toàn bộ cây phụ thuộc phải modular.",
+      "followUp": [
+        "Nếu một dependency chỉ có Automatic-Module-Name thì jlink có dùng được không?",
+        "Ngoài kích thước image, jlink còn mang lại lợi ích gì về bảo mật?"
+      ]
+    },
+    {
+      "id": "t-12-1",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "Vì sao Java 11 thay HttpURLConnection bằng java.net.http",
+      "summary": "HttpURLConnection là API từ Java 1.1, không có HTTP/2, khó dùng và gần như không sửa được — HttpClient là bản viết lại từ đầu.",
+      "sections": [
+        "<b>Vấn đề của <code>HttpURLConnection</code>.</b> Nó ra đời từ Java 1.1 với mô hình protocol handler tổng quát cho cả <code>ftp:</code> và <code>gopher:</code>, nên API không phản ánh khái niệm HTTP. Bạn cấu hình bằng cách gọi setter theo đúng thứ tự, đọc body lỗi ở <code>getErrorStream()</code> chứ không phải <code>getInputStream()</code>, và không có cách gọn nào để gửi request body. Nó cũng giữ trạng thái nên không thread-safe, chỉ dùng được một lần cho một request.",
+        "<b>Những giới hạn không sửa được.</b> Chỉ HTTP/1.1, chỉ blocking I/O, không hỗ trợ WebSocket, và mọi thay đổi hành vi đều rủi ro phá vỡ code cũ có sẵn trên toàn thế giới. Vì thế nhóm JDK chọn viết một API mới trong package mới thay vì vá cái cũ — <code>HttpURLConnection</code> vẫn tồn tại và vẫn chạy, không hề bị xoá.",
+        "<b>Dòng thời gian phiên bản — hay bị hỏi.</b> API xuất hiện lần đầu ở Java 9 dưới dạng incubator trong package <code>jdk.incubator.http</code>, tiếp tục incubate ở Java 10, rồi được chuẩn hoá ở <b>Java 11</b> (JEP 321) trong package <code>java.net.http</code> thuộc module <code>java.net.http</code>. Điều này có nghĩa code viết cho bản incubator ở Java 9/10 <i>không</i> chạy được trên Java 11 vì package đã đổi tên — incubator không cam kết tương thích, đó chính là mục đích của cơ chế incubator.",
+        "<b>Ba lớp trung tâm.</b> <code>HttpClient</code> giữ cấu hình dùng chung (phiên bản HTTP, timeout kết nối, proxy, redirect, cookie, executor, SSLContext). <code>HttpRequest</code> là đối tượng bất biến mô tả một lời gọi. <code>HttpResponse&lt;T&gt;</code> mang status, header và body đã được chuyển thành kiểu <code>T</code>. Cả ba đều dùng builder và đều bất biến sau khi build.",
+        "<b>Điểm thiết kế đáng nói khi phỏng vấn: body là một chiến lược, không phải một kiểu cố định.</b> Request body do <code>HttpRequest.BodyPublishers</code> tạo ra, response body do <code>HttpResponse.BodyHandlers</code> xử lý. Bên dưới chúng là <code>Flow.Publisher</code>/<code>Flow.Subscriber</code> của Reactive Streams có sẵn trong JDK 9, nên API vừa hỗ trợ streaming vừa cho phép viết handler tuỳ biến mà không phải nạp cả body vào bộ nhớ.",
+        "<b>Module hoá.</b> <code>java.net.http</code> là một module riêng chứ không nằm trong <code>java.base</code>. Chạy trên classpath thì không cần làm gì vì nó nằm trong tập module gốc mặc định, nhưng nếu ứng dụng của bạn có <code>module-info.java</code> thì phải khai báo <code>requires java.net.http;</code>."
+      ],
+      "example": "// Java 11+\nHttpClient client = HttpClient.newBuilder()\n        .connectTimeout(Duration.ofSeconds(5))\n        .followRedirects(HttpClient.Redirect.NORMAL)\n        .build();\n\nHttpRequest request = HttpRequest.newBuilder()\n        .uri(URI.create(\"https://api.example.com/orders/42\"))\n        .timeout(Duration.ofSeconds(10))\n        .header(\"Accept\", \"application/json\")\n        .GET()\n        .build();\n\nHttpResponse<String> response =\n        client.send(request, HttpResponse.BodyHandlers.ofString());\n\nSystem.out.println(response.statusCode());  // vi du 200\nSystem.out.println(response.body());",
+      "exampleTitle": "Request GET đồng bộ cơ bản",
+      "keyPoints": [
+        "HttpURLConnection có trạng thái, không thread-safe, chỉ HTTP/1.1",
+        "HttpClient incubate ở Java 9/10 (jdk.incubator.http), chuẩn hoá ở Java 11 (java.net.http)",
+        "Code viết cho bản incubator không tương thích với bản chuẩn vì đổi package",
+        "BodyPublishers/BodyHandlers dựa trên Flow API nên hỗ trợ streaming",
+        "Ứng dụng có module-info phải khai báo requires java.net.http"
+      ],
+      "trap": "Nói HttpClient có từ Java 9. Đúng một nửa: Java 9 chỉ có bản incubator ở package khác; bản chuẩn hoá và ổn định API là Java 11.",
+      "followUp": [
+        "Vì sao JDK không nâng cấp thẳng HttpURLConnection lên HTTP/2?",
+        "Cơ chế incubator module dùng để làm gì và nó khác preview feature ra sao?"
+      ]
+    },
+    {
+      "id": "t-12-2",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "Vòng đời HttpClient: bất biến, thread-safe, và AutoCloseable từ Java 21",
+      "summary": "Tạo HttpClient cho mỗi request là lỗi hiệu năng nghiêm trọng nhất khi dùng API này, và trước Java 21 còn là rò rỉ tài nguyên.",
+      "sections": [
+        "<b>HttpClient là bất biến và thread-safe.</b> Sau khi <code>build()</code>, không có setter nào thay đổi được cấu hình, và nhiều thread có thể gọi <code>send()</code>/<code>sendAsync()</code> đồng thời trên cùng một instance. Vì thế mô hình dùng đúng là <b>một instance dùng chung cho toàn ứng dụng</b> (hoặc một instance cho mỗi nhóm cấu hình khác nhau), khai báo thành field <code>static final</code> hoặc một bean singleton.",
+        "<b>Vì sao tạo mới mỗi lần lại đắt.</b> Mỗi <code>HttpClient</code> mang theo connection pool riêng, một selector thread quản lý I/O bất đồng bộ, và một executor cho tác vụ async nếu bạn không truyền executor của mình. Tạo mới cho mỗi request nghĩa là vứt bỏ toàn bộ connection đang mở, bắt tay TLS lại từ đầu mỗi lần, và không bao giờ tận dụng được multiplexing của HTTP/2.",
+        "<b>Trước Java 21 không có cách đóng.</b> Đây là chi tiết mà người phỏng vấn có kinh nghiệm rất hay hỏi: ở Java 11–20, <code>HttpClient</code> không implement <code>AutoCloseable</code> và không có method <code>close()</code>. Tài nguyên chỉ được giải phóng khi instance không còn tham chiếu và bị GC dọn, nên vòng lặp tạo client liên tục sẽ tích luỹ thread và socket — biểu hiện điển hình là số thread tăng dần rồi <code>OutOfMemoryError: unable to create native thread</code>.",
+        "<b>Java 21 bổ sung vòng đời tường minh.</b> Từ JDK 21, <code>HttpClient</code> implement <code>AutoCloseable</code> và có <code>close()</code>, <code>shutdown()</code>, <code>shutdownNow()</code>, <code>awaitTermination()</code>. <code>close()</code> chặn cho tới khi mọi request đang chạy hoàn tất, còn <code>shutdownNow()</code> huỷ chúng. Lưu ý sắc thái quan trọng: việc client giờ dùng được trong try-with-resources <b>không</b> có nghĩa là nên tạo mới cho mỗi request — nó chỉ giải quyết bài toán tắt gọn khi ứng dụng dừng hoặc khi một tác vụ ngắn hạn thật sự cần client riêng.",
+        "<b>Cấu hình nên đặt ở cấp client hay cấp request.</b> Ở cấp client: <code>connectTimeout</code>, <code>version</code>, <code>followRedirects</code>, <code>proxy</code>, <code>authenticator</code>, <code>cookieHandler</code>, <code>sslContext</code>, <code>executor</code>. Ở cấp request: URI, method, header, body, và <code>timeout</code> cho toàn bộ vòng đời request. Đây là ranh giới hay bị hỏi vặn vì hai loại timeout dễ nhầm với nhau.",
+        "<b>Executor mặc định.</b> Nếu không truyền executor, client tự tạo một thread pool nội bộ cho công việc bất đồng bộ. Trong ứng dụng cần kiểm soát (đặt tên thread, giới hạn kích thước, tích hợp metric), nên truyền executor của mình — và chịu trách nhiệm tự tắt nó, vì <code>close()</code> chỉ dọn executor do chính client tạo ra."
+      ],
+      "example": "// Dung: mot instance dung chung cho ca ung dung\npublic final class ApiClient {\n    private static final HttpClient CLIENT = HttpClient.newBuilder()\n            .connectTimeout(Duration.ofSeconds(3))\n            .build();\n\n    public static String get(String url) throws Exception {\n        HttpRequest req = HttpRequest.newBuilder(URI.create(url))\n                .timeout(Duration.ofSeconds(10))\n                .build();\n        return CLIENT.send(req, HttpResponse.BodyHandlers.ofString()).body();\n    }\n}\n\n// Java 21+: HttpClient la AutoCloseable\ntry (HttpClient shortLived = HttpClient.newHttpClient()) {\n    shortLived.send(request, HttpResponse.BodyHandlers.discarding());\n}   // close() cho cac request dang chay ket thuc\n\n// SAI trong moi phien ban: tao client trong vong lap\nfor (String url : urls) {\n    HttpClient c = HttpClient.newHttpClient();   // ro ri thread + socket\n    c.send(HttpRequest.newBuilder(URI.create(url)).build(),\n           HttpResponse.BodyHandlers.ofString());\n}",
+      "exampleTitle": "Dùng chung một instance, và close() của Java 21",
+      "keyPoints": [
+        "HttpClient bất biến và thread-safe — dùng chung một instance là mô hình đúng",
+        "Mỗi client mang connection pool, selector thread và executor riêng",
+        "Java 11–20 không có close(); tài nguyên chỉ được thu hồi khi GC dọn",
+        "Java 21 thêm AutoCloseable với close()/shutdown()/shutdownNow()/awaitTermination()",
+        "connectTimeout đặt ở client, timeout đặt ở request — hai thứ khác nhau"
+      ],
+      "trap": "Thấy Java 21 cho phép try-with-resources rồi kết luận nên bọc mọi lời gọi trong try-with-resources. Làm vậy là tạo client mới mỗi request, mất sạch connection pool và HTTP/2 multiplexing.",
+      "followUp": [
+        "Nếu bạn truyền executor của mình vào builder thì close() có tắt executor đó không?",
+        "Trên Java 17, làm sao phát hiện ứng dụng đang rò rỉ HttpClient?"
+      ]
+    },
+    {
+      "id": "t-12-3",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "send vs sendAsync, BodyPublishers và BodyHandlers",
+      "summary": "Hai chế độ gọi và hai họ lớp xử lý body là phần API bạn chạm vào mỗi ngày — và là nơi ẩn nhiều bẫy về xử lý lỗi.",
+      "sections": [
+        "<b><code>send()</code> — đồng bộ, chặn thread gọi.</b> Nó khai báo <code>throws IOException, InterruptedException</code>. Việc có <code>InterruptedException</code> là chi tiết đáng lưu ý: nếu thread bị interrupt trong lúc chờ, request sẽ bị huỷ, và bạn nên khôi phục cờ interrupt bằng <code>Thread.currentThread().interrupt()</code> thay vì nuốt ngoại lệ.",
+        "<b><code>sendAsync()</code> — trả <code>CompletableFuture&lt;HttpResponse&lt;T&gt;&gt;</code>.</b> Nó không ném checked exception; lỗi được chuyển thành future hoàn tất theo nhánh lỗi. Đây là bẫy hay gặp nhất: nếu bạn không gắn <code>exceptionally()</code>/<code>handle()</code> và cũng không bao giờ <code>join()</code>, lỗi sẽ biến mất hoàn toàn không để lại dấu vết nào trong log. Khi <code>join()</code>, ngoại lệ gốc bị bọc trong <code>CompletionException</code> nên phải lấy <code>getCause()</code> mới thấy nguyên nhân thật.",
+        "<b>Callback chạy trên thread nào.</b> Các stage nối sau bằng <code>thenApply</code>/<code>thenAccept</code> chạy trên executor của client (hoặc thread hoàn tất future). Vì thế đặt công việc nặng hoặc lời gọi chặn ngay trong các stage này có thể làm nghẽn chính cơ chế I/O của client. Nếu cần xử lý tốn thời gian, hãy dùng biến thể <code>...Async(fn, myExecutor)</code> để đẩy sang pool riêng.",
+        "<b><code>HttpRequest.BodyPublishers</code> — nguồn dữ liệu gửi đi.</b> Các lựa chọn thường dùng: <code>ofString</code>, <code>ofByteArray</code>, <code>ofFile</code> (streaming, không nạp cả file vào bộ nhớ), <code>ofInputStream</code> (nhận <code>Supplier</code> để có thể đọc lại khi cần gửi lại), và <code>noBody</code>. Đáng chú ý là JDK <b>không</b> có sẵn publisher cho multipart/form-data — bạn phải tự dựng body, và đây thường là lý do người ta quay lại dùng OkHttp.",
+        "<b><code>HttpResponse.BodyHandlers</code> — cách biến body thành kiểu bạn muốn.</b> <code>ofString</code>, <code>ofByteArray</code>, <code>ofFile</code>, <code>ofLines</code> (trả <code>Stream&lt;String&gt;</code>, hợp cho server-sent events hoặc file lớn), <code>ofInputStream</code>, <code>discarding</code>, và <code>buffering</code>. Quan trọng: <code>ofString()</code> và <code>ofByteArray()</code> nạp <b>toàn bộ</b> body vào heap, nên tải file lớn bằng chúng là con đường ngắn nhất tới <code>OutOfMemoryError</code>.",
+        "<b>Bẫy lớn nhất: HTTP lỗi không phải là exception.</b> Response 404 hay 500 vẫn là một response hợp lệ — <code>send()</code> trả về bình thường và không ném gì cả. Bạn <b>phải</b> tự kiểm tra <code>response.statusCode()</code>. Nhiều bug thực tế đến từ việc code chỉ bắt <code>IOException</code> rồi coi mọi thứ khác là thành công, và một body lỗi dạng HTML bị parse thành JSON."
+      ],
+      "example": "// Bat dong bo, co xu ly loi day du\nCompletableFuture<String> future = client\n        .sendAsync(request, HttpResponse.BodyHandlers.ofString())\n        .thenApply(res -> {\n            if (res.statusCode() / 100 != 2) {          // PHAI tu kiem tra\n                throw new IllegalStateException(\"HTTP \" + res.statusCode());\n            }\n            return res.body();\n        })\n        .thenApplyAsync(body -> parseHeavy(body), workerPool)  // viec nang -> pool rieng\n        .exceptionally(ex -> {                          // khong co dong nay thi loi bien mat\n            log.error(\"Goi API that bai\", ex);\n            return null;\n        });\n\n// Tai file lon: dung ofFile thay vi ofString\nHttpResponse<Path> file = client.send(request,\n        HttpResponse.BodyHandlers.ofFile(Path.of(\"/tmp/report.pdf\")));\n\n// Doc theo dong, khong nap het vao heap\nHttpResponse<Stream<String>> lines = client.send(request,\n        HttpResponse.BodyHandlers.ofLines());",
+      "exampleTitle": "sendAsync có xử lý lỗi, và chọn BodyHandler theo kích thước dữ liệu",
+      "keyPoints": [
+        "send() ném IOException và InterruptedException; nhớ khôi phục cờ interrupt",
+        "sendAsync() chuyển lỗi vào future — không gắn exceptionally là mất lỗi",
+        "join() bọc ngoại lệ trong CompletionException, phải getCause() mới thấy gốc",
+        "ofString/ofByteArray nạp toàn bộ body vào heap; file lớn phải dùng ofFile hoặc ofLines",
+        "Status 4xx/5xx không ném exception — luôn tự kiểm tra statusCode()"
+      ],
+      "trap": "Chỉ bọc lời gọi trong try/catch IOException rồi coi mọi trường hợp không ném là thành công. Response 500 với body HTML sẽ đi thẳng vào parser JSON và tạo ra lỗi rất khó lần.",
+      "followUp": [
+        "Vì sao ofInputStream của BodyPublishers nhận Supplier chứ không nhận trực tiếp InputStream?",
+        "Nếu bạn chạy tác vụ nặng trong thenApply thì ảnh hưởng gì tới các request khác của cùng client?"
+      ]
+    },
+    {
+      "id": "t-12-4",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "HTTP/2, timeout, redirect và cookie — những mặc định cần nhớ",
+      "summary": "Phần lớn sự cố production với HttpClient đến từ việc không biết giá trị mặc định của nó khác với thư viện quen dùng.",
+      "sections": [
+        "<b>Mặc định là HTTP/2 với cơ chế lùi về HTTP/1.1.</b> Client thử HTTP/2 trước; với HTTPS việc chọn phiên bản diễn ra qua ALPN trong lúc bắt tay TLS, với HTTP thường thì qua cơ chế upgrade. Server không hỗ trợ thì tự động dùng HTTP/1.1, và bạn đọc được phiên bản thực tế qua <code>response.version()</code>. Lợi ích lớn nhất của HTTP/2 ở đây là multiplexing: nhiều request song song đi chung một kết nối TCP, nên việc dùng chung một <code>HttpClient</code> càng có giá trị.",
+        "<b>Hai loại timeout, đừng nhầm.</b> <code>HttpClient.Builder.connectTimeout(Duration)</code> giới hạn thời gian thiết lập kết nối; vượt quá sẽ ném <code>HttpConnectTimeoutException</code>. <code>HttpRequest.Builder.timeout(Duration)</code> giới hạn toàn bộ vòng đời request cho tới khi nhận xong response headers/body tuỳ ngữ cảnh; vượt quá sẽ ném <code>HttpTimeoutException</code>. Cả hai đều kế thừa <code>IOException</code> (<code>HttpConnectTimeoutException</code> là con của <code>HttpTimeoutException</code>).",
+        "<b>Mặc định không có timeout nào cả.</b> Đây là bẫy production nghiêm trọng: nếu bạn không đặt gì, request có thể treo rất lâu tuỳ tầng mạng và OS. Trong hệ thống có thread pool giới hạn, vài chục request treo là đủ để làm cạn pool và kéo sập cả service. Quy tắc: luôn đặt cả <code>connectTimeout</code> lẫn <code>timeout</code>.",
+        "<b>Redirect mặc định là <code>NEVER</code>.</b> Rất nhiều người quen với thư viện tự đi theo redirect nên bị bất ngờ khi nhận về status 301/302 với body rỗng. Ba lựa chọn: <code>NEVER</code>, <code>ALWAYS</code>, và <code>NORMAL</code> — <code>NORMAL</code> đi theo redirect trừ trường hợp chuyển từ HTTPS xuống HTTP, tức là an toàn hơn <code>ALWAYS</code> và là lựa chọn nên dùng.",
+        "<b>Cookie mặc định bị bỏ qua.</b> Client không lưu cookie trừ khi bạn gắn <code>cookieHandler(new CookieManager())</code>. Điều này hợp lý cho API client thuần tuý nhưng gây khó hiểu khi gọi endpoint dựa trên session. Lưu ý <code>CookieManager</code> mặc định dùng bộ nhớ trong tiến trình và có chính sách chấp nhận cấu hình được qua <code>CookiePolicy</code>.",
+        "<b>Header bị cấm và các chi tiết nhỏ hay vấp.</b> Một số header do client tự quản lý (như <code>Host</code>, <code>Content-Length</code>, <code>Connection</code>, <code>Upgrade</code>) không được đặt thủ công, cố tình đặt sẽ nhận <code>IllegalArgumentException</code>. Ngoài ra <code>HttpHeaders</code> trả về là bất biến và tra cứu không phân biệt hoa thường, truy cập qua <code>response.headers().firstValue(\"content-type\")</code> trả <code>Optional</code>."
+      ],
+      "example": "HttpClient client = HttpClient.newBuilder()\n        .version(HttpClient.Version.HTTP_2)          // mac dinh, ghi ro cho tuong minh\n        .connectTimeout(Duration.ofSeconds(3))        // mac dinh: khong gioi han\n        .followRedirects(HttpClient.Redirect.NORMAL)  // mac dinh: NEVER\n        .cookieHandler(new CookieManager())           // mac dinh: khong luu cookie\n        .build();\n\nHttpRequest req = HttpRequest.newBuilder(URI.create(\"https://api.example.com/v1/me\"))\n        .timeout(Duration.ofSeconds(10))              // mac dinh: khong gioi han\n        .header(\"Authorization\", \"Bearer \" + token)\n        .build();\n\ntry {\n    HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());\n    System.out.println(res.version());   // HTTP_2 hoac HTTP_1_1\n    res.headers().firstValue(\"content-type\").ifPresent(System.out::println);\n} catch (HttpConnectTimeoutException e) {\n    // khong ket noi duoc trong 3s\n} catch (HttpTimeoutException e) {\n    // ket noi duoc nhung khong xong trong 10s\n} catch (IOException e) {\n    // loi mang khac\n} catch (InterruptedException e) {\n    Thread.currentThread().interrupt();\n    throw new IllegalStateException(e);\n}",
+      "exampleTitle": "Cấu hình tường minh mọi mặc định quan trọng",
+      "keyPoints": [
+        "Mặc định HTTP/2, tự lùi về HTTP/1.1; kiểm tra bằng response.version()",
+        "Mặc định KHÔNG có connectTimeout và KHÔNG có request timeout",
+        "HttpConnectTimeoutException là con của HttpTimeoutException, cả hai là IOException",
+        "Redirect mặc định là NEVER; nên dùng NORMAL thay vì ALWAYS",
+        "Cookie bị bỏ qua nếu không gắn CookieManager"
+      ],
+      "trap": "Bắt HttpTimeoutException trước HttpConnectTimeoutException trong chuỗi catch sẽ khiến nhánh connect timeout không bao giờ chạy, vì lớp con phải đứng trước lớp cha.",
+      "followUp": [
+        "Vì sao Redirect.NORMAL an toàn hơn Redirect.ALWAYS?",
+        "Nếu server không hỗ trợ HTTP/2 thì việc đặt version(HTTP_2) có làm request thất bại không?"
+      ]
+    },
+    {
+      "id": "t-12-5",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "HttpClient với virtual thread, retry, và vì sao nhiều dự án vẫn dùng OkHttp/Feign",
+      "summary": "Java 21 làm mô hình blocking đơn giản trở lại đúng đắn, nhưng HttpClient vẫn thiếu nhiều thứ mà thư viện ngoài đã có sẵn.",
+      "sections": [
+        "<b>Virtual thread đổi lại cán cân giữa blocking và async.</b> Từ Java 21 (JEP 444), virtual thread rẻ tới mức có thể tạo hàng trăm nghìn cái. Khi một virtual thread chặn tại <code>client.send()</code>, JVM tháo nó khỏi carrier thread nên carrier vẫn phục vụ việc khác. Kết quả là bạn viết code blocking tuần tự — dễ đọc, stack trace đầy đủ, debug và try/catch hoạt động tự nhiên — mà vẫn đạt mức song song trước đây phải dùng <code>sendAsync</code> với chuỗi <code>CompletableFuture</code>.",
+        "<b>Hệ quả thực tế cho thiết kế.</b> Trên Java 21, mặc định nên chọn <code>send()</code> chạy trong <code>Executors.newVirtualThreadPerTaskExecutor()</code>, và chỉ dùng <code>sendAsync</code> khi bạn thực sự cần compose future hoặc phải chạy trên phiên bản cũ hơn. Kết hợp với structured concurrency (vẫn ở dạng preview qua nhiều bản, nên không nên coi là API ổn định) thì mô hình fan-out gọi nhiều API rồi gộp kết quả trở nên rất gọn.",
+        "<b>Cảnh báo quan trọng khi dùng virtual thread.</b> Đừng gộp virtual thread vào pool cố định — hãy tạo một virtual thread cho mỗi tác vụ. Và đừng dùng <code>synchronized</code> quanh lời gọi mạng: ở JDK 21, thread bị pin vào carrier khi chặn bên trong khối <code>synchronized</code>, làm mất lợi ích scale; giải pháp là dùng <code>ReentrantLock</code>. Vấn đề pinning này đã được cải thiện ở các bản JDK sau 21, nên hãy nói rõ bạn đang nói về phiên bản nào.",
+        "<b>Retry: JDK không cho bạn nhiều.</b> <code>HttpClient</code> không có API cấu hình retry policy. Nó có xử lý lại nội bộ cho một số lỗi kết nối nhất định với method idempotent, nhưng đó không phải thứ bạn nên dựa vào. Trong thực tế bạn tự viết vòng lặp retry với exponential backoff kèm jitter, chỉ retry với method idempotent (GET, PUT, DELETE) và với status đáng retry (408, 429, 502, 503, 504), tôn trọng header <code>Retry-After</code>, và bọc bằng circuit breaker như Resilience4j.",
+        "<b>Những thứ HttpClient không có.</b> Không có multipart/form-data dựng sẵn, không có interceptor để log/thêm header tập trung, không có retry/circuit breaker, không có tích hợp serialization JSON, không có connection pool cấu hình được chi tiết (kích thước pool điều chỉnh qua system property chứ không qua API), và không có HTTP/3 trong các bản LTS 11/17/21. Đó là những khoảng trống mà OkHttp, Apache HttpClient 5, hay tầng khai báo như Feign/RestClient lấp vào.",
+        "<b>Khi nào chọn cái nào — câu trả lời cân bằng.</b> Với vài lời gọi HTTP đơn giản, dùng JDK là hợp lý nhất vì không thêm dependency, không lo CVE của thư viện ngoài. Với client API phức tạp, nhiều cross-cutting concern, hoặc cần multipart và retry chuẩn, dùng thư viện chuyên dụng tiết kiệm hơn nhiều so với tự viết lại. Trong hệ Spring, <code>RestClient</code> và <code>RestTemplate</code> (Spring 6.1+) có thể chạy trên nền <code>JdkClientHttpRequestFactory</code>, còn phía reactive thì <code>WebClient</code> dùng <code>org.springframework.http.client.reactive.JdkClientHttpConnector</code> — bạn vẫn dùng HttpClient của JDK nhưng có thêm interceptor và chuyển đổi JSON."
+      ],
+      "example": "// Java 21: fan-out bang virtual thread, code van la blocking tuan tu\nList<String> urls = List.of(\"https://a/x\", \"https://b/y\", \"https://c/z\");\n\ntry (var executor = Executors.newVirtualThreadPerTaskExecutor()) {\n    List<Future<String>> futures = urls.stream()\n            .map(url -> executor.submit(() -> {\n                HttpRequest r = HttpRequest.newBuilder(URI.create(url))\n                        .timeout(Duration.ofSeconds(5))\n                        .build();\n                // send() chan virtual thread, KHONG chan carrier thread\n                return CLIENT.send(r, HttpResponse.BodyHandlers.ofString()).body();\n            }))\n            .toList();\n\n    for (Future<String> f : futures) {\n        System.out.println(f.get());\n    }\n}\n\n// Retry thu cong: chi cho method idempotent, CO tran so lan thu + backoff kem jitter\nstatic final Set<Integer> RETRYABLE = Set.of(408, 429, 502, 503, 504);\nstatic final int MAX_ATTEMPTS = 3;\n\nHttpResponse<String> sendWithRetry(HttpRequest req) throws IOException, InterruptedException {\n    for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {   // LUON co tran, khong while(true)\n        final int n = attempt;\n        long waitMs;\n        try {\n            HttpResponse<String> res = CLIENT.send(req, HttpResponse.BodyHandlers.ofString());\n            if (!RETRYABLE.contains(res.statusCode())) return res;  // 500/501/505 KHONG retry\n            if (attempt == MAX_ATTEMPTS) return res;                // het luot: tra ve nguyen trang\n            waitMs = res.headers().firstValue(\"Retry-After\")        // ton trong Retry-After\n                       .map(v -> parseRetryAfterMillis(v))\n                       .orElseGet(() -> backoffWithJitter(n));\n        } catch (IOException e) {\n            if (attempt == MAX_ATTEMPTS) throw e;\n            waitMs = backoffWithJitter(n);\n        }\n        Thread.sleep(waitMs);\n    }\n    throw new IllegalStateException(\"khong the toi day\");\n}\n\nlong backoffWithJitter(int attempt) {\n    long base = (long) (100 * Math.pow(2, attempt - 1));           // 100, 200, 400 ms\n    return base / 2 + ThreadLocalRandom.current().nextLong(base);  // jitter quanh base\n}\n\nLong parseRetryAfterMillis(String v) {   // tra null neu la HTTP-date -> Optional.map thanh empty\n    try { return Long.parseLong(v.trim()) * 1000; } catch (NumberFormatException e) { return null; }\n}",
+      "exampleTitle": "Fan-out bằng virtual thread và retry tự viết",
+      "keyPoints": [
+        "Virtual thread (Java 21) làm blocking send() trở thành mô hình đơn giản mà vẫn scale",
+        "Một virtual thread cho một tác vụ; không gộp vào pool cố định",
+        "Ở JDK 21, chặn bên trong synchronized làm pin virtual thread — dùng ReentrantLock",
+        "HttpClient không có API retry, interceptor, multipart hay HTTP/3 ở LTS 11/17/21",
+        "Chọn JDK cho nhu cầu đơn giản; chọn OkHttp/Feign khi cần cross-cutting concern"
+      ],
+      "trap": "Cho rằng virtual thread tự khiến mọi thứ nhanh hơn. Nó chỉ giúp với tác vụ chặn vì I/O; với tác vụ tính toán nặng thì số core mới là giới hạn, và virtual thread không đem lại gì.",
+      "followUp": [
+        "Vì sao chỉ nên retry với method idempotent, và POST thì xử lý thế nào?",
+        "Trên Java 17 chưa có virtual thread, bạn chọn send() hay sendAsync() cho mô hình fan-out?"
+      ]
+    },
+    {
+      "id": "t-19-1",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Singleton: enum, double-checked locking và vì sao cần volatile",
+      "summary": "Câu hỏi kinh điển nhất về pattern, và cũng là nơi lộ ra ứng viên có hiểu Java Memory Model hay không.",
+      "sections": [
+        "<b>Vấn đề của double-checked locking khi thiếu <code>volatile</code>.</b> Dòng <code>instance = new Config()</code> không phải một thao tác nguyên tử: JVM cấp phát bộ nhớ, chạy constructor, rồi gán tham chiếu. Trình biên dịch và CPU được phép <i>sắp xếp lại</i> hai bước sau, nên tham chiếu có thể được gán trước khi constructor chạy xong. Một thread khác nhìn thấy <code>instance != null</code> ở lần kiểm tra đầu (ngoài <code>synchronized</code>) sẽ trả về một object <b>chưa khởi tạo xong</b> — field còn giá trị mặc định, và lỗi xuất hiện rất ngẫu nhiên, gần như không tái tạo được trên máy dev.",
+        "<b><code>volatile</code> sửa được điều đó từ Java 5.</b> JSR-133 định nghĩa lại Java Memory Model và cho <code>volatile</code> ngữ nghĩa happens-before: mọi thao tác ghi xảy ra trước lần ghi biến volatile đều nhìn thấy được bởi thread nào đọc biến volatile đó và thấy giá trị mới. Nhờ vậy việc ghi tham chiếu không thể bị đẩy lên trước phần khởi tạo. Trước Java 5, DCL <b>không có cách nào</b> làm đúng — đây là bối cảnh lịch sử đáng nêu ra khi trả lời.",
+        "<b>Initialization-on-demand holder — lười biếng mà không cần khoá.</b> Đặt instance vào một static nested class; JVM chỉ nạp và khởi tạo class đó ở lần truy cập đầu tiên, và bảo đảm khởi tạo class là thread-safe bằng khoá nội bộ của chính JVM. Kết quả là lazy thật sự, không synchronized trong code của bạn, không cần volatile, và không có chi phí ở đường chạy nóng. Đây là lựa chọn tốt nhất khi bạn cần một class thường (không dùng được enum).",
+        "<b><code>enum</code> là cách an toàn nhất (Effective Java, Item 3).</b> JVM bảo đảm mỗi hằng enum chỉ được tạo một lần. Quan trọng hơn, enum miễn nhiễm với hai đường phá singleton mà các cách khác đều dính: <b>serialization</b> (deserialize một singleton thường sẽ tạo object thứ hai trừ khi bạn cài <code>readResolve()</code>) và <b>reflection</b> (<code>Constructor.newInstance()</code> trên enum bị chính JVM từ chối với <code>IllegalArgumentException</code>). Nhược điểm là enum không extends được class khác và khởi tạo là eager theo thời điểm nạp class.",
+        "<b>Cái giá thật của Singleton: khó test.</b> Trạng thái toàn cục tồn tại suốt vòng đời JVM nên các test ảnh hưởng lẫn nhau qua thứ tự chạy — sửa xong test A thì test B đỏ. Không có chỗ nào để inject một implementation giả vì người gọi tự đi lấy instance thay vì nhận nó. Singleton cũng che giấu phụ thuộc: nhìn chữ ký constructor không biết class này thực sự cần những gì.",
+        "<b>Kết luận thiết kế nên nói khi phỏng vấn.</b> Trong ứng dụng dùng DI container, gần như không nên tự cài Singleton pattern: khai báo bean scope singleton là đủ, và bạn được đúng một instance mà vẫn inject/mock được. Singleton tự cài chỉ còn hợp lý cho tiện ích thuần tuý không trạng thái, hoặc trong code không có container. Nói được sự phân biệt này quan trọng hơn việc thuộc lòng ba cách viết."
+      ],
+      "example": "// 1) Enum - an toan nhat, chong ca serialization lan reflection\npublic enum ConfigStore {\n    INSTANCE;\n    private final Map<String, String> data = new ConcurrentHashMap<>();\n    public String get(String k) { return data.get(k); }\n}\n\n// 2) Holder idiom - lazy that su, khong khoa trong code cua ban\npublic final class ConfigStore2 {\n    private ConfigStore2() {}\n    private static class Holder {\n        static final ConfigStore2 INSTANCE = new ConfigStore2();\n    }\n    public static ConfigStore2 getInstance() { return Holder.INSTANCE; }\n}\n\n// 3) DCL - BAT BUOC volatile, thieu la bug canh tranh\npublic final class ConfigStore3 {\n    private static volatile ConfigStore3 instance;   // bo volatile = bug\n    private ConfigStore3() {}\n    public static ConfigStore3 getInstance() {\n        ConfigStore3 local = instance;               // doc volatile 1 lan\n        if (local == null) {\n            synchronized (ConfigStore3.class) {\n                local = instance;\n                if (local == null) {\n                    instance = local = new ConfigStore3();\n                }\n            }\n        }\n        return local;\n    }\n}",
+      "exampleTitle": "Ba cách cài Singleton, xếp theo mức độ nên dùng",
+      "keyPoints": [
+        "Thiếu volatile trong DCL cho phép reordering, thread khác thấy object chưa khởi tạo xong",
+        "volatile chỉ giải quyết được vấn đề này từ Java 5 nhờ JSR-133",
+        "Holder idiom lazy mà không cần synchronized hay volatile, dựa vào bảo đảm khởi tạo class của JVM",
+        "enum chống được cả serialization lẫn reflection — hai đường phá singleton còn lại",
+        "Trong ứng dụng có DI, dùng bean scope singleton thay vì tự cài pattern"
+      ],
+      "trap": "Trả lời 'DCL cần synchronized là đủ'. Người phỏng vấn sẽ hỏi tiếp vì sao vẫn cần volatile — câu trả lời nằm ở reordering trong lúc khởi tạo object, không nằm ở tranh chấp khoá.",
+      "followUp": [
+        "Vì sao deserialize một singleton thường lại tạo ra instance thứ hai, và readResolve() sửa thế nào?",
+        "Holder idiom lazy dựa trên bảo đảm nào của JVM về khởi tạo class?"
+      ]
+    },
+    {
+      "id": "t-19-2",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Factory Method, Abstract Factory và static factory method",
+      "summary": "Ba khái niệm khác hẳn nhau nhưng hay bị gọi chung là 'factory' — phân biệt được là điểm cộng rõ rệt.",
+      "sections": [
+        "<b>Factory Method (GoF).</b> Class cha định nghĩa một method tạo object và để <b>class con quyết định</b> tạo ra kiểu cụ thể nào. Cơ chế là kế thừa: bạn override method tạo. Ví dụ trong JDK là <code>Collection.iterator()</code> — mỗi collection tự quyết định trả về iterator loại gì, còn code dùng <code>for-each</code> hoàn toàn không biết. Ý nghĩa: tách 'khi nào cần tạo' khỏi 'tạo cái gì'.",
+        "<b>Abstract Factory (GoF).</b> Một interface cung cấp nhiều method tạo, tương ứng với một <b>họ sản phẩm liên quan</b> phải đi cùng nhau. Ví dụ <code>UiFactory</code> có <code>createButton()</code>, <code>createCheckbox()</code>, và bạn chọn <code>DarkUiFactory</code> hay <code>LightUiFactory</code> — điểm mấu chốt là không thể trộn nút của theme này với checkbox của theme kia. Nếu chỉ có một loại sản phẩm thì đó là Factory Method chứ không phải Abstract Factory.",
+        "<b>Static factory method (Effective Java, Item 1) — không phải pattern GoF.</b> Đó chỉ là một static method thay cho constructor: <code>Integer.valueOf</code>, <code>List.of</code>, <code>Optional.ofNullable</code>, <code>Duration.ofSeconds</code>. Lợi ích: <i>có tên</i> nên đọc dễ hơn nhiều constructor trùng chữ ký; <i>không bắt buộc tạo object mới</i> nên cache được (<code>Integer.valueOf</code> cache -128..127); <i>trả về kiểu con</i> nên giấu được implementation. Nhược điểm: class không có constructor public thì không kế thừa được, và tên method không nổi bật trong javadoc như constructor.",
+        "<b>Khi nào factory thực sự đáng dùng.</b> Khi việc chọn implementation phụ thuộc dữ liệu runtime (mã ngân hàng, loại file, cấu hình), khi việc tạo object cần logic đáng kể (validate, tra bảng, khởi tạo tài nguyên), hoặc khi bạn muốn người dùng chỉ phụ thuộc vào interface. Nếu chỉ là <code>new</code> gói lại trong một method, bạn vừa thêm một tầng gián tiếp mà không đổi lại được gì.",
+        "<b>Liên hệ Spring — factory ở đâu.</b> <code>BeanFactory</code>/<code>ApplicationContext</code> chính là một factory khổng lồ; <code>FactoryBean&lt;T&gt;</code> là điểm móc cho bạn tự viết logic tạo bean phức tạp. Trong code ứng dụng, khi cần chọn một trong nhiều implementation theo dữ liệu, cách gọn nhất thường là inject <code>Map&lt;String, Gateway&gt;</code> — Spring tự điền map với key là tên bean — thay vì viết một chuỗi <code>if/else</code> trong một factory class.",
+        "<b>Java 21 mở thêm một lựa chọn.</b> Với <code>sealed interface</code> cộng pattern matching trong <code>switch</code>, một 'factory' phân nhánh theo kiểu có thể viết gọn và được compiler kiểm tra đầy đủ trường hợp (exhaustiveness). Đây là cách tiếp cận thiên về kiểu dữ liệu chứ không phải đa hình, và chỉ hợp khi tập sản phẩm là đóng và ít thay đổi."
+      ],
+      "example": "// Factory Method: class con quyet dinh kieu cu the\nabstract class Report {\n    protected abstract Exporter createExporter();   // factory method\n    public byte[] render() { return createExporter().export(this); }\n}\nclass PdfReport extends Report {\n    protected Exporter createExporter() { return new PdfExporter(); }\n}\n\n// Abstract Factory: mot ho san pham phai di cung nhau\ninterface UiFactory {\n    Button createButton();\n    Checkbox createCheckbox();\n}\nclass DarkUiFactory implements UiFactory { /* ... */ }\n\n// Static factory method: KHONG phai pattern GoF\nInteger a = Integer.valueOf(100);       // co the tra ve object da cache\nList<String> l = List.of(\"a\", \"b\");     // giau implementation bat bien\n\n// Trong Spring: thay chuoi if/else bang Map do container dien san\n@Service\nclass PaymentRouter {\n    private final Map<String, Gateway> gateways;   // key = ten bean\n    PaymentRouter(Map<String, Gateway> gateways) { this.gateways = gateways; }\n    Gateway pick(String code) {\n        Gateway g = gateways.get(code);\n        if (g == null) throw new IllegalArgumentException(\"Khong ho tro: \" + code);\n        return g;\n    }\n}",
+      "exampleTitle": "Ba khái niệm cạnh nhau để thấy rõ khác biệt",
+      "keyPoints": [
+        "Factory Method dựa vào kế thừa, class con quyết định kiểu cụ thể",
+        "Abstract Factory tạo cả một họ sản phẩm phải nhất quán với nhau",
+        "Static factory method không phải pattern GoF; lợi ích là có tên, cache được, giấu được kiểu trả về",
+        "Integer.valueOf cache -128..127 — ví dụ trực tiếp của lợi ích 'không bắt buộc tạo mới'",
+        "Trong Spring, inject Map<String, Interface> thường gọn hơn viết factory thủ công"
+      ],
+      "trap": "Gọi mọi static method tạo object là 'Factory pattern'. Người phỏng vấn hay hỏi tiếp 'vậy List.of là Factory Method hay Abstract Factory?' — câu trả lời đúng là không phải cái nào cả.",
+      "followUp": [
+        "Nếu chỉ có một loại sản phẩm thì Abstract Factory còn hợp lý không?",
+        "Static factory method có nhược điểm gì so với constructor?"
+      ]
+    },
+    {
+      "id": "t-19-3",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Builder: khi nào thực sự cần, và liên hệ với record",
+      "summary": "Builder giải quyết bài toán constructor nhiều tham số tuỳ chọn — nhưng dùng bừa bãi thì chỉ tạo thêm code lặp.",
+      "sections": [
+        "<b>Bài toán gốc: telescoping constructor.</b> Khi một class có 3 tham số bắt buộc và 6 tham số tuỳ chọn, bạn phải viết một chuỗi constructor gọi lồng nhau, và người dùng nhìn <code>new Pizza(12, true, false, false, true, 2)</code> thì không thể biết mỗi giá trị nghĩa là gì. Tệ hơn, hoán đổi nhầm hai tham số cùng kiểu <code>boolean</code> hay <code>int</code> vẫn compile sạch và chỉ sai lúc chạy.",
+        "<b>Vì sao không dùng JavaBeans setter.</b> Cách <code>new Pizza(); p.setSize(12); p.setCheese(true);</code> đọc dễ hơn nhưng phá hỏng hai thứ: object tồn tại ở trạng thái dở dang giữa các lời gọi setter (không thể validate ở một chỗ), và class buộc phải mutable nên không thread-safe. Builder giữ được cả tính đọc dễ lẫn tính bất biến — đây chính là lập luận trung tâm của Effective Java Item 2.",
+        "<b>Nơi đặt validate.</b> Kiểm tra ràng buộc nên nằm trong <code>build()</code> và trong constructor của object đích, không nằm rải rác trong từng method setter của builder. Lý do là các ràng buộc liên trường (ví dụ 'ngày kết thúc phải sau ngày bắt đầu') chỉ kiểm tra được khi đã có đủ dữ liệu. Constructor của object đích cũng nên copy giá trị từ builder chứ không giữ tham chiếu tới builder, để builder có thể tiếp tục thay đổi mà không ảnh hưởng object đã tạo.",
+        "<b>Khi nào <i>không</i> nên dùng Builder.</b> Với 2-3 tham số, builder chỉ làm code dài ra. Một dấu hiệu cảnh báo thường bị bỏ qua: nếu class cần builder vì có quá nhiều field, có khi vấn đề thật là class đó đang gánh quá nhiều trách nhiệm và nên tách thành các value object nhỏ hơn (địa chỉ, khoảng thời gian, thông tin liên hệ). Builder khi đó chỉ là băng dán cho một thiết kế cần chia lại.",
+        "<b>Liên hệ với <code>record</code> (chuẩn từ Java 16, có ở LTS 17 và 21).</b> Record cho bạn miễn phí tính bất biến, <code>equals</code>/<code>hashCode</code>/<code>toString</code>, và <i>tham số có tên trong chữ ký</i> — nên với 3-4 component thì record dùng trực tiếp là đủ và builder trở nên thừa. Nhưng record <b>không</b> giải quyết bài toán tham số tuỳ chọn: gọi canonical constructor vẫn phải truyền đủ mọi component theo đúng thứ tự. Với record nhiều component, builder vẫn hữu ích, và validate đặt trong compact constructor.",
+        "<b>Thực tế với Lombok.</b> <code>@Builder</code> loại bỏ phần code lặp nhưng cũng che mất chỗ để validate, nên nhiều team kết hợp <code>@Builder</code> với một compact constructor hoặc <code>@Builder</code> đặt trên constructor đã có kiểm tra. Cần nói rõ điểm này: builder sinh tự động mặc định <b>không</b> ép được tham số bắt buộc — quên gán một field thì vẫn build ra object với <code>null</code>."
+      ],
+      "example": "// Record: 3-4 component thi dung truc tiep, khong can builder\npublic record Money(BigDecimal amount, Currency currency) {\n    public Money {   // compact constructor - noi dat validate\n        Objects.requireNonNull(amount);\n        if (amount.scale() > 2) throw new IllegalArgumentException(\"Toi da 2 chu so\");\n    }\n}\n\n// Builder cho object nhieu truong tuy chon, giu tinh bat bien\npublic final class SearchQuery {\n    private final String keyword;     // bat buoc\n    private final int page;\n    private final int size;\n    private final String sortBy;\n\n    private SearchQuery(Builder b) {  // copy tu builder, khong giu tham chieu\n        this.keyword = b.keyword;\n        this.page = b.page;\n        this.size = b.size;\n        this.sortBy = b.sortBy;\n    }\n\n    public static Builder builder(String keyword) { return new Builder(keyword); }\n\n    public static final class Builder {\n        private final String keyword;\n        private int page = 0;\n        private int size = 20;\n        private String sortBy = \"id\";\n\n        private Builder(String keyword) {                 // ep tham so bat buoc\n            this.keyword = Objects.requireNonNull(keyword);\n        }\n        public Builder page(int page) { this.page = page; return this; }\n        public Builder size(int size) { this.size = size; return this; }\n        public Builder sortBy(String s) { this.sortBy = s; return this; }\n\n        public SearchQuery build() {                      // validate lien truong o day\n            if (size <= 0 || size > 100) throw new IllegalArgumentException(\"size 1..100\");\n            return new SearchQuery(this);\n        }\n    }\n}\n\nSearchQuery q = SearchQuery.builder(\"laptop\").size(50).sortBy(\"price\").build();",
+      "exampleTitle": "Tham số bắt buộc đặt trong constructor của Builder",
+      "keyPoints": [
+        "Builder giải bài toán nhiều tham số tuỳ chọn mà vẫn giữ object bất biến",
+        "Validate liên trường thuộc về build() và constructor của object đích",
+        "Đặt tham số bắt buộc vào constructor của Builder để compiler ép người dùng",
+        "Record (Java 16+, có ở LTS 17/21) làm builder thành thừa với 3-4 component",
+        "@Builder của Lombok không ép được tham số bắt buộc — quên field là ra null"
+      ],
+      "trap": "Dùng Builder cho mọi DTO. Nếu class chỉ có vài field bắt buộc thì record hoặc constructor thường ngắn hơn, an toàn hơn, và không tạo ra trạng thái trung gian nào để mà sai.",
+      "followUp": [
+        "Record có thay thế được Builder hoàn toàn không? Vì sao?",
+        "Làm sao ép người dùng bắt buộc phải gán một field khi dùng builder?"
+      ]
+    },
+    {
+      "id": "t-19-4",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Strategy, Template Method, Observer — và lambda đã thay đổi những gì",
+      "summary": "Ba pattern hành vi hay bị nhầm lẫn, cộng với tác động của Java 8 lên cách viết chúng.",
+      "sections": [
+        "<b>Strategy — thay chuỗi if/else bằng đa hình.</b> Đóng gói mỗi thuật toán vào một object riêng cùng implement một interface, rồi chọn object lúc runtime. Dấu hiệu nhận biết cần Strategy: một <code>switch</code> trên 'loại' xuất hiện lặp lại ở nhiều nơi, và mỗi lần thêm loại mới bạn phải sửa hết mọi chỗ đó — vi phạm nguyên tắc mở/đóng. Sau khi refactor, thêm loại mới chỉ là thêm một class.",
+        "<b>Java 8 làm Strategy gần như tàng hình.</b> Nếu interface chỉ có một method (functional interface), implementation trở thành một lambda hoặc method reference — không còn class riêng, không còn file riêng. Chính vì thế nhiều API hiện đại nhận thẳng <code>Comparator</code>, <code>Predicate</code>, <code>Function</code> làm tham số: đó là Strategy pattern nhưng không ai còn gọi tên nó nữa. Khi nào vẫn nên viết class: khi strategy có trạng thái, có nhiều method, hoặc cần được quản lý bởi DI container.",
+        "<b>Template Method — khung cố định, vài bước để trống.</b> Class cha viết sẵn thứ tự các bước trong một method (thường để <code>final</code> để không ai đảo thứ tự), và khai báo abstract những bước biến thiên cho class con điền. Ví dụ trong JDK và framework: <code>HttpServlet.service()</code> điều phối rồi gọi <code>doGet</code>/<code>doPost</code>; <code>AbstractList</code> cài sẵn phần lớn hành vi dựa trên <code>get(int)</code> và <code>size()</code>.",
+        "<b>Strategy vs Template Method — khác biệt cốt lõi là cơ chế.</b> Template Method dùng <b>kế thừa</b>, quyết định được cố định lúc biên dịch, và class con chỉ thay đổi được đúng những chỗ cha cho phép. Strategy dùng <b>composition</b>, có thể thay đổi lúc runtime, và một object có thể mang nhiều strategy khác nhau. Vì kế thừa tạo ràng buộc chặt và chỉ dùng được một lần, thiết kế hiện đại thường nghiêng về Strategy; Template Method vẫn hợp khi luồng xử lý thực sự cố định và bạn muốn ép mọi biến thể đi đúng thứ tự đó.",
+        "<b>Observer — và cái bẫy rò rỉ listener.</b> Subject giữ danh sách listener và gọi chúng khi có sự kiện. Bẫy kinh điển: listener được đăng ký nhưng không bao giờ gỡ, mà subject thường sống lâu hơn listener, nên subject giữ tham chiếu mạnh và GC không dọn được listener cùng toàn bộ object mà nó tham chiếu tới. Biểu hiện là heap tăng dần theo thời gian chạy. Đăng ký bằng lambda còn khó gỡ hơn vì bạn không giữ tham chiếu để mà truyền vào <code>removeListener</code>.",
+        "<b>Trạng thái của Observer trong JDK.</b> <code>java.util.Observer</code> và <code>java.util.Observable</code> đã bị <b>deprecate từ Java 9</b> vì mô hình sự kiện quá yếu (không có kiểu cho sự kiện, không bảo đảm thứ tự thông báo, không serializable an toàn). Thay thế trong thực tế là <code>PropertyChangeListener</code>, event của framework (<code>ApplicationEventPublisher</code> trong Spring), message broker, hoặc <code>Flow</code> API (Reactive Streams, có từ Java 9) khi cần backpressure. Nói được điểm này cho thấy bạn theo dõi cả sự tiến hoá của JDK chứ không chỉ đọc sách GoF."
+      ],
+      "example": "// Strategy truoc Java 8: mot class cho moi thuat toan\ninterface DiscountPolicy { BigDecimal apply(BigDecimal total); }\nclass NoDiscount implements DiscountPolicy { /* ... */ }\nclass VipDiscount implements DiscountPolicy { /* ... */ }\n\n// Strategy tu Java 8: lambda, khong con class rieng\nMap<String, DiscountPolicy> policies = Map.of(\n    \"NONE\", total -> total,\n    \"VIP\",  total -> total.multiply(new BigDecimal(\"0.9\")),\n    \"BLACK_FRIDAY\", total -> total.subtract(new BigDecimal(\"50000\"))\n);\nBigDecimal finalPrice = policies.get(code).apply(total);\n\n// Template Method: khung co dinh, buoc bien thien de trong\nabstract class ImportJob {\n    public final void run() {          // final: khong ai duoc dao thu tu\n        var raw = load();\n        var valid = validate(raw);\n        persist(valid);\n        notifyDone();\n    }\n    protected abstract List<Row> load();\n    protected abstract List<Row> validate(List<Row> raw);\n    protected void notifyDone() { }    // hook tuy chon\n}\n\n// Observer: dang ky bang lambda thi KHONG go ra duoc\nRunnable listener = () -> refreshUi();\nbus.subscribe(listener);\n// ...\nbus.unsubscribe(listener);   // phai giu tham chieu moi go duoc",
+      "exampleTitle": "Strategy bằng lambda, Template Method bằng kế thừa",
+      "keyPoints": [
+        "Strategy dùng composition, thay được lúc runtime; Template Method dùng kế thừa, cố định lúc compile",
+        "Từ Java 8, Strategy với interface một method thu gọn thành lambda hoặc method reference",
+        "Method điều phối của Template Method nên để final để giữ đúng thứ tự các bước",
+        "Listener không được gỡ là nguồn memory leak kinh điển; lambda càng khó gỡ vì không có tham chiếu",
+        "java.util.Observer/Observable deprecate từ Java 9; thay bằng event framework hoặc Flow API"
+      ],
+      "trap": "Nói 'Strategy và Template Method giống nhau, chỉ khác cách viết'. Khác biệt thật là composition vs kế thừa, kéo theo khác biệt về thời điểm quyết định và mức ràng buộc — đó mới là điều được hỏi.",
+      "followUp": [
+        "Khi nào bạn vẫn viết class riêng cho strategy thay vì lambda?",
+        "Vì sao java.util.Observable bị deprecate từ Java 9?"
+      ]
+    },
+    {
+      "id": "t-19-5",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Proxy, Decorator, Adapter trong JDK và Spring AOP; DI không phải pattern GoF",
+      "summary": "Ba pattern cấu trúc trông giống nhau về hình thức, cộng với những hiểu nhầm phổ biến nhất về DI và anti-pattern.",
+      "sections": [
+        "<b>Decorator — bọc để <i>thêm hành vi</i>, giữ nguyên interface.</b> Ví dụ chuẩn mực nằm ngay trong JDK: <code>new BufferedInputStream(new GZIPInputStream(new FileInputStream(f)))</code>. Mỗi lớp bọc đều là <code>InputStream</code>, đều nhận một <code>InputStream</code>, và mỗi lớp thêm đúng một khả năng. Nhờ vậy tổ hợp là tuyến tính chứ không bùng nổ theo cấp số nhân như khi dùng kế thừa cho từng tổ hợp. Đây là lý do thiết kế <code>java.io</code> hay bị chê là dài dòng nhưng lại rất linh hoạt.",
+        "<b>Adapter — đổi interface, không đổi hành vi.</b> Nó tồn tại để nối hai API không khớp nhau. Trong JDK: <code>InputStreamReader</code> là adapter từ luồng byte sang luồng ký tự; <code>Arrays.asList(array)</code> đưa một mảng vào interface <code>List</code>. Điểm phân biệt với Decorator: Decorator giữ nguyên kiểu và bổ sung năng lực, Adapter đổi kiểu và giữ nguyên năng lực.",
+        "<b>Proxy — cùng interface, kiểm soát <i>việc truy cập</i>.</b> Proxy đứng trước đối tượng thật để làm những việc chéo: kiểm tra quyền, mở/đóng transaction, cache, ghi log, gọi từ xa, khởi tạo trễ. <code>java.lang.reflect.Proxy</code> tạo proxy động lúc runtime nhưng chỉ làm được cho <b>interface</b>; muốn proxy một class thường phải dùng thư viện sinh subclass như CGLIB hoặc ByteBuddy.",
+        "<b>Spring AOP đứng trên chính cơ chế đó.</b> Spring chọn JDK dynamic proxy khi bean có interface, hoặc CGLIB (tạo class con) khi không có — Spring Boot mặc định đặt <code>proxyTargetClass=true</code> nên trên thực tế CGLIB được dùng phổ biến. Hệ quả trực tiếp: CGLIB không override được method <code>final</code>, <code>private</code> hay <code>static</code>, nên <code>@Transactional</code> hay <code>@Cacheable</code> đặt lên chúng sẽ <b>im lặng không hoạt động</b> — không lỗi, không cảnh báo, chỉ là advice không chạy.",
+        "<b>Self-invocation: cái bẫy được hỏi nhiều nhất về Proxy.</b> Advice chỉ chạy khi lời gọi <i>đi qua</i> proxy. Nếu một method của bean gọi method khác trong cùng bean bằng <code>this.other()</code> (kể cả viết tắt <code>other()</code>), lời gọi đi thẳng tới đối tượng thật và bỏ qua proxy hoàn toàn — transaction không mở, cache không hoạt động, <code>@Async</code> chạy đồng bộ. Cách xử lý: tách method sang một bean khác (sạch nhất), tự inject chính mình, hoặc dùng <code>AopContext.currentProxy()</code>; hai cách sau đều là dấu hiệu thiết kế nên xem lại.",
+        "<b>DI không phải pattern GoF, và Service Locator là anti-pattern.</b> Sách GoF xuất bản năm 1994 không có Dependency Injection; thuật ngữ này do Martin Fowler đặt năm 2004 để mô tả một dạng cụ thể của Inversion of Control, và nó gắn với Dependency Inversion Principle trong SOLID chứ không phải với danh mục GoF. Đối trọng của nó là Service Locator — object tự đi lấy phụ thuộc từ một registry toàn cục — bị coi là anti-pattern vì phụ thuộc bị giấu khỏi chữ ký constructor, test phải dựng cả registry, và lỗi thiếu phụ thuộc chỉ lộ ra lúc runtime. Các anti-pattern hay bị hỏi kèm: God object (một class ôm hết trách nhiệm), và 'dùng pattern cho có' — thêm interface với đúng một implementation, thêm factory chỉ để gọi <code>new</code>. Nguyên tắc cuối cùng nên nói ra: chọn pattern từ vấn đề đang có, chứ không áp pattern rồi tìm chỗ nhét vào."
+      ],
+      "example": "// Decorator trong JDK: moi lop giu nguyen kieu, them mot kha nang\nInputStream in = new BufferedInputStream(\n                     new GZIPInputStream(\n                         new FileInputStream(\"data.gz\")));\n\n// Adapter trong JDK: doi kieu tu byte stream sang char stream\nReader reader = new InputStreamReader(in, StandardCharsets.UTF_8);\n\n// Proxy dong cua JDK: CHI lam duoc cho interface\nPaymentService proxy = (PaymentService) Proxy.newProxyInstance(\n        PaymentService.class.getClassLoader(),\n        new Class<?>[]{ PaymentService.class },\n        (p, method, args) -> {\n            long t0 = System.nanoTime();\n            try { return method.invoke(realService, args); }\n            finally { log.info(\"{} mat {} ns\", method.getName(), System.nanoTime() - t0); }\n        });\n\n// BAY self-invocation: save() KHONG di qua proxy -> @Transactional vo hieu\n@Service\npublic class OrderService {\n    public void processAll(List<Order> orders) {\n        for (Order o : orders) {\n            save(o);            // = this.save(o) -> bo qua proxy hoan toan\n        }\n    }\n    @Transactional\n    public void save(Order o) { repo.save(o); }\n}",
+      "exampleTitle": "Ba pattern cấu trúc trong JDK, và bẫy self-invocation",
+      "keyPoints": [
+        "Decorator giữ nguyên interface và thêm hành vi — java.io là ví dụ chuẩn",
+        "Adapter đổi interface và giữ nguyên hành vi — InputStreamReader, Arrays.asList",
+        "java.lang.reflect.Proxy chỉ proxy được interface; class thường cần CGLIB/ByteBuddy",
+        "Method final/private/static không được CGLIB proxy nên @Transactional trên chúng im lặng vô hiệu",
+        "Self-invocation qua this bỏ qua proxy — nguyên nhân số một khiến @Transactional không chạy",
+        "DI không nằm trong GoF; Service Locator bị coi là anti-pattern vì giấu phụ thuộc"
+      ],
+      "trap": "Đặt @Transactional lên một method rồi gọi nó từ một method khác trong cùng class và tin rằng transaction đã mở. Lời gọi qua this không đi qua proxy, nên rollback sẽ không xảy ra như mong đợi.",
+      "followUp": [
+        "Vì sao Spring Boot mặc định dùng CGLIB thay vì JDK dynamic proxy?",
+        "Nếu bắt buộc phải gọi method @Transactional từ trong cùng class, bạn xử lý thế nào?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-11-1",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Module A khai báo exports com.acme.entity. Module B requires A và dùng reflection gọi setAccessible(true) trên một field private của lớp com.acme.entity.Order. Điều gì xảy ra?",
+      "code": "// module-info.java cua A\nmodule com.acme.a {\n    exports com.acme.entity;\n}\n\n// trong module B\nField f = Order.class.getDeclaredField(\"total\");\nf.setAccessible(true);\nSystem.out.println(f.get(order));",
+      "choices": [
+        "Chạy bình thường vì package đã được exports",
+        "Lỗi biên dịch vì không được getDeclaredField trên module khác",
+        "Ném InaccessibleObjectException lúc runtime vì exports không cho phép deep reflection",
+        "Ném IllegalAccessException vì field là private"
+      ],
+      "correctAnswer": 2,
+      "explanation": "exports chỉ cấp quyền tới mức public API ở cả compile lẫn runtime, còn setAccessible(true) trên thành viên private là deep reflection và chỉ được phép khi package được opens. Vì A không opens com.acme.entity, JVM ném InaccessibleObjectException (một RuntimeException) ngay tại lời gọi setAccessible. Quy tắc thực tế: package chứa entity/DTO cho ORM hay Jackson phải có opens, tốt nhất là opens ... to đúng module framework cần.",
+      "whyWrong": [
+        "exports và opens là hai chiều khác nhau; exports không bao giờ mở đường cho deep reflection",
+        "getDeclaredField vẫn biên dịch được vì đó là API reflection thông thường, không có kiểm tra lúc compile",
+        "",
+        "IllegalAccessException là lỗi của mô hình truy cập cũ trước module; ở đây chính lời gọi setAccessible bị chặn trước, và ngoại lệ ném ra là InaccessibleObjectException"
+      ]
+    },
+    {
+      "id": "d-11-2",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Module A requires B, module B requires C. Trong code của A có dùng trực tiếp một lớp mà C export. Điều gì xảy ra khi biên dịch A?",
+      "choices": [
+        "Biên dịch được vì phụ thuộc trong Java module là bắc cầu như Maven",
+        "Lỗi biên dịch vì readability không bắc cầu; A phải requires C hoặc B phải requires transitive C",
+        "Biên dịch được nhưng lỗi NoClassDefFoundError lúc runtime",
+        "Biên dịch được nếu C nằm trên module path, lỗi nếu C nằm trên classpath"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Quan hệ readability trong JPMS không bắc cầu theo mặc định — đây là điểm khác hẳn với transitive dependency của Maven và là chỗ gây nhầm nhiều nhất. A muốn dùng kiểu của C thì hoặc chính A phải requires C, hoặc B phải khai báo requires transitive C. Quy tắc thiết kế đi kèm: nếu kiểu của C xuất hiện trong chữ ký public của B thì B bắt buộc phải dùng transitive, nếu không người dùng B sẽ không compile được.",
+      "whyWrong": [
+        "Maven bắc cầu ở tầng dựng classpath, còn JPMS cố ý không bắc cầu readability để mỗi module khai báo rõ thứ nó thực sự dùng",
+        "",
+        "Lỗi xảy ra ngay lúc biên dịch chứ không đợi tới runtime; compiler đã kiểm tra đồ thị module",
+        "Vị trí của C không thay đổi luật readability; nếu C ở classpath thì nó thuộc unnamed module và A càng không thể requires nó"
+      ]
+    },
+    {
+      "id": "d-11-3",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đặt file legacy-utils-2.3.1.jar (không có module-info.class, không có Automatic-Module-Name trong manifest) lên module path. Tên module của nó là gì và nó export những gì?",
+      "choices": [
+        "JAR không có module-info thì không đặt lên module path được, JVM sẽ báo lỗi",
+        "Tên là legacy.utils.2.3.1 và chỉ export package gốc",
+        "Nó thuộc unnamed module nên không có tên và không module nào requires được",
+        "Tên suy ra từ tên file là legacy.utils, và nó export toàn bộ package của mình"
+      ],
+      "correctAnswer": 3,
+      "explanation": "JAR không có module-info nhưng nằm trên module path trở thành automatic module: tên lấy từ manifest Automatic-Module-Name nếu có, nếu không thì suy ra từ tên file sau khi bỏ phần version và chuẩn hoá ký tự, ở đây là legacy.utils. Automatic module export toàn bộ package và đọc được mọi module khác lẫn unnamed module; riêng implied readability thì hẹp hơn nhiều so với cách nói quen thuộc: nó chỉ requires transitive các automatic module khác, chứ module requires nó không nhờ thế mà đọc được explicit module như java.sql. Rủi ro là tên phụ thuộc tên file: đổi tên artifact hoặc đổi cách đặt tên khi build là đổi tên module, nên tác giả thư viện nên thêm Automatic-Module-Name.",
+      "whyWrong": [
+        "Module path chấp nhận JAR không modular; đó chính là cơ chế automatic module để hỗ trợ migration dần",
+        "Phần version bị loại bỏ khi suy ra tên module, và automatic module export tất cả chứ không chỉ package gốc",
+        "Unnamed module là dành cho classpath; đặt trên module path thì thành automatic module và có tên",
+        ""
+      ]
+    },
+    {
+      "id": "d-11-4",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Module A chỉ khai báo opens com.acme.dto (không exports). Module B requires A và viết import com.acme.dto.OrderDto; trong code. Kết quả?",
+      "code": "// module-info.java cua A\nmodule com.acme.a {\n    opens com.acme.dto;\n}\n\n// trong module B\nimport com.acme.dto.OrderDto;   // <-- dong nay\nOrderDto dto = new OrderDto();",
+      "choices": [
+        "Lỗi biên dịch vì opens không cấp quyền truy cập lúc compile",
+        "Biên dịch và chạy bình thường vì opens mạnh hơn exports",
+        "Biên dịch được nhưng ném IllegalAccessError lúc runtime",
+        "Biên dịch được vì opens ngầm hiểu là exports, chỉ reflection mới bị chặn"
+      ],
+      "correctAnswer": 0,
+      "explanation": "opens là mệnh đề thuần runtime: nó cho phép reflection sâu lúc chạy nhưng không hề mở quyền truy cập tĩnh lúc biên dịch, nên import trực tiếp sẽ lỗi compile. Đây đúng là trường hợp dùng thường gặp: package entity/DTO chỉ cần opens cho ORM hoặc Jackson chứ không cần ai import trực tiếp. Nếu muốn cả hai, phải khai báo cả exports lẫn opens cho cùng package.",
+      "whyWrong": [
+        "",
+        "Không có quan hệ mạnh yếu giữa hai mệnh đề; chúng nằm trên hai trục khác nhau là thời điểm và độ sâu",
+        "Lỗi xảy ra ngay lúc biên dịch nên chương trình không bao giờ chạy tới runtime",
+        "opens hoàn toàn không ngầm hiểu là exports; ngược lại, chính reflection mới là thứ opens cho phép"
+      ]
+    },
+    {
+      "id": "d-11-5",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "requires static org.example.annotations có ý nghĩa gì?",
+      "choices": [
+        "Module chỉ được dùng các thành viên static của org.example.annotations",
+        "Module được nạp một lần duy nhất và chia sẻ giữa mọi class loader",
+        "Bắt buộc có lúc biên dịch, nhưng được phép vắng mặt lúc runtime và module resolution sẽ không báo lỗi",
+        "Bắt buộc có lúc runtime nhưng không cần lúc biên dịch"
+      ],
+      "correctAnswer": 2,
+      "explanation": "requires static khai báo một phụ thuộc tuỳ chọn: javac bắt buộc phải thấy module đó, còn khi chạy nếu module vắng mặt thì bước resolution vẫn thành công. Nó hợp cho annotation chỉ tồn tại lúc biên dịch, annotation processor, hoặc tích hợp tuỳ chọn mà code đã có nhánh dự phòng. Đổi lại, trách nhiệm thuộc về lập trình viên: nếu code thực sự chạm tới class của module vắng mặt, bạn sẽ nhận NoClassDefFoundError.",
+      "whyWrong": [
+        "Từ khoá static ở đây không liên quan gì tới thành viên static; nó mô tả tính tuỳ chọn của phụ thuộc",
+        "JPMS không có khái niệm chia sẻ module kiểu đó; vòng đời class loader là chuyện khác",
+        "",
+        "Đúng chiều ngược lại — bắt buộc lúc compile, tuỳ chọn lúc runtime"
+      ]
+    },
+    {
+      "id": "d-11-6",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Hai module trên module path cùng chứa các lớp thuộc package javax.annotation. Điều gì xảy ra?",
+      "choices": [
+        "Module nạp trước sẽ thắng, giống hành vi của classpath",
+        "JVM từ chối khởi động vì split package không được phép giữa các module",
+        "Cả hai cùng hoạt động, class được phân giải theo module đang requires",
+        "Chỉ cảnh báo lúc khởi động, chương trình vẫn chạy"
+      ],
+      "correctAnswer": 1,
+      "explanation": "JPMS cấm tuyệt đối split package: một package chỉ được thuộc về đúng một module, nên bước resolution thất bại và JVM báo lỗi kiểu Package javax.annotation in both module ... and module ... rồi dừng. Đây là rào cản migration phổ biến nhất vì hệ sinh thái cũ có rất nhiều JAR nhỏ cùng đóng góp vào một package. Cách xử lý là gộp/loại bớt JAR, dùng bản đã hợp nhất, hoặc để chúng ở lại classpath vì unnamed module không chịu luật này.",
+      "whyWrong": [
+        "Đúng là hành vi của classpath, và chính sự âm thầm đó là vấn đề mà JPMS sinh ra để loại bỏ",
+        "",
+        "Phân giải class trong JPMS gắn với package chứ không cho phép cùng một package tồn tại ở hai module",
+        "Đây là lỗi cứng chặn khởi động, không phải cảnh báo"
+      ]
+    },
+    {
+      "id": "d-11-7",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Ứng dụng dùng JAXB chạy tốt trên Java 8. Nâng lên Java 11 thì lỗi NoClassDefFoundError: javax/xml/bind/JAXBException. Cách xử lý đúng là gì?",
+      "choices": [
+        "Thêm --add-modules java.xml.bind vào lệnh java",
+        "Thêm --add-opens java.xml.bind/javax.xml.bind=ALL-UNNAMED",
+        "Chuyển JAR ứng dụng từ classpath sang module path",
+        "Thêm dependency JAXB (jakarta.xml.bind-api và một implementation) vào build vì module java.xml.bind đã bị xoá khỏi JDK 11"
+      ],
+      "correctAnswer": 3,
+      "explanation": "JEP 320 xoá hẳn các module Java EE khỏi JDK 11, gồm java.xml.bind, java.activation, java.xml.ws, java.transaction, java.corba và aggregator java.se.ee. Ở Java 9/10 chúng chỉ bị deprecate và còn cứu tạm được bằng --add-modules, nhưng từ Java 11 module không còn tồn tại nên cờ đó vô nghĩa. Cách duy nhất là khai báo JAXB như một dependency bình thường của dự án.",
+      "whyWrong": [
+        "Cờ này chỉ có tác dụng ở Java 9/10 khi module còn nằm trong JDK; ở Java 11 nó báo module không tồn tại",
+        "--add-opens chỉ mở reflection cho module đã có sẵn, không tạo ra module đã bị xoá",
+        "Vị trí JAR không tạo lại được các class đã biến mất khỏi JDK",
+        ""
+      ]
+    },
+    {
+      "id": "d-11-8",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Một thư viện cũ trên classpath cần setAccessible vào field private của java.lang.String và bị chặn trên Java 17. Cấu hình nào đúng?",
+      "code": "# Ung dung chay bang: java -cp app.jar:lib/* com.acme.Main\n# Thu vien ben thu ba goi:\n#   Field f = String.class.getDeclaredField(\"value\");\n#   f.setAccessible(true);",
+      "choices": [
+        "Thêm --illegal-access=permit vào lệnh java",
+        "Thêm --add-exports java.base/java.lang=ALL-UNNAMED vào lệnh java",
+        "Thêm --add-opens java.base/java.lang=ALL-UNNAMED vào lệnh java",
+        "Thêm opens java.base to ALL-UNNAMED vào module-info.java của ứng dụng"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Deep reflection cần opens, nên cờ đúng là --add-opens với cú pháp module/package=đích, và đích ALL-UNNAMED nghĩa là mọi code nằm trên classpath. --add-exports chỉ mở public API chứ không mở setAccessible. Lưu ý --add-opens là cờ thuần runtime: javac vẫn chấp nhận cờ này nhưng bỏ qua và chỉ cảnh báo '--add-opens has no effect at compile time'; với JAR chạy bằng java -jar có thể ghi attribute Add-Opens vào manifest thay vì bắt người dùng gõ cờ.",
+      "whyWrong": [
+        "Java 16 (JEP 396) đổi mặc định sang deny và Java 17 (JEP 403) đóng hẳn JDK internals; từ Java 17 cờ --illegal-access không còn tác dụng",
+        "--add-exports mở tới mức public API, không cho phép setAccessible trên thành viên private",
+        "",
+        "Không có cú pháp opens tới ALL-UNNAMED trong module-info, và module-info của ứng dụng cũng không thể mở package của java.base"
+      ]
+    },
+    {
+      "id": "d-11-9",
+      "topicId": 11,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Dự án muốn dùng jlink để dựng runtime image gọn, nhưng nhiều dependency chỉ có Automatic-Module-Name trong manifest chứ chưa có module-info.class. Điều gì xảy ra?",
+      "choices": [
+        "jlink chạy được vì Automatic-Module-Name đã cung cấp đủ metadata",
+        "jlink chạy được nhưng image sẽ chứa toàn bộ JDK",
+        "jlink thất bại vì nó không chấp nhận automatic module; phương án thực tế là chỉ jlink phần module JDK rồi chạy ứng dụng trên classpath bên trong image",
+        "jlink tự sinh module-info cho các JAR đó bằng cách phân tích bytecode"
+      ],
+      "correctAnswer": 2,
+      "explanation": "jlink chỉ ghép được các modular JAR nên nó từ chối automatic module, và Automatic-Module-Name chỉ cho một cái tên ổn định chứ không mô tả requires/exports thật. Đây là lý do rất nhiều dự án muốn dùng jlink nhưng không dùng được cho toàn bộ cây phụ thuộc. Cách làm phổ biến là dùng jdeps --print-module-deps để biết cần những module java.* nào, jlink riêng phần JDK đó, rồi vẫn chạy ứng dụng và thư viện trên classpath bên trong image — vẫn thu được phần lớn lợi ích về kích thước.",
+      "whyWrong": [
+        "Automatic-Module-Name chỉ đặt tên, không khai báo phụ thuộc hay package export nên jlink vẫn không xử lý được",
+        "jlink không có chế độ chạy tiếp rồi gộp toàn bộ JDK; nó báo lỗi và dừng",
+        "",
+        "Công cụ sinh gợi ý module-info là jdeps --generate-module-info và phải chạy thủ công; jlink không tự làm việc đó"
+      ]
+    },
+    {
+      "id": "d-12-1",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "java.net.http.HttpClient được chuẩn hoá (không còn incubator) từ phiên bản Java nào?",
+      "choices": [
+        "Java 9, trong package java.net.http",
+        "Java 11, sau khi incubate ở Java 9 và 10 dưới package jdk.incubator.http",
+        "Java 17, cùng với sealed class",
+        "Java 21, cùng với virtual thread"
+      ],
+      "correctAnswer": 1,
+      "explanation": "API xuất hiện lần đầu ở Java 9 dưới dạng incubator module với package jdk.incubator.http, incubate tiếp ở Java 10, và được chuẩn hoá ở Java 11 qua JEP 321 với package java.net.http. Vì package đổi tên khi chuẩn hoá nên code viết cho bản incubator không chạy được trên Java 11 — đó chính là ý nghĩa của cơ chế incubator: không cam kết tương thích. Java 21 chỉ bổ sung thêm AutoCloseable chứ không phải nơi API ra đời.",
+      "whyWrong": [
+        "Java 9 có API nhưng ở package jdk.incubator.http, không phải java.net.http, và không được coi là API chuẩn",
+        "",
+        "Java 17 không giới thiệu HttpClient; lúc đó API đã ổn định được 3 phiên bản",
+        "Java 21 chỉ thêm close()/shutdown() cho HttpClient, API đã tồn tại từ Java 11"
+      ]
+    },
+    {
+      "id": "d-12-2",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Gọi HttpClient.newHttpClient() rồi send() tới một URL trả về HTTP 302 với header Location. Kết quả nhận được là gì?",
+      "code": "HttpClient client = HttpClient.newHttpClient();\nHttpRequest req = HttpRequest.newBuilder(URI.create(\"https://example.com/old\")).build();\nHttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());\nSystem.out.println(res.statusCode());",
+      "choices": [
+        "In ra 200 vì client tự đi theo redirect",
+        "Ném IOException vì response không phải 2xx",
+        "In ra 302 vì chính sách redirect mặc định là NEVER",
+        "In ra 302 nhưng res.body() chứa nội dung của trang đích"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Chính sách redirect mặc định của HttpClient là Redirect.NEVER, nên client trả về nguyên response 302 kèm header Location mà không đi tiếp. Đây là điểm khác với nhiều thư viện HTTP khác vốn tự đi theo redirect, và là nguyên nhân phổ biến của lỗi 'body rỗng không hiểu vì sao'. Muốn đi theo redirect thì cấu hình followRedirects(Redirect.NORMAL) — NORMAL an toàn hơn ALWAYS vì không đi theo redirect hạ cấp từ HTTPS xuống HTTP.",
+      "whyWrong": [
+        "Client chỉ tự đi theo redirect khi bạn cấu hình NORMAL hoặc ALWAYS; mặc định là NEVER",
+        "Status không thuộc 2xx không hề tạo ra exception; mọi response hợp lệ đều trả về bình thường",
+        "",
+        "Vì không đi theo redirect nên body là body của chính response 302, thường rỗng hoặc là trang thông báo chuyển hướng"
+      ]
+    },
+    {
+      "id": "d-12-3",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Nhận định nào đúng về vòng đời của HttpClient?",
+      "choices": [
+        "Nó có trạng thái nên mỗi request phải tạo một instance mới, giống HttpURLConnection",
+        "Nó bất biến và thread-safe nên nên dùng chung một instance cho toàn ứng dụng",
+        "Nó thread-safe nhưng phải gọi reset() giữa các request",
+        "Nó chỉ thread-safe khi bạn truyền executor riêng vào builder"
+      ],
+      "correctAnswer": 1,
+      "explanation": "HttpClient bất biến sau khi build và được thiết kế để nhiều thread gọi send()/sendAsync() đồng thời, nên mô hình đúng là một instance dùng chung, khai báo static final hoặc làm bean singleton. Mỗi instance mang connection pool, selector thread và executor riêng, nên tạo mới cho từng request sẽ vứt bỏ connection đang mở, bắt tay TLS lại từ đầu và mất hoàn toàn lợi ích multiplexing của HTTP/2. Trước Java 21 việc này còn tệ hơn vì không có close() nên tài nguyên chỉ được thu hồi khi GC dọn.",
+      "whyWrong": [
+        "Chính việc HttpURLConnection có trạng thái và chỉ dùng một lần là một trong những lý do API mới ra đời",
+        "",
+        "Không có method reset(); cấu hình là bất biến và không có trạng thái nào cần dọn giữa các request",
+        "Tính thread-safe không phụ thuộc executor; truyền executor riêng chỉ để kiểm soát pool cho tác vụ bất đồng bộ"
+      ]
+    },
+    {
+      "id": "d-12-4",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau gọi một endpoint đang lỗi. Điều gì thực sự xảy ra?",
+      "code": "client.sendAsync(request, HttpResponse.BodyHandlers.ofString())\n      .thenApply(HttpResponse::body)\n      .thenAccept(System.out::println);\n\nSystem.out.println(\"da gui request\");\n// khong join(), khong get(), khong exceptionally()",
+      "choices": [
+        "In ra 'da gui request' rồi chương trình ném IOException ra main",
+        "sendAsync ném IOException ngay tại chỗ gọi",
+        "Chương trình dừng lại chờ response rồi mới in 'da gui request'",
+        "In ra 'da gui request', còn lỗi bị nuốt hoàn toàn vì future hoàn tất theo nhánh lỗi mà không ai xử lý"
+      ],
+      "correctAnswer": 3,
+      "explanation": "sendAsync không ném checked exception mà chuyển lỗi vào CompletableFuture theo nhánh hoàn tất bất thường; các stage thenApply/thenAccept phía sau bị bỏ qua. Vì không ai gọi join()/get() và không có exceptionally()/handle(), ngoại lệ không bao giờ được quan sát nên biến mất không để lại dấu vết trong log — đây là bug thầm lặng rất hay gặp. Quy tắc: mọi chuỗi sendAsync phải kết thúc bằng exceptionally hoặc handle, và nếu join() thì nhớ getCause() vì ngoại lệ gốc bị bọc trong CompletionException.",
+      "whyWrong": [
+        "Ngoại lệ nằm trong future chứ không lan ra thread gọi; main không thấy gì cả",
+        "sendAsync chỉ khởi động request rồi trả về ngay, nó không ném checked exception",
+        "sendAsync là bất đồng bộ nên không chặn; dòng println chạy ngay lập tức",
+        ""
+      ]
+    },
+    {
+      "id": "d-12-5",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Server trả về HTTP 500 kèm một trang HTML báo lỗi. Đoạn code sau hành xử thế nào?",
+      "code": "try {\n    HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());\n    Order order = objectMapper.readValue(res.body(), Order.class);\n    return order;\n} catch (IOException e) {\n    return null;\n}",
+      "choices": [
+        "Trả về null vì send() ném IOException khi gặp 500",
+        "send() trả về bình thường, rồi Jackson ném lỗi parse vì body là HTML chứ không phải JSON",
+        "Trả về một Order với mọi field null",
+        "send() trả về response với body rỗng vì status không phải 2xx"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Trong java.net.http, status 4xx/5xx là một response hoàn toàn hợp lệ — send() trả về bình thường và không ném gì cả, khác hẳn trực giác của nhiều người. Body ở đây là HTML nên objectMapper.readValue ném JsonProcessingException, vốn là con của IOException, nên nó bị chính khối catch nuốt mất và method trả về null với thông báo lỗi gốc biến mất. Quy tắc bắt buộc: luôn kiểm tra res.statusCode() trước khi parse, và không gộp lỗi mạng với lỗi parse vào cùng một catch.",
+      "whyWrong": [
+        "send() chỉ ném IOException khi có sự cố ở tầng mạng hoặc timeout, không phải khi status là 5xx",
+        "",
+        "Jackson mặc định sẽ thất bại khi gặp HTML chứ không im lặng tạo object rỗng",
+        "Body của response 5xx vẫn được đọc đầy đủ; client không lọc body theo status"
+      ]
+    },
+    {
+      "id": "d-12-6",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Chuỗi catch sau có vấn đề gì?",
+      "code": "HttpClient client = HttpClient.newBuilder()\n        .connectTimeout(Duration.ofSeconds(2))\n        .build();\nHttpRequest req = HttpRequest.newBuilder(uri)\n        .timeout(Duration.ofSeconds(5))\n        .build();\ntry {\n    client.send(req, HttpResponse.BodyHandlers.ofString());\n} catch (HttpTimeoutException e) {\n    log.warn(\"request qua han\");\n} catch (HttpConnectTimeoutException e) {\n    log.warn(\"khong ket noi duoc\");\n} catch (IOException | InterruptedException e) {\n    log.error(\"loi khac\", e);\n}",
+      "choices": [
+        "Không có vấn đề gì, hai loại timeout là hai nhánh độc lập",
+        "Thiếu catch cho HttpTimeoutException ở cấp connect",
+        "Lỗi biên dịch vì HttpConnectTimeoutException là con của HttpTimeoutException nên nhánh của nó không bao giờ tới được",
+        "Chạy được nhưng lỗi connect timeout sẽ rơi vào nhánh IOException"
+      ],
+      "correctAnswer": 2,
+      "explanation": "HttpConnectTimeoutException kế thừa HttpTimeoutException, mà HttpTimeoutException lại kế thừa IOException. Trong Java, bắt lớp cha trước lớp con là lỗi biên dịch vì nhánh con trở thành code không bao giờ chạy tới được, nên đoạn này không compile. Sửa bằng cách đảo thứ tự: HttpConnectTimeoutException trước, rồi HttpTimeoutException, rồi IOException — nguyên tắc chung là catch từ hẹp tới rộng.",
+      "whyWrong": [
+        "Chúng không độc lập; quan hệ kế thừa giữa hai lớp quyết định thứ tự catch bắt buộc",
+        "HttpTimeoutException đã được catch; vấn đề nằm ở thứ tự chứ không phải thiếu nhánh",
+        "",
+        "Nếu đoạn code compile được thì connect timeout sẽ rơi vào nhánh HttpTimeoutException đứng trước, nhưng thực tế nó không compile được"
+      ]
+    },
+    {
+      "id": "d-12-7",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Không cấu hình gì thêm, HttpClient.newHttpClient() có những mặc định nào?",
+      "choices": [
+        "HTTP/1.1, connect timeout 30 giây, redirect NORMAL, có cookie manager",
+        "HTTP/2 với fallback HTTP/1.1, không giới hạn timeout, redirect NEVER, không lưu cookie",
+        "HTTP/2 bắt buộc, request thất bại nếu server chỉ hỗ trợ HTTP/1.1",
+        "HTTP/2 với fallback, connect timeout 10 giây, redirect ALWAYS, có cookie manager"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Mặc định là HTTP_2 nhưng tự động lùi về HTTP/1.1 khi server không hỗ trợ (qua ALPN với HTTPS, qua upgrade với HTTP thường), và bạn kiểm tra phiên bản thực tế bằng response.version(). Quan trọng nhất về mặt vận hành: không có connectTimeout và cũng không có request timeout mặc định, nên request có thể treo rất lâu và làm cạn thread pool của service. Redirect mặc định là NEVER và không có cookie handler — cả hai đều phải bật thủ công.",
+      "whyWrong": [
+        "Mặc định là HTTP/2 chứ không phải HTTP/1.1, và không có giá trị timeout mặc định nào",
+        "",
+        "Đặt version HTTP_2 không làm request thất bại với server cũ; client tự thương lượng và lùi về HTTP/1.1",
+        "Không có connect timeout mặc định, và redirect mặc định là NEVER chứ không phải ALWAYS"
+      ]
+    },
+    {
+      "id": "d-12-8",
+      "topicId": 12,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Một service chạy Java 17 tạo HttpClient mới trong mỗi lần xử lý message. Sau vài giờ, số thread tăng liên tục rồi service chết. Nguyên nhân và cách sửa đúng nhất?",
+      "code": "public void onMessage(Message m) {\n    HttpClient client = HttpClient.newHttpClient();\n    HttpRequest req = HttpRequest.newBuilder(URI.create(m.url())).build();\n    client.send(req, HttpResponse.BodyHandlers.ofString());\n}",
+      "choices": [
+        "Do BodyHandlers.ofString giữ body trong heap; đổi sang discarding là hết",
+        "Do thiếu try-with-resources; trên Java 17 chỉ cần bọc client vào try-with-resources",
+        "Do mỗi client có selector thread và executor riêng mà Java 17 chưa có close(); phải chuyển sang dùng chung một instance",
+        "Do connection pool không được cấu hình; đặt system property jdk.httpclient.connectionPoolSize là đủ"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Mỗi HttpClient mang theo connection pool, một selector thread và một executor nội bộ; tạo mới liên tục nghĩa là tích luỹ thread và socket. Trên Java 11–20, HttpClient không implement AutoCloseable và không có close(), nên tài nguyên chỉ được thu hồi khi instance mất tham chiếu và bị GC dọn — quá chậm so với tốc độ tạo mới, dẫn tới OutOfMemoryError kiểu unable to create native thread. Cách sửa duy nhất đúng là dùng chung một instance; từ Java 21 mới có close()/shutdown() để tắt tường minh, nhưng ngay cả khi đó thì dùng chung vẫn là mô hình nên theo.",
+      "whyWrong": [
+        "BodyHandler chỉ quyết định cách xử lý body, không liên quan tới việc thread tích luỹ",
+        "Java 17 chưa có AutoCloseable trên HttpClient nên try-with-resources sẽ không biên dịch được; tính năng đó có từ Java 21",
+        "",
+        "Kích thước pool không giải quyết vấn đề vì mỗi client tạo pool riêng của nó; gốc rễ là số lượng client"
+      ]
+    },
+    {
+      "id": "d-12-9",
+      "topicId": 12,
+      "versions": [
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Trên Java 21, cách nào phù hợp nhất để gọi song song 10.000 endpoint HTTP với code dễ đọc và dễ debug?",
+      "code": "// Phuong an A\ntry (var ex = Executors.newVirtualThreadPerTaskExecutor()) {\n    urls.forEach(u -> ex.submit(() -> CLIENT.send(req(u), BodyHandlers.ofString())));\n}\n\n// Phuong an B\nvar pool = Executors.newFixedThreadPool(10_000);   // 10.000 platform thread\n\n// Phuong an C\nsynchronized (lock) { CLIENT.send(req, BodyHandlers.ofString()); }",
+      "choices": [
+        "Phương án B, vì thread pool cố định kiểm soát tài nguyên tốt hơn",
+        "Phương án C, vì đồng bộ hoá giúp tránh tranh chấp connection pool",
+        "Phương án A, vì virtual thread bị tháo khỏi carrier khi chặn ở send() nên blocking tuần tự vẫn scale",
+        "Không phương án nào; bắt buộc phải dùng sendAsync với CompletableFuture"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Virtual thread rẻ tới mức tạo hàng chục nghìn cái là bình thường, và khi thread chặn tại send() thì JVM tháo nó khỏi carrier thread nên carrier tiếp tục phục vụ tác vụ khác. Nhờ đó code blocking tuần tự giữ được stack trace đầy đủ và try/catch tự nhiên mà vẫn đạt mức song song trước đây phải dùng chuỗi CompletableFuture. Lưu ý thêm: ở JDK 21, chặn bên trong khối synchronized sẽ pin virtual thread vào carrier và làm mất lợi ích scale, nên dùng ReentrantLock nếu thực sự cần khoá.",
+      "whyWrong": [
+        "10.000 platform thread tiêu tốn rất nhiều bộ nhớ stack và gây chi phí context switch lớn; đây chính là giới hạn mà virtual thread sinh ra để phá bỏ",
+        "Đồng bộ hoá biến lời gọi song song thành tuần tự, và ở JDK 21 việc chặn trong synchronized còn pin virtual thread vào carrier",
+        "",
+        "sendAsync vẫn hợp lệ nhưng không bắt buộc trên Java 21; nó đánh đổi bằng code khó đọc và stack trace bị đứt đoạn"
+      ]
+    },
+    {
+      "id": "d-19-1",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Vì sao Effective Java khuyến nghị dùng enum một phần tử làm cách cài Singleton tốt nhất?",
+      "choices": [
+        "Vì enum khởi tạo lười (lazy) nên tiết kiệm bộ nhớ hơn holder idiom",
+        "Vì enum chống được cả serialization lẫn reflection — hai đường phá singleton mà các cách khác đều dính",
+        "Vì enum có thể extends một class cha nên linh hoạt hơn",
+        "Vì enum tự động đồng bộ hoá mọi method của nó"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Singleton cài bằng class thường có hai lỗ hổng: deserialize sẽ tạo ra instance thứ hai trừ khi bạn cài readResolve(), và Constructor.setAccessible(true) rồi newInstance() có thể tạo instance mới qua reflection. Enum bịt cả hai một cách miễn phí: cơ chế serialization của enum chỉ ghi tên hằng, và JVM từ chối thẳng việc tạo enum bằng reflection với IllegalArgumentException. Đổi lại, enum không extends được class khác và mọi hằng được tạo eager ngay tại bước khởi tạo class (class initialization), chứ không phải tại bước nạp class (loading).",
+      "whyWrong": [
+        "Enum khởi tạo khi class được khởi tạo (class initialization) chứ không phải lúc nạp (loading), và như vậy vẫn không lười hơn holder idiom; holder mới là cách lazy thật sự",
+        "",
+        "Enum không thể extends class khác — đây chính là nhược điểm của nó chứ không phải ưu điểm",
+        "Enum không tự đồng bộ hoá gì cả; nếu enum có state mutable thì bạn vẫn phải tự lo thread-safety"
+      ]
+    },
+    {
+      "id": "d-19-2",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn double-checked locking sau thiếu volatile. Hậu quả cụ thể là gì?",
+      "code": "public class Config {\n    private static Config instance;          // thieu volatile\n    private final Map<String, String> data;\n\n    private Config() { this.data = loadFromDisk(); }\n\n    public static Config getInstance() {\n        if (instance == null) {\n            synchronized (Config.class) {\n                if (instance == null) instance = new Config();\n            }\n        }\n        return instance;\n    }\n}",
+      "choices": [
+        "Có thể tạo ra hai instance vì hai thread cùng vào synchronized một lúc",
+        "Không có vấn đề gì vì synchronized đã đảm bảo mọi thứ",
+        "Deadlock khi nhiều thread cùng gọi getInstance()",
+        "Một thread có thể nhận về instance khác null nhưng chưa khởi tạo xong, với field data còn là null"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Dòng instance = new Config() gồm ba bước: cấp phát bộ nhớ, chạy constructor, gán tham chiếu — và compiler cùng CPU được phép sắp xếp lại hai bước sau. Thread B đọc instance ở lần kiểm tra đầu (nằm ngoài synchronized) có thể thấy tham chiếu khác null trong khi constructor chưa chạy xong, nên nhận về object với field data còn giá trị mặc định null. volatile chặn kiểu reordering này nhờ ngữ nghĩa happens-before của Java Memory Model từ JSR-133 (Java 5); trước Java 5 thì DCL không có cách nào làm đúng.",
+      "whyWrong": [
+        "synchronized vẫn đảm bảo loại trừ lẫn nhau nên chỉ có một instance được tạo; vấn đề nằm ở tính hiển thị và thứ tự, không phải số lượng",
+        "synchronized chỉ bảo vệ đoạn code bên trong nó; lần kiểm tra đầu tiên nằm ngoài khối và không có bảo đảm nào cả",
+        "Chỉ có một khoá duy nhất và không có khoá lồng nhau nên không thể deadlock",
+        ""
+      ]
+    },
+    {
+      "id": "d-19-3",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau minh hoạ pattern nào, và vì sao?",
+      "code": "InputStream in = new BufferedInputStream(\n                     new GZIPInputStream(\n                         new FileInputStream(\"data.gz\")));",
+      "choices": [
+        "Decorator, vì mỗi lớp bọc giữ nguyên interface InputStream và thêm đúng một khả năng",
+        "Adapter, vì mỗi lớp chuyển đổi dữ liệu từ định dạng này sang định dạng khác",
+        "Proxy, vì các lớp bọc kiểm soát việc truy cập vào file thật",
+        "Composite, vì nhiều stream được ghép thành một cây"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Đây là ví dụ Decorator nổi tiếng nhất trong JDK: mỗi lớp vừa là InputStream vừa nhận một InputStream, và mỗi lớp thêm đúng một năng lực (giải nén, đệm) mà không đổi interface. Giá trị thiết kế là tổ hợp tuyến tính: n khả năng cần n class, thay vì phải viết class cho từng tổ hợp như khi dùng kế thừa. Điểm phân biệt cần thuộc: Decorator giữ nguyên kiểu và thêm hành vi, Adapter đổi kiểu mà giữ nguyên hành vi, Proxy giữ nguyên kiểu nhưng kiểm soát việc truy cập.",
+      "whyWrong": [
+        "",
+        "Adapter đổi interface để nối hai API không khớp; ở đây interface trước và sau khi bọc đều là InputStream. InputStreamReader mới là ví dụ Adapter",
+        "Proxy tồn tại để kiểm soát truy cập (quyền, transaction, khởi tạo trễ), còn ở đây mục đích là bổ sung năng lực xử lý dữ liệu",
+        "Composite dùng để coi một nhóm object như một object đơn lẻ theo cấu trúc cây; chuỗi bọc tuyến tính này không phải cây"
+      ]
+    },
+    {
+      "id": "d-19-4",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Bean Spring sau chạy nhưng transaction không bao giờ được mở khi save() bị lỗi. Vì sao?",
+      "code": "@Service\npublic class OrderService {\n\n    public void processAll(List<Order> orders) {\n        for (Order o : orders) {\n            save(o);                 // goi noi bo\n        }\n    }\n\n    @Transactional\n    public void save(Order o) {\n        repo.save(o);\n        if (o.total() < 0) throw new IllegalStateException();\n    }\n}",
+      "choices": [
+        "Vì @Transactional không hoạt động trong vòng lặp",
+        "Vì save() là public nên Spring bỏ qua annotation",
+        "Vì lời gọi save(o) đi qua this tới đối tượng thật, không đi qua proxy, nên advice transaction không chạy",
+        "Vì IllegalStateException là checked exception nên Spring không rollback"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Spring AOP hiện thực @Transactional bằng proxy: advice chỉ chạy khi lời gọi đi từ bên ngoài vào qua đối tượng proxy. Trong processAll, save(o) tương đương this.save(o) và đi thẳng tới đối tượng thật, nên proxy hoàn toàn không tham gia — transaction không mở, không có gì để rollback, và không có lỗi hay cảnh báo nào. Cách xử lý sạch nhất là tách save() sang một bean khác rồi inject vào; các cách tự inject chính mình hoặc AopContext.currentProxy() đều là dấu hiệu thiết kế nên xem lại.",
+      "whyWrong": [
+        "Vòng lặp không liên quan; gọi save(o) một lần từ trong cùng class cũng bị y hệt",
+        "Ngược lại, @Transactional chỉ hoạt động trên method public khi dùng proxy; private mới là thứ bị bỏ qua",
+        "",
+        "IllegalStateException là unchecked, và Spring mặc định rollback với RuntimeException — vấn đề là chưa từng có transaction nào được mở"
+      ]
+    },
+    {
+      "id": "d-19-5",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Khác biệt cốt lõi giữa Strategy và Template Method là gì?",
+      "choices": [
+        "Strategy chỉ dùng được với interface, Template Method chỉ dùng được với abstract class",
+        "Strategy dùng composition nên thay được lúc runtime; Template Method dùng kế thừa nên cố định lúc biên dịch",
+        "Strategy dành cho thuật toán, Template Method dành cho cấu trúc dữ liệu",
+        "Template Method nhanh hơn vì không phải gọi qua một object trung gian"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Template Method để class cha giữ thứ tự các bước và class con điền vào những chỗ trống, nên quan hệ được cố định lúc biên dịch qua kế thừa và một class con chỉ thay đổi được đúng những gì cha cho phép. Strategy đặt thuật toán vào một object riêng và giữ nó như một field, nên có thể đổi lúc runtime và một object có thể mang nhiều strategy cùng lúc. Vì kế thừa tạo ràng buộc chặt và chỉ dùng được một lần, thiết kế hiện đại thường nghiêng về Strategy, còn Template Method vẫn hợp khi luồng xử lý thực sự cố định.",
+      "whyWrong": [
+        "Strategy hoàn toàn có thể dùng abstract class, và điểm phân biệt không nằm ở loại kiểu mà ở cơ chế composition hay kế thừa",
+        "",
+        "Cả hai đều là pattern hành vi về thuật toán; không có sự phân chia nào theo cấu trúc dữ liệu",
+        "Chênh lệch hiệu năng ở đây là không đáng kể và JIT thường inline được; đó không phải tiêu chí để chọn"
+      ]
+    },
+    {
+      "id": "d-19-6",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau ném ClassCastException hoặc IllegalArgumentException lúc runtime. Vì sao?",
+      "code": "public class PaymentService {          // class thuong, KHONG implement interface nao\n    public void pay(long amount) { }\n}\n\nPaymentService proxy = (PaymentService) Proxy.newProxyInstance(\n        PaymentService.class.getClassLoader(),\n        new Class<?>[]{ PaymentService.class },\n        (p, m, args) -> null);",
+      "choices": [
+        "Vì thiếu constructor không tham số trong PaymentService",
+        "Vì InvocationHandler trả về null cho method có kiểu trả về void",
+        "Vì phải truyền class loader của interface chứ không phải của class",
+        "Vì java.lang.reflect.Proxy chỉ tạo được proxy cho interface, không tạo được cho class thường"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Dynamic proxy của JDK sinh ra một class implement các interface bạn truyền vào, nên mọi phần tử trong mảng Class[] bắt buộc phải là interface — truyền một class thường sẽ bị từ chối. Để proxy một class không có interface, phải dùng thư viện sinh subclass lúc runtime như CGLIB hoặc ByteBuddy. Đây chính là lý do Spring có hai chế độ proxy, và Spring Boot mặc định đặt proxyTargetClass=true để dùng CGLIB — kéo theo hệ quả là method final, private hay static không được proxy nên advice trên chúng im lặng vô hiệu.",
+      "whyWrong": [
+        "Proxy của JDK không hề gọi constructor của class đích nên constructor không liên quan; đó lại là ràng buộc của CGLIB",
+        "Trả về null cho method void là hợp lệ với InvocationHandler và không gây lỗi ở đây",
+        "Class loader chỉ ảnh hưởng tới nơi class proxy được định nghĩa, không phải nguyên nhân của lỗi này",
+        ""
+      ]
+    },
+    {
+      "id": "d-19-7",
+      "topicId": 19,
+      "versions": [
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Có record Order(String id, String customer, BigDecimal total, String note, String coupon) với 3 field cuối là tuỳ chọn. Nhận định nào đúng?",
+      "choices": [
+        "Record đã thay thế Builder hoàn toàn nên không cần builder nữa",
+        "Record cho tính bất biến và equals/hashCode miễn phí, nhưng canonical constructor vẫn bắt truyền đủ mọi component theo đúng thứ tự nên Builder vẫn hữu ích",
+        "Record không cho phép validate nên bắt buộc phải dùng Builder",
+        "Record tự sinh sẵn một builder tĩnh nên chỉ cần gọi Order.builder()"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Record (chuẩn từ Java 16, có ở LTS 17 và 21) cho bạn miễn phí tính bất biến, equals/hashCode/toString và tham số có tên trong chữ ký, nên với 3-4 component thì builder trở nên thừa. Nhưng record không giải quyết bài toán tham số tuỳ chọn: gọi canonical constructor vẫn phải truyền đủ mọi component đúng thứ tự, và hai String liền nhau vẫn có thể bị hoán đổi mà compiler không phát hiện. Validate thì đặt trong compact constructor, và với record nhiều component thì viết thêm một static nested Builder vẫn là lựa chọn hợp lý.",
+      "whyWrong": [
+        "Record không có khái niệm tham số tuỳ chọn nên với nhiều component thì bài toán gốc của Builder vẫn còn nguyên",
+        "",
+        "Record validate được rất gọn qua compact constructor — đó là một trong những tính năng chính của nó",
+        "JDK không sinh builder cho record; muốn có phải tự viết hoặc dùng công cụ sinh code"
+      ]
+    },
+    {
+      "id": "d-19-8",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Ứng dụng dùng Observer, heap tăng dần theo thời gian chạy dù không lưu thêm dữ liệu nghiệp vụ nào. Nguyên nhân khả dĩ nhất?",
+      "code": "class EventBus {\n    private final List<Runnable> listeners = new ArrayList<>();\n    void subscribe(Runnable r) { listeners.add(r); }\n    void unsubscribe(Runnable r) { listeners.remove(r); }\n}\n\n// trong moi lan mo man hinh\nbus.subscribe(() -> screen.refresh());",
+      "choices": [
+        "ArrayList tự tăng dung lượng nên chiếm bộ nhớ theo cấp số nhân",
+        "Lambda tạo một class mới mỗi lần chạy nên metaspace tăng",
+        "EventBus giữ tham chiếu mạnh tới listener; lambda bắt biến screen nên giữ luôn cả màn hình, và không có tham chiếu nào để gọi unsubscribe",
+        "Runnable không được GC dọn vì nó là functional interface"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Subject thường sống lâu hơn listener, nên danh sách listener bằng tham chiếu mạnh sẽ giữ mọi thứ mà listener bắt được — ở đây lambda capture biến screen nên toàn bộ màn hình cùng đồ thị object của nó không bao giờ được GC dọn. Tình huống còn tệ hơn vì lambda là một object vô danh: bạn không giữ tham chiếu nào để truyền vào unsubscribe, mà remove() lại so sánh bằng equals nên một lambda mới tương đương về code cũng không khớp. Cách xử lý: giữ tham chiếu listener để gỡ tường minh, gắn vòng đời đăng ký với vòng đời màn hình, hoặc dùng WeakReference kèm cơ chế dọn.",
+      "whyWrong": [
+        "ArrayList tăng dung lượng theo hệ số cố định và phần đó không đáng kể; thứ chiếm bộ nhớ là các object bị listener giữ lại",
+        "Lambda được liên kết một lần qua invokedynamic và class sinh ra được tái sử dụng; số lượng class không tăng theo mỗi lần gọi",
+        "",
+        "Functional interface không có ảnh hưởng gì tới GC; object bị giữ lại chỉ vì còn tham chiếu mạnh từ danh sách listener"
+      ]
+    },
+    {
+      "id": "d-19-9",
+      "topicId": 19,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Nhận định nào đúng về Dependency Injection và Service Locator?",
+      "choices": [
+        "DI là một Creational Pattern trong sách GoF, còn Service Locator là biến thể của nó",
+        "Cả hai đều là pattern GoF, khác nhau ở chỗ DI dùng constructor còn Service Locator dùng static method",
+        "DI không nằm trong danh mục GoF mà là một dạng Inversion of Control; Service Locator bị coi là anti-pattern vì giấu phụ thuộc khỏi chữ ký và khiến lỗi chỉ lộ lúc runtime",
+        "Service Locator tốt hơn DI trong ứng dụng lớn vì giảm số tham số constructor"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Sách GoF xuất bản năm 1994 không có Dependency Injection; thuật ngữ do Martin Fowler đặt năm 2004 để mô tả một dạng cụ thể của Inversion of Control, và nó gắn với Dependency Inversion Principle trong SOLID. Service Locator giải cùng bài toán nhưng theo chiều ngược lại: object tự đi lấy phụ thuộc từ một registry toàn cục, nên nhìn constructor không biết class cần những gì, test phải dựng cả registry, và thiếu phụ thuộc chỉ vỡ lúc chạy thay vì lỗi biên dịch. Chi tiết đáng nói thêm: constructor có quá nhiều tham số là một tín hiệu tốt cho biết class đang ôm quá nhiều trách nhiệm — che nó đi bằng Service Locator là bỏ mất tín hiệu đó.",
+      "whyWrong": [
+        "GoF không có DI; danh mục Creational của họ gồm Singleton, Factory Method, Abstract Factory, Builder, Prototype",
+        "Cả DI lẫn Service Locator đều không nằm trong 23 pattern GoF, và điểm phân biệt là chiều của luồng phụ thuộc chứ không phải cú pháp",
+        "",
+        "Số tham số constructor lớn là triệu chứng cần refactor chứ không phải vấn đề cần che giấu; Service Locator chỉ làm phụ thuộc trở nên vô hình"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1248 @@
+{
+  "tutorials": [
+    {
+      "id": "t-1-1",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Tràn số nguyên, numeric promotion và phép chia nguyên",
+      "summary": "Vì sao một phép nhân trông vô hại lại cho ra số âm, và Java định nghĩa hành vi tràn số như thế nào.",
+      "sections": [
+        "<b>Kiểu nguyên thuỷ có kích thước cố định và tràn số là hành vi được định nghĩa.</b> <code>int</code> là 32 bit bù hai, phạm vi từ -2^31 tới 2^31-1; <code>long</code> là 64 bit. Khi kết quả vượt phạm vi, Java <i>không</i> ném exception mà lấy modulo 2^32 (hoặc 2^64) rồi diễn giải lại theo bù hai — tức là quấn vòng (wrap-around). Đây là hành vi có trong đặc tả, hoàn toàn xác định, không phụ thuộc JVM hay nền tảng, nên <code>Integer.MAX_VALUE + 1</code> luôn bằng <code>Integer.MIN_VALUE</code>.",
+        "<b>Bẫy kinh điển: biểu thức được tính bằng int rồi mới gán vào long.</b> Dòng <code>long ms = 1000 * 60 * 60 * 24 * 30;</code> cho ra -1702967296 chứ không phải 2592000000. Lý do là kiểu của một biểu thức do <i>các toán hạng</i> quyết định chứ không phải do kiểu của biến đích; cả năm số đều là literal <code>int</code> nên phép nhân diễn ra hoàn toàn trong 32 bit, tràn ngay tại đó, và việc mở rộng lên <code>long</code> chỉ xảy ra <i>sau khi</i> đã mất bit. Sửa bằng cách để một toán hạng là <code>long</code>: <code>1000L * 60 * 60 * 24 * 30</code>.",
+        "<b>Numeric promotion nâng mọi thứ nhỏ hơn int lên int.</b> <code>byte</code>, <code>short</code>, <code>char</code> đều được nâng lên <code>int</code> trước khi tính, nên <code>byte a = 1, b = 2; byte c = a + b;</code> không biên dịch được — vế phải có kiểu <code>int</code>. Nhưng toán tử gán rút gọn (<code>+=</code>, <code>-=</code>, <code>*=</code>) mang sẵn một phép ép kiểu ngầm về kiểu của vế trái, nên <code>b += 300;</code> lại biên dịch trót lọt và âm thầm cắt bit. Đây là chỗ nhiều người bất ngờ vì hai dạng viết tưởng là tương đương.",
+        "<b>Phép chia số nguyên cắt về phía 0, không phải làm tròn xuống.</b> <code>-7 / 2</code> bằng -3 chứ không phải -4, và <code>-7 % 2</code> bằng -1 — phần dư trong Java mang dấu của số bị chia. <code>Math.floorDiv</code> và <code>Math.floorMod</code> (có từ Java 8) mới là phiên bản làm tròn xuống, cho -4 và 1. Chi tiết này quan trọng thật sự khi băm: <code>hash % numShards</code> có thể ra số âm và làm vỡ chỉ số mảng, còn <code>Math.floorMod(hash, numShards)</code> thì luôn không âm khi số chia dương.",
+        "<b>Phát hiện tràn thay vì cầu may.</b> Từ Java 8, <code>Math.addExact</code>, <code>Math.multiplyExact</code>, <code>Math.subtractExact</code>, <code>Math.toIntExact</code> ném <code>ArithmeticException</code> khi kết quả không biểu diễn được. Với code tài chính, đếm số lượng, hay tính offset, đây nên là mặc định: một exception ồn ào tốt hơn nhiều so với một số âm lặng lẽ chảy vào cơ sở dữ liệu.",
+        "<b>Chia cho 0 hành xử khác nhau giữa số nguyên và số thực.</b> <code>1 / 0</code> ném <code>ArithmeticException</code>, còn <code>1.0 / 0</code> trả về <code>Double.POSITIVE_INFINITY</code> và <code>0.0 / 0.0</code> trả về <code>NaN</code> mà không ném gì cả. Nghĩa là một lỗi chia 0 trong tính toán <code>double</code> có thể lan truyền im lặng qua nhiều tầng rồi mới lộ ra ở một chỗ hoàn toàn khác."
+      ],
+      "example": "long wrong = 1000 * 60 * 60 * 24 * 30;   // -1702967296\nlong right = 1000L * 60 * 60 * 24 * 30;  // 2592000000\n\nSystem.out.println(Integer.MAX_VALUE + 1); // -2147483648\nSystem.out.println(Math.addExact(Integer.MAX_VALUE, 1)); // ArithmeticException\n\nSystem.out.println(-7 / 2);                 // -3\nSystem.out.println(-7 % 2);                 // -1\nSystem.out.println(Math.floorDiv(-7, 2));   // -4\nSystem.out.println(Math.floorMod(-7, 2));   // 1\n\nbyte b = 10;\n// b = b + 300;  // không biên dịch được\nb += 300;        // biên dịch được: (byte)(10 + 300) = 54\nSystem.out.println(b);",
+      "exampleTitle": "Tràn số, chia nguyên và ép kiểu ngầm",
+      "keyPoints": [
+        "Kiểu của biểu thức do toán hạng quyết định, không phải do kiểu của biến được gán vào.",
+        "Tràn số int/long là quấn vòng theo modulo, được đặc tả rõ, không ném exception.",
+        "byte/short/char luôn được nâng lên int trước khi tính toán.",
+        "Toán tử += mang một phép ép kiểu ngầm, nên nó không tương đương với a = a + b.",
+        "Phép chia nguyên cắt về 0; dùng Math.floorDiv/floorMod khi cần làm tròn xuống và phần dư không âm."
+      ],
+      "trap": "Người phỏng vấn đưa một biểu thức nhân toàn literal int gán vào biến long rồi hỏi kết quả. Trả lời 2592000000 là sai; phép nhân đã tràn trong 32 bit trước khi được mở rộng thành long.",
+      "followUp": [
+        "Làm sao viết hàm cộng hai int mà phát hiện được tràn nếu không có Math.addExact?",
+        "Vì sao Math.abs(Integer.MIN_VALUE) lại trả về chính Integer.MIN_VALUE?",
+        "Khi băm rồi lấy phần dư để chọn shard, vì sao nên dùng Math.floorMod thay vì toán tử %?"
+      ]
+    },
+    {
+      "id": "t-1-2",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Autoboxing, Integer cache và bẫy == với wrapper",
+      "summary": "Vì sao 127 == 127 cho true nhưng 128 == 128 cho false, và vì sao unboxing là nguồn NullPointerException phổ biến nhất.",
+      "sections": [
+        "<b>Autoboxing chỉ là đường cú pháp do compiler sinh ra.</b> <code>Integer i = 5;</code> được biên dịch thành <code>Integer.valueOf(5)</code>, còn <code>int n = i;</code> thành <code>i.intValue()</code>. Hiểu điều này là chìa khoá cho mọi câu hỏi vặn về wrapper: mọi hành vi lạ đều truy về hai lời gọi đó chứ không có phép màu nào ở tầng JVM.",
+        "<b>Integer cache khiến == cho kết quả không nhất quán.</b> <code>Integer.valueOf</code> trả về object dùng lại từ một mảng đúc sẵn cho các giá trị -128..127, nên hai <code>Integer</code> cùng bằng 127 là <i>cùng một object</i> và <code>==</code> cho <code>true</code>; với 128 thì mỗi lần tạo một object mới nên <code>==</code> cho <code>false</code>. <code>Byte</code>, <code>Short</code>, <code>Long</code> cũng cache -128..127, <code>Character</code> cache 0..127, còn <code>Boolean</code> luôn dùng hai instance có sẵn. Cận trên của cache Integer có thể chỉnh bằng cờ JVM <code>-XX:AutoBoxCacheMax</code>, nên đây còn là hành vi phụ thuộc cấu hình — thêm một lý do để không bao giờ dựa vào nó.",
+        "<b>Quy tắc rút ra: == trên wrapper là so sánh tham chiếu.</b> Luôn dùng <code>equals()</code> hoặc so sánh trên kiểu nguyên thuỷ (<code>a.intValue() == b.intValue()</code>). Điều đáng sợ của lỗi này là nó vượt qua mọi test dùng số nhỏ và chỉ vỡ khi dữ liệu thật lớn hơn 127 — một dạng lỗi rất khó truy khi đã lên production.",
+        "<b>Unboxing một giá trị null ném NullPointerException.</b> <code>int n = map.get(\"missing\");</code> ném NPE ngay tại chỗ vì <code>get</code> trả về <code>null</code> rồi compiler chèn <code>.intValue()</code> vào. Stack trace chỉ vào dòng gán chứ không nói gì về map, nên người mới thường tìm sai chỗ. Cách phòng: <code>map.getOrDefault(key, 0)</code>, hoặc giữ kiểu <code>Integer</code> và kiểm tra null tường minh.",
+        "<b>Toán tử ba ngôi trộn wrapper với primitive là một bẫy tinh vi.</b> Trong <code>Integer x = null; Object o = flag ? x : 0;</code>, vì một nhánh là <code>int</code> nên toàn bộ biểu thức được đưa về kiểu số và <code>x</code> bị unbox — NPE xảy ra ngay cả khi bạn chỉ định gán vào <code>Object</code>. Muốn tránh thì cả hai nhánh phải cùng là kiểu tham chiếu, ví dụ viết <code>Integer.valueOf(0)</code> thay cho <code>0</code>.",
+        "<b>Đánh đổi hiệu năng: boxing tạo rác.</b> <code>Long sum = 0L; for (long i = 0; i &lt; n; i++) sum += i;</code> sinh ra n object <code>Long</code> vì mỗi lần <code>+=</code> là unbox, cộng, rồi box lại. Với vòng lặp lớn, chênh lệch so với dùng <code>long</code> có thể tới hàng chục lần do áp lực cấp phát và GC. Trong code nóng nên dùng kiểu nguyên thuỷ, mảng nguyên thuỷ, hoặc <code>IntStream</code>/<code>LongStream</code> thay vì <code>Stream&lt;Integer&gt;</code>."
+      ],
+      "example": "Integer a = 127, b = 127;\nInteger c = 128, d = 128;\nSystem.out.println(a == b);       // true  - lấy từ cache\nSystem.out.println(c == d);       // false - hai object khác nhau\nSystem.out.println(c.equals(d));  // true  - so sánh giá trị\n\nMap<String, Integer> counts = new HashMap<>();\n// int n = counts.get(\"missing\"); // NullPointerException khi unbox null\nint n = counts.getOrDefault(\"missing\", 0); // an toàn\n\nInteger x = null;\nboolean flag = true;\n// Object o = flag ? x : 0;      // NPE: nhánh int ép unbox x",
+      "exampleTitle": "Cache, so sánh và unboxing null",
+      "keyPoints": [
+        "Autoboxing = Integer.valueOf(), unboxing = intValue(); mọi hành vi lạ đều giải thích được từ đó.",
+        "Cache -128..127 (Character 0..127) khiến == cho kết quả khác nhau tuỳ giá trị.",
+        "Luôn dùng equals() cho wrapper; == chỉ đúng khi bạn thật sự muốn so sánh tham chiếu.",
+        "map.get() trả null rồi bị unbox là nguyên nhân NPE rất hay gặp; dùng getOrDefault.",
+        "Boxing trong vòng lặp nóng tạo rác lớn — ưu tiên primitive và IntStream/LongStream."
+      ],
+      "trap": "Câu hỏi vặn quen thuộc là in ra kết quả của (a == b) với 127 và với 128 rồi hỏi vì sao khác nhau. Nói 'vì Java so sánh giá trị' là sai hoàn toàn; phải nói được rằng == so sánh tham chiếu và Integer.valueOf dùng lại object trong khoảng cache.",
+      "followUp": [
+        "Nếu đặt -XX:AutoBoxCacheMax=1000 thì kết quả của Integer c = 128, d = 128; c == d thay đổi thế nào?",
+        "Long a = 128L; long b = 128L; a == b cho kết quả gì và vì sao lại khác trường hợp hai Long?",
+        "Vì sao Stream<Integer> thường chậm hơn IntStream trong các phép rút gọn số học?"
+      ]
+    },
+    {
+      "id": "t-1-3",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "double, IEEE 754 và vì sao tiền tệ không được dùng số thực",
+      "summary": "Cơ chế đứng sau kết quả 0.1 + 0.2 = 0.30000000000000004 và cách chọn giữa BigDecimal với số nguyên đơn vị nhỏ nhất.",
+      "sections": [
+        "<b>float và double lưu số theo cơ số 2, nên phần lớn số thập phân không biểu diễn được chính xác.</b> Giống như 1/3 không viết hết được trong hệ thập phân, 0.1 không viết hết được trong hệ nhị phân; giá trị lưu thực tế là một xấp xỉ gần nhất trong 53 bit định trị của <code>double</code>. Vì thế <code>0.1 + 0.2</code> in ra 0.30000000000000004 và <code>0.1 + 0.2 == 0.3</code> cho <code>false</code>. Đây không phải lỗi của Java mà là chuẩn IEEE 754, đúng như vậy ở mọi ngôn ngữ.",
+        "<b>So sánh số thực bằng == gần như luôn sai.</b> Cách đúng là so sánh sai số: <code>Math.abs(a - b) &lt; epsilon</code>, với epsilon chọn theo miền giá trị. Ngoài ra <code>NaN</code> không bằng chính nó (<code>Double.NaN == Double.NaN</code> là <code>false</code>) trong khi <code>Double.valueOf(Double.NaN).equals(...)</code> lại là <code>true</code>; và <code>-0.0 == 0.0</code> là <code>true</code> nhưng <code>Double.valueOf(-0.0).equals(Double.valueOf(0.0))</code> là <code>false</code>. Sự lệch pha giữa <code>==</code> và <code>equals</code>/<code>compare</code> này ảnh hưởng trực tiếp tới việc sắp xếp và tới key của <code>HashMap</code>/<code>TreeMap</code>.",
+        "<b>Sai số tích luỹ mới là vấn đề thật của hệ thống tài chính.</b> Một phép cộng lệch 10^-17 thì vô hại, nhưng cộng dồn hàng triệu dòng giao dịch và nhân với tỉ giá thì sai lệch nổi lên tới mức người dùng nhìn thấy, và quan trọng hơn là báo cáo không khớp giữa hai lần tính theo thứ tự khác nhau — phép cộng <code>double</code> không có tính kết hợp.",
+        "<b>BigDecimal đúng nhưng phải dùng đúng constructor.</b> <code>new BigDecimal(0.1)</code> nhận vào một <code>double</code> đã sai sẵn nên giữ nguyên sai số nhị phân dài dằng dặc; phải dùng <code>new BigDecimal(\"0.1\")</code> hoặc <code>BigDecimal.valueOf(0.1)</code> (bản này đi qua <code>Double.toString</code> nên cho đúng 0.1). Ngoài ra <code>equals</code> của <code>BigDecimal</code> so cả <i>scale</i> nên <code>2.0</code> không <code>equals</code> <code>2.00</code>; muốn so giá trị phải dùng <code>compareTo(...) == 0</code>. Đây là hai câu hỏi vặn rất hay gặp.",
+        "<b>Phép chia của BigDecimal có thể ném exception.</b> <code>a.divide(b)</code> khi kết quả là số thập phân vô hạn tuần hoàn (ví dụ 1 chia 3) sẽ ném <code>ArithmeticException</code>; bắt buộc phải truyền scale và <code>RoundingMode</code>. Quy tắc thực hành là luôn nêu rõ chính sách làm tròn ở mọi phép chia tiền tệ, vì đó là quyết định nghiệp vụ chứ không phải chi tiết kỹ thuật.",
+        "<b>Đánh đổi: BigDecimal chính xác nhưng đắt.</b> Mỗi phép toán tạo object bất biến mới và chạy trên mảng số nguyên nên chậm hơn <code>double</code> nhiều lần và tạo áp lực GC. Vì thế nhiều hệ thống giao dịch tần suất cao lưu tiền bằng <code>long</code> theo đơn vị nhỏ nhất (xu, hoặc đồng) và chỉ đổi sang <code>BigDecimal</code> ở biên hiển thị. Cách này nhanh và chính xác tuyệt đối với cộng trừ, đổi lại phải tự quản lý scale và cẩn thận với tràn số."
+      ],
+      "example": "System.out.println(0.1 + 0.2);            // 0.30000000000000004\nSystem.out.println(0.1 + 0.2 == 0.3);    // false\n\nSystem.out.println(new BigDecimal(0.1));        // 0.1000000000000000055511151231257827...\nSystem.out.println(new BigDecimal(\"0.1\"));      // 0.1\nSystem.out.println(BigDecimal.valueOf(0.1));    // 0.1\n\nBigDecimal a = new BigDecimal(\"2.0\");\nBigDecimal b = new BigDecimal(\"2.00\");\nSystem.out.println(a.equals(b));          // false - khác scale\nSystem.out.println(a.compareTo(b) == 0);  // true  - bằng giá trị\n\n// BigDecimal.ONE.divide(new BigDecimal(\"3\")); // ArithmeticException\nSystem.out.println(BigDecimal.ONE.divide(new BigDecimal(\"3\"), 4, RoundingMode.HALF_UP)); // 0.3333",
+      "exampleTitle": "Sai số nhị phân và cách dùng BigDecimal cho đúng",
+      "keyPoints": [
+        "double theo IEEE 754 là xấp xỉ nhị phân; đa số số thập phân không biểu diễn chính xác được.",
+        "Không so sánh double bằng ==; NaN và -0.0 còn khiến ==, equals và compare cho ba kết quả khác nhau.",
+        "new BigDecimal(double) giữ nguyên sai số — dùng chuỗi hoặc BigDecimal.valueOf.",
+        "BigDecimal.equals so cả scale; muốn so giá trị phải dùng compareTo() == 0.",
+        "divide không có RoundingMode có thể ném ArithmeticException khi kết quả vô hạn tuần hoàn.",
+        "Đánh đổi hiệu năng: long theo đơn vị nhỏ nhất nhanh hơn BigDecimal nhiều, đổi lại tự quản lý scale."
+      ],
+      "trap": "Nhiều người trả lời 'dùng BigDecimal là xong' rồi lại viết new BigDecimal(0.1) — vẫn sai y hệt vì sai số đã nằm sẵn trong literal double trước khi BigDecimal nhận được nó.",
+      "followUp": [
+        "Vì sao phép cộng double không có tính kết hợp, và điều đó ảnh hưởng gì tới tổng hợp song song bằng Stream?",
+        "Khi nào bạn chọn long theo đơn vị xu thay vì BigDecimal, và rủi ro của lựa chọn đó là gì?",
+        "float và double khác nhau ở bao nhiêu chữ số thập phân đáng tin, và vì sao hầu như không nên dùng float?"
+      ]
+    },
+    {
+      "id": "t-1-4",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Toán tử: thứ tự đánh giá, tăng giảm và short-circuit",
+      "summary": "Java định nghĩa chặt thứ tự đánh giá, nên các biểu thức như x++ + ++x có kết quả xác định — và điều đó biến chúng thành câu hỏi phỏng vấn.",
+      "sections": [
+        "<b>Java đánh giá toán hạng từ trái sang phải, luôn luôn.</b> Khác với C/C++ nơi thứ tự này là undefined behavior, đặc tả Java quy định toán hạng trái được đánh giá hoàn toàn (kể cả hiệu ứng phụ) trước toán hạng phải. Nhờ vậy <code>x++ + ++x</code> có một kết quả duy nhất, giống nhau trên mọi JVM. Với <code>x = 5</code>: <code>x++</code> trả về 5 và đẩy x lên 6, rồi <code>++x</code> đẩy x lên 7 và trả về 7, nên tổng là 12 và x còn lại 7.",
+        "<b>Hệ quả của quy tắc đó: i = i++ không tăng gì cả.</b> Vế phải được đánh giá trước, cho ra giá trị cũ; sau đó biến được tăng; rồi phép gán ghi đè giá trị cũ trở lại. Kết quả là <code>i</code> giữ nguyên. Đây là ví dụ điển hình cho việc hiểu 'gán xảy ra sau cùng' quan trọng thế nào.",
+        "<b>&amp;&amp; và || cắt ngắn, còn &amp; và | thì không.</b> Trên toán hạng <code>boolean</code>, <code>&amp;</code> và <code>|</code> vẫn là toán tử logic hợp lệ nhưng luôn đánh giá cả hai vế. Vì thế <code>if (arr != null &amp; arr.length &gt; 0)</code> ném <code>NullPointerException</code> khi <code>arr</code> null, trong khi <code>&amp;&amp;</code> thì an toàn. Lỗi gõ thiếu một ký tự này rất khó nhìn thấy khi đọc lướt code.",
+        "<b>Nhưng short-circuit không phải lúc nào cũng là thứ ta muốn.</b> Nếu vế phải có hiệu ứng phụ cần thiết — ví dụ ghi log hoặc thu thập toàn bộ lỗi validate — thì <code>&amp;&amp;</code> sẽ bỏ qua nó. Trong trường hợp đó nên tách thành hai câu lệnh tường minh thay vì dựa vào <code>&amp;</code>, để người đọc sau không tưởng là gõ nhầm.",
+        "<b>Toán tử + với String phụ thuộc thứ tự.</b> <code>1 + 2 + \"a\"</code> cho <code>\"3a\"</code> vì hai số cộng trước; còn <code>\"a\" + 1 + 2</code> cho <code>\"a12\"</code> vì phép đầu đã biến kết quả thành String. Cùng các toán hạng, hai kết quả khác nhau — chỉ do tính kết hợp trái sang phải.",
+        "<b>Toán tử dịch bit lấy modulo số bit.</b> Với <code>int</code>, khoảng dịch được lấy 5 bit thấp (tức modulo 32), nên <code>1 &lt;&lt; 32</code> bằng 1 chứ không phải 0; với <code>long</code> là modulo 64. Ngoài ra <code>&gt;&gt;</code> giữ dấu còn <code>&gt;&gt;&gt;</code> chèn 0 vào bit cao — dùng <code>&gt;&gt;</code> cho số âm khi tính chỉ số băm sẽ cho kết quả âm, đó là lý do <code>HashMap</code> trong JDK dùng phép dịch không dấu khi trộn hash."
+      ],
+      "example": "int x = 5;\nint y = x++ + ++x;\nSystem.out.println(x + \" \" + y);   // 7 12\n\nint i = 0;\ni = i++;\nSystem.out.println(i);             // 0\n\nint[] arr = null;\n// if (arr != null & arr.length > 0) {}  // NullPointerException\nif (arr != null && arr.length > 0) {}    // an toàn\n\nSystem.out.println(1 + 2 + \"a\");   // 3a\nSystem.out.println(\"a\" + 1 + 2);   // a12\nSystem.out.println(1 << 32);       // 1  (khoảng dịch lấy modulo 32)\nSystem.out.println(-8 >> 1);       // -4\nSystem.out.println(-8 >>> 1);      // 2147483644",
+      "exampleTitle": "Thứ tự đánh giá và các toán tử hay bị hiểu nhầm",
+      "keyPoints": [
+        "Java đánh giá toán hạng trái trước toán hạng phải, nên x++ + ++x có kết quả xác định.",
+        "Phép gán xảy ra sau cùng, vì thế i = i++ không làm i thay đổi.",
+        "& và | trên boolean là logic nhưng KHÔNG cắt ngắn — nguồn NPE khi kiểm tra null.",
+        "Phép + với String phụ thuộc thứ tự vì kết hợp từ trái sang phải.",
+        "Khoảng dịch bit lấy modulo 32 với int và modulo 64 với long; >> giữ dấu, >>> thì không."
+      ],
+      "trap": "Người phỏng vấn viết if (obj != null & obj.getX() > 0) và hỏi code có an toàn không. Nhiều ứng viên đọc lướt thành && rồi khẳng định an toàn; thực tế nó ném NPE vì cả hai vế đều được đánh giá.",
+      "followUp": [
+        "Trong Java thứ tự đánh giá toán hạng có được đảm bảo không, và điều đó khác C++ ra sao?",
+        "Vì sao HashMap dùng >>> khi trộn hash chứ không dùng >>?",
+        "Biểu thức nào cho thấy rõ nhất sự khác nhau giữa && và &, ngoài trường hợp kiểm tra null?"
+      ]
+    },
+    {
+      "id": "t-1-5",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Phạm vi biến, giá trị mặc định, shadowing và luồng điều khiển",
+      "summary": "Vì sao field tự có giá trị mặc định còn biến local thì không, và những chỗ luồng điều khiển của Java hay đánh lừa người đọc.",
+      "sections": [
+        "<b>Biến local không có giá trị mặc định, field thì có.</b> Field và phần tử mảng nằm trong vùng nhớ được JVM xoá sạch khi cấp phát nên tự nhận 0, <code>0.0</code>, <code>false</code>, <code>'\\u0000'</code> hoặc <code>null</code>. Biến local nằm trên stack frame, nơi không được xoá, nên compiler áp dụng quy tắc <i>definite assignment</i>: nếu tồn tại một đường đi tới điểm sử dụng mà biến chưa chắc chắn được gán thì code không biên dịch được. Đây là an toàn ở tầng compiler chứ không phải ở tầng runtime.",
+        "<b>Mảng object mặc định toàn null, và đó là bẫy thật.</b> <code>new int[3]</code> cho ba số 0, nhưng <code>new String[3]</code> cho ba <code>null</code> — duyệt mảng rồi gọi method trên phần tử sẽ ném NPE dù mảng đã 'được khởi tạo'. Tương tự, mảng hai chiều <code>new int[3][]</code> chỉ tạo hàng ngoài, các hàng con vẫn là null cho tới khi bạn tự cấp phát.",
+        "<b>Shadowing: tên gần nhất thắng.</b> Khi tham số method trùng tên field, mọi tham chiếu trần trong method trỏ tới tham số, nên <code>name = name;</code> trong setter là một câu lệnh vô nghĩa và field không bao giờ được gán — phải viết <code>this.name = name</code>. Biến khai báo trong một block cũng che biến cùng tên ở block ngoài, và biến vòng lặp chỉ sống trong vòng lặp.",
+        "<b>Lambda không tạo phạm vi tên mới, anonymous class thì có.</b> Trong lambda bạn <i>không</i> được khai báo tham số hay biến trùng tên với biến local bao ngoài — compiler báo lỗi; còn anonymous class thì được phép che tên đó. Sự khác biệt này là chủ đích: lambda được thiết kế 'trong suốt' về mặt phạm vi, để đọc lambda giống như đọc code xung quanh nó.",
+        "<b>Biến local dùng trong lambda hoặc inner class phải là effectively final.</b> Vì stack frame có thể đã biến mất khi lambda chạy, giá trị biến được <i>sao chép</i> vào đối tượng đại diện cho lambda. Nếu cho phép biến đổi sau đó, hai bên sẽ nhìn thấy hai giá trị khác nhau và không có ngữ nghĩa nào hợp lý. Từ Java 8, không cần viết <code>final</code> nữa nhưng biến vẫn phải không bị gán lại; muốn chia sẻ trạng thái thay đổi được thì dùng field, mảng một phần tử, hoặc <code>AtomicInteger</code>.",
+        "<b>Luồng điều khiển: fall-through và các dạng switch qua từng phiên bản.</b> <code>switch</code> dạng cũ với dấu hai chấm sẽ chạy tràn xuống nhánh sau nếu thiếu <code>break</code> — nguồn lỗi kinh điển. <code>switch</code> nhận <code>String</code> từ Java 7. Biểu thức <code>switch</code> với mũi tên và <code>yield</code> trở thành tính năng chuẩn từ Java 14, nên có sẵn ở Java 17 và 21; dạng mũi tên không tràn nhánh và có thể trả về giá trị. Pattern matching cho <code>switch</code> là tính năng chuẩn từ Java 21. Ngoài ra, sửa một collection trong khi duyệt bằng vòng for-each sẽ ném <code>ConcurrentModificationException</code>; muốn xoá phần tử phải dùng <code>Iterator.remove()</code> hoặc <code>removeIf</code>."
+      ],
+      "example": "class Config {\n    private String name;      // field: mặc định null\n    private int retries;      // field: mặc định 0\n\n    void setName(String name) {\n        name = name;          // shadowing: field không hề thay đổi\n        this.name = name;     // đúng\n    }\n\n    void demo() {\n        int local;\n        // System.out.println(local); // lỗi biên dịch: chưa chắc được gán\n        local = 1;\n        System.out.println(local);\n\n        String[] names = new String[3];\n        // System.out.println(names[0].length()); // NPE: phần tử là null\n\n        int total = 0;\n        List<Integer> nums = List.of(1, 2, 3);\n        // nums.forEach(n -> total += n); // lỗi: total không effectively final\n        int[] box = {0};\n        nums.forEach(n -> box[0] += n);\n        System.out.println(box[0]);\n    }\n}",
+      "exampleTitle": "Mặc định, shadowing và effectively final",
+      "keyPoints": [
+        "Field và phần tử mảng có giá trị mặc định; biến local thì không, compiler ép phải gán trước khi dùng.",
+        "Mảng kiểu tham chiếu mặc định toàn null — 'đã khởi tạo mảng' không có nghĩa là đã có object.",
+        "Tham số trùng tên field che field; thiếu this. là lỗi im lặng vì code vẫn biên dịch.",
+        "Lambda không cho che tên biến local bao ngoài, anonymous class thì cho.",
+        "Biến local bị lambda bắt phải effectively final vì giá trị được sao chép chứ không tham chiếu.",
+        "switch dạng mũi tên (chuẩn từ Java 14, có ở 17 và 21) không tràn nhánh và dùng được như biểu thức."
+      ],
+      "trap": "Hỏi 'vì sao lambda bắt buộc biến phải effectively final?' — trả lời 'vì quy định của Java' là chưa đủ. Điểm mấu chốt là biến local nằm trên stack và được capture theo giá trị, nên nếu cho gán lại thì hai bên sẽ thấy hai giá trị khác nhau.",
+      "followUp": [
+        "Vì sao capture một field của object thì không cần effectively final còn biến local thì cần?",
+        "Cách nào xoá phần tử khi đang duyệt collection mà không bị ConcurrentModificationException?",
+        "switch dạng mũi tên khác switch dạng hai chấm ở những điểm nào ngoài chuyện fall-through?"
+      ]
+    },
+    {
+      "id": "t-2-1",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Kế thừa, diamond problem và xung đột default method",
+      "summary": "Vì sao Java cấm đa kế thừa class nhưng cho đa kế thừa interface, và Java 8 đã làm vấn đề quay lại như thế nào.",
+      "sections": [
+        "<b>Một class cha, nhiều interface — đó là lựa chọn thiết kế.</b> Java dùng <code>extends</code> cho class và <code>implements</code> cho interface; một class chỉ <code>extends</code> được đúng một class nhưng <code>implements</code> bao nhiêu interface cũng được. Đây không phải hạn chế kỹ thuật của JVM mà là quyết định có chủ đích nhằm loại bỏ một lớp lỗi ngay từ ngữ pháp.",
+        "<b>Diamond problem.</b> Nếu D kế thừa cả B và C, mà B và C cùng kế thừa A và cùng override một method, thì khi gọi method đó trên D không có quy tắc tự nhiên nào để chọn giữa bản của B và bản của C. Nghiêm trọng hơn là vấn đề <i>state</i>: nếu A có field, D sẽ chứa một hay hai bản sao của field đó? C++ phải đẻ ra cơ chế virtual inheritance chỉ để trả lời câu hỏi này; Java chọn cách chặn từ gốc.",
+        "<b>Vì sao nhiều interface lại an toàn.</b> Trước Java 8, interface không có field instance và không có thân method, nên kế thừa nhiều interface chỉ là gộp các chữ ký lại; không có state để nhân đôi và không có hai bản cài đặt để chọn — implementation duy nhất luôn nằm ở class. Nói cách khác Java cho đa kế thừa <i>kiểu</i> chứ không cho đa kế thừa <i>cài đặt</i> hay <i>state</i>.",
+        "<b>Java 8 mang xung đột hành vi quay lại qua default method.</b> Khi hai interface cùng cung cấp một <code>default</code> method có cùng chữ ký, compiler báo lỗi 'inherits unrelated defaults' và buộc class phải override để chọn rõ ràng; bên trong bản override có thể ủy quyền bằng cú pháp <code>Flyer.super.move()</code>. Điểm quan trọng cần nói được khi phỏng vấn: Java 8 đã có đa kế thừa <i>hành vi</i>, nhưng vẫn không có đa kế thừa <i>state</i>.",
+        "<b>Hai quy tắc ưu tiên cần nhớ.</b> Thứ nhất, method kế thừa từ superclass luôn thắng default method của interface — thường gọi là quy tắc 'class wins'. Thứ hai, giữa các interface thì interface cụ thể hơn thắng: nếu <code>B extends A</code> và cả hai đều có default cùng chữ ký thì bản của B được chọn, không có xung đột. Chỉ khi hai bản không có quan hệ kế thừa với nhau thì compiler mới bắt bạn quyết định.",
+        "<b>Default method sinh ra để tiến hoá API, không phải để thay abstract class.</b> Khi Java 8 muốn thêm <code>stream()</code> vào <code>Collection</code>, nếu đó là abstract method thì mọi implementation trên thế giới sẽ không biên dịch được nữa. <code>default</code> giải quyết đúng bài toán tương thích ngược đó. Interface vẫn không có state, không có constructor, và không kiểm soát được vòng đời object — những điều abstract class làm được."
+      ],
+      "example": "interface Flyer  { default String move() { return \"bay\"; } }\ninterface Swimmer { default String move() { return \"bơi\"; } }\n\n// class Duck implements Flyer, Swimmer { }\n// -> lỗi biên dịch: inherits unrelated defaults for move()\n\nclass Duck implements Flyer, Swimmer {\n    @Override\n    public String move() {\n        return Flyer.super.move() + \" và \" + Swimmer.super.move();\n    }\n}\n\n// Quy tắc \"class wins\"\ninterface Greeter { default String hello() { return \"từ interface\"; } }\nclass Base { public String hello() { return \"từ class cha\"; } }\nclass Child extends Base implements Greeter { }\n// new Child().hello() -> \"từ class cha\"",
+      "exampleTitle": "Xung đột default method và cách giải",
+      "keyPoints": [
+        "Java cấm đa kế thừa class để tránh diamond problem về cả hành vi lẫn state.",
+        "Đa kế thừa interface an toàn vì interface không có field instance.",
+        "Từ Java 8, hai default method trùng chữ ký gây lỗi biên dịch, phải override và dùng Interface.super.method().",
+        "Quy tắc ưu tiên: class thắng interface; interface con thắng interface cha.",
+        "Default method ra đời để tiến hoá API mà không phá code cũ, không phải để thay abstract class."
+      ],
+      "trap": "Câu hỏi 'Java 8 có đa kế thừa không?' thường bị trả lời cụt là 'không'. Đáp án chuẩn: có đa kế thừa hành vi qua default method, nhưng vẫn không có đa kế thừa state, và xung đột hành vi bị compiler bắt phải giải quyết tường minh.",
+      "followUp": [
+        "Nếu một interface có default method còn superclass có method trừu tượng cùng chữ ký thì bản nào được dùng?",
+        "Vì sao interface không thể có field instance dù đã có default method?",
+        "Interface private method ra đời từ phiên bản nào và giải quyết vấn đề gì?"
+      ]
+    },
+    {
+      "id": "t-2-2",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Overloading quyết định lúc compile, overriding quyết định lúc runtime",
+      "summary": "Bẫy kinh điển nhất của OOP trong Java: cùng một lời gọi, hai cơ chế chọn method hoàn toàn khác nhau.",
+      "sections": [
+        "<b>Overload resolution dùng kiểu khai báo (static type).</b> Compiler nhìn vào kiểu khai báo của biểu thức đối số để chọn method, và ghi cứng chữ ký đã chọn vào bytecode. Nếu có <code>print(Object)</code> và <code>print(String)</code>, thì <code>Object o = \"abc\"; print(o);</code> gọi bản <code>Object</code> dù giá trị thật là String. Trực giác luôn mong đợi điều ngược lại, nên đây là câu hỏi vặn rất phổ biến.",
+        "<b>Overriding dùng kiểu thật (runtime type).</b> Với instance method, JVM phát lệnh <code>invokevirtual</code> và tra bảng method ảo của object thật để nhảy tới bản cài đặt đúng. Vì thế <code>Animal a = new Dog(); a.speak();</code> chạy bản của Dog. Nói gọn: <i>chọn method nào</i> là việc của compiler dựa trên kiểu khai báo, còn <i>chạy bản cài đặt nào của method đó</i> là việc của JVM dựa trên kiểu thật.",
+        "<b>Ràng buộc của overriding tồn tại để bảo vệ nguyên lý Liskov.</b> Bản override không được thu hẹp access modifier (đang <code>public</code> thì không xuống <code>protected</code> được), không được khai báo checked exception mới hoặc rộng hơn bản cha, và kiểu trả về phải tương thích. Lý do chung là mọi chỗ đang dùng được class cha thì phải dùng được class con mà không cần sửa gì; nếu con thu hẹp quyền truy cập hoặc ném thêm exception thì code gọi sẽ vỡ.",
+        "<b>Covariant return type.</b> Từ Java 5, class con được phép trả về kiểu <i>hẹp hơn</i> — cha trả <code>Number</code> thì con trả <code>Integer</code> là hợp lệ. Điều này an toàn vì mọi Integer đều là Number nên caller cũ không bị ảnh hưởng. Ngược lại, hai method chỉ khác nhau ở kiểu trả về thì không tạo được overload hợp lệ, vì tại điểm gọi không phải lúc nào cũng có đủ thông tin để phân biệt.",
+        "<b>@Override không chỉ là chú thích trang trí.</b> Nó bắt compiler kiểm tra rằng bạn thực sự đang override chứ không vô tình tạo ra một overload mới. Lỗi hay gặp nhất là viết <code>equals(MyType other)</code> thay vì <code>equals(Object other)</code>: không có <code>@Override</code> thì code vẫn biên dịch, chạy vẫn 'gần đúng', và chỉ vỡ khi đưa object vào <code>HashSet</code> hoặc <code>List.contains</code>.",
+        "<b>Đánh đổi hiệu năng của dynamic dispatch.</b> Về lý thuyết mỗi virtual call là một lần tra bảng, nhưng JIT quan sát thực tế tại từng call site: nếu chỉ thấy một kiểu (monomorphic) nó thường inline thẳng bản cài đặt và đặt một phép kiểm tra kiểu rẻ tiền; nếu thấy hai kiểu (bimorphic) vẫn xử lý được; còn khi call site thấy nhiều kiểu (megamorphic) thì việc inline khó hơn nhiều và chi phí gọi lộ ra. Hệ quả thực tế: đa hình gần như miễn phí trong đa số code, nhưng một điểm nóng nhận hàng chục implementation khác nhau thì đáng để đo lại."
+      ],
+      "example": "static void print(Object o) { System.out.println(\"Object\"); }\nstatic void print(String s) { System.out.println(\"String\"); }\n\nObject o = \"abc\";\nprint(o);        // Object  <- chọn theo kiểu khai báo\nprint(\"abc\");    // String\n\nclass Animal {\n    protected Number calc() throws java.io.IOException { return 1; }\n    void speak() { System.out.println(\"...\"); }\n}\nclass Dog extends Animal {\n    // hợp lệ: mở rộng access, covariant return, exception hẹp hơn\n    @Override\n    public Integer calc() throws java.io.FileNotFoundException { return 2; }\n\n    @Override\n    void speak() { System.out.println(\"gâu\"); }\n}\n\nAnimal a = new Dog();\na.speak();       // gâu  <- chọn theo kiểu thật",
+      "exampleTitle": "Static type chọn method, runtime type chọn cài đặt",
+      "keyPoints": [
+        "Overloading giải quyết lúc biên dịch theo kiểu khai báo; overriding giải quyết lúc chạy theo kiểu thật.",
+        "Bản override được mở rộng access nhưng không được thu hẹp, và không được ném checked exception rộng hơn.",
+        "Covariant return hợp lệ; khác nhau chỉ ở kiểu trả về thì không tạo được overload.",
+        "@Override giúp compiler bắt lỗi 'tưởng override nhưng thực ra là overload'.",
+        "JIT inline được virtual call ở call site monomorphic, nên chi phí đa hình thường không đáng kể."
+      ],
+      "trap": "Đưa print(Object) và print(String) rồi gọi print((Object) \"abc\"). Ứng viên hay trả lời 'String' vì giá trị thật là String; đúng phải là 'Object' vì overload chọn theo kiểu khai báo.",
+      "followUp": [
+        "Vì sao Java không thể chọn overload theo kiểu thật lúc runtime như một số ngôn ngữ có multiple dispatch?",
+        "Bản override có được ném unchecked exception mới không, và vì sao quy tắc lại khác với checked exception?",
+        "Nếu bỏ @Override khỏi một method viết sai chữ ký thì lỗi sẽ lộ ra ở đâu?"
+      ]
+    },
+    {
+      "id": "t-2-3",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Method hiding và field hiding — những thứ trông như đa hình nhưng không phải",
+      "summary": "static method và field không tham gia dynamic dispatch, và điều đó tạo ra những kết quả trái ngược hẳn trực giác.",
+      "sections": [
+        "<b>static method không override được, chỉ bị che (hiding).</b> Khi class con khai báo một static method trùng chữ ký với cha, hai method tồn tại song song và độc lập; việc chọn dựa hoàn toàn vào kiểu khai báo lúc biên dịch. Với <code>Parent p = new Child(); p.who();</code> kết quả là bản của <b>Parent</b>, dù object thật là Child.",
+        "<b>Lý do kỹ thuật nằm ở bytecode.</b> static method được gọi bằng lệnh <code>invokestatic</code>, trong đó tên class đã được ghi cố định lúc biên dịch; nó không có entry trong bảng method ảo nên JVM không có cơ chế nào để tra bản đúng lúc chạy. Instance method dùng <code>invokevirtual</code> (hoặc <code>invokeinterface</code>) và mới có bước tra bảng đó.",
+        "<b>Field cũng không đa hình, và đây là bẫy còn nặng hơn.</b> Truy cập field được giải quyết theo kiểu khai báo của tham chiếu. Nếu cả Animal và Dog đều có field <code>name</code>, thì <code>Animal a = new Dog(); a.name</code> đọc field của <b>Animal</b>, trong khi <code>a.describe()</code> chạy method của Dog và method đó lại đọc field <code>name</code> của Dog. Cùng một object nhưng hai đường truy cập cho hai giá trị khác nhau — object thật sự chứa cả hai field, chúng không đè lên nhau.",
+        "<b>private method không nằm trong phạm trù override.</b> Class con không nhìn thấy nó nên nếu định nghĩa method cùng tên thì đó là một method hoàn toàn mới. Tương tự, method <code>final</code> cấm override tường minh, và class <code>final</code> thì không có class con nào để nói tới.",
+        "<b>Quy tắc thực hành rút ra.</b> Luôn để field ở <code>private</code> và truy cập qua method — như vậy mọi truy cập đều đi qua dynamic dispatch và hành vi trở nên nhất quán. Đừng đặt tên field trùng với field của class cha trừ khi thật sự có lý do; hầu hết trường hợp đó là lỗi chứ không phải thiết kế. Và luôn gọi static method qua tên class (<code>Parent.who()</code>) chứ đừng gọi qua tham chiếu object, vì cách viết sau gợi ý sai về hành vi.",
+        "<b>Liên hệ thực tế với framework.</b> Spring dùng proxy (JDK dynamic proxy hoặc CGLIB sinh class con) để cài đặt các tính năng như <code>@Transactional</code>. Vì proxy dựa trên override, mọi method <code>final</code>, <code>private</code> hay <code>static</code> đều không được proxy — annotation đặt lên chúng sẽ im lặng không có tác dụng. Đây là ứng dụng trực tiếp của kiến thức tưởng chừng chỉ là lý thuyết."
+      ],
+      "example": "class Parent {\n    static String who() { return \"Parent\"; }\n    String name = \"Parent\";\n    String describe() { return \"tôi là \" + name; }\n}\n\nclass Child extends Parent {\n    static String who() { return \"Child\"; }   // hiding, không phải override\n    String name = \"Child\";                    // field hiding\n    @Override String describe() { return \"tôi là \" + name; }\n}\n\nParent p = new Child();\nSystem.out.println(p.who());        // Parent  <- theo kiểu khai báo\nSystem.out.println(p.name);         // Parent  <- theo kiểu khai báo\nSystem.out.println(p.describe());   // tôi là Child <- dynamic dispatch\nSystem.out.println(((Child) p).name); // Child\n// object thật chứa CẢ HAI field name",
+      "exampleTitle": "Ba đường truy cập, ba kết quả khác nhau trên cùng một object",
+      "keyPoints": [
+        "static method bị hide chứ không bị override; chọn theo kiểu khai báo lúc biên dịch.",
+        "invokestatic ghi cứng tên class, invokevirtual mới tra bảng method ảo lúc chạy.",
+        "Field truy cập theo kiểu khai báo; object con chứa cả field của cha lẫn của mình.",
+        "private method không thể override; final method và final class cấm override tường minh.",
+        "Giữ field private và truy cập qua method để mọi hành vi đều nhất quán theo dynamic dispatch.",
+        "Proxy của Spring dựa trên override nên @Transactional trên method final/private/static không hoạt động."
+      ],
+      "trap": "Cho Animal a = new Dog(); rồi hỏi a.name và a.describe() in ra gì. Trả lời cả hai đều lấy của Dog là sai: field đi theo kiểu khai báo nên a.name là của Animal, còn describe() đi theo kiểu thật nên đọc field của Dog.",
+      "followUp": [
+        "Vì sao JVM không thể làm field trở nên đa hình như method?",
+        "Nếu class con khai báo static method cùng tên nhưng khác kiểu trả về không tương thích thì chuyện gì xảy ra?",
+        "Tại sao @Transactional đặt trên một private method lại không có tác dụng trong Spring?"
+      ]
+    },
+    {
+      "id": "t-2-4",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Thứ tự khởi tạo object và bẫy gọi method overridable trong constructor",
+      "summary": "Vì sao một field đã được gán giá trị trong khai báo vẫn có thể là null ngay trong chính object đó.",
+      "sections": [
+        "<b>Khởi tạo class chạy một lần, trước khi có object nào.</b> Khi một class được khởi tạo lần đầu, JVM khởi tạo superclass trước rồi mới chạy các static field initializer và static block của class đó, theo đúng thứ tự xuất hiện trong file. Quá trình này được JVM bảo đảm chỉ chạy đúng một lần và an toàn với đa luồng — đó chính là nền tảng của mẫu holder idiom cho singleton lazy.",
+        "<b>Khởi tạo instance có một trật tự cố định.</b> Mỗi lần <code>new</code>: constructor của class con trước hết gọi <code>super(...)</code> (ngầm định nếu bạn không viết), toàn bộ chuỗi khởi tạo của cha chạy xong; rồi tới các instance initializer và field initializer của class con theo thứ tự xuất hiện; cuối cùng mới là thân constructor của class con. Nhớ đúng trật tự này là đủ để giải mọi câu hỏi in ra thứ tự chữ số.",
+        "<b>Hệ quả nguy hiểm: constructor của cha chạy trước field của con.</b> Nếu constructor cha gọi một method bị con override, method đó chạy trên object mà các field của con <i>chưa được gán</i> — mọi field tham chiếu còn null, mọi field số còn 0. Một field khai báo <code>private String value = \"hello\";</code> vẫn có thể là null bên trong method được gọi từ constructor cha, và bạn nhận NPE ở nơi trông hoàn toàn vô lý.",
+        "<b>Vì sao trình tự lại như vậy.</b> Nó bắt buộc phải như vậy: phần cha của object cần được đưa vào trạng thái hợp lệ trước khi phần con xây tiếp lên trên. Nhưng dynamic dispatch thì không quan tâm object đã xây xong hay chưa — nó luôn chọn bản override. Hai quy tắc đúng riêng lẻ gặp nhau tạo ra cái bẫy này.",
+        "<b>Cách phòng tránh.</b> Đừng gọi method có thể override từ constructor; nếu bắt buộc phải gọi thì khai báo method đó <code>final</code>, <code>private</code> hoặc <code>static</code>. Với logic khởi tạo phức tạp, tách ra factory method: <code>new</code> object xong rồi mới gọi <code>init()</code>, để mọi field đã sẵn sàng. Cùng lý do đó, đừng để <code>this</code> rò rỉ ra ngoài trong constructor (đăng ký listener, đưa vào một collection tĩnh, khởi chạy thread) — thread khác có thể nhìn thấy object nửa vời.",
+        "<b>Liên hệ với mô hình bộ nhớ.</b> Java bảo đảm rằng các field <code>final</code> được gán trong constructor sẽ hiển thị đúng với mọi thread nhìn thấy object sau khi constructor kết thúc — nhưng bảo đảm này mất hiệu lực nếu <code>this</code> thoát ra ngoài trước khi constructor xong. Vì thế 'không để this rò rỉ' vừa là lời khuyên thiết kế vừa là điều kiện của một bảo đảm ở tầng JVM."
+      ],
+      "example": "class Parent {\n    static { System.out.print(\"1\"); }\n    { System.out.print(\"2\"); }\n    Parent() { System.out.print(\"3\"); init(); }\n    void init() { }\n}\n\nclass Child extends Parent {\n    static { System.out.print(\"4\"); }\n    { System.out.print(\"5\"); }\n    private String value = \"hello\";\n    Child() { System.out.print(\"6\"); }\n\n    @Override\n    void init() {\n        System.out.print(\"[value=\" + value + \"]\"); // null!\n    }\n}\n\nnew Child();\n// in ra: 1 4 2 3 [value=null] 5 6\n// static của cha, static của con, rồi instance của cha, rồi instance của con",
+      "exampleTitle": "Trật tự khởi tạo và field của con còn null",
+      "keyPoints": [
+        "Static initializer chạy một lần khi class được khởi tạo, superclass trước, và được JVM bảo đảm thread-safe.",
+        "Trình tự instance: super(...) -> instance/field initializer của con -> thân constructor của con.",
+        "Method bị override gọi từ constructor cha sẽ thấy field của con chưa được gán (null hoặc 0).",
+        "Method gọi từ constructor nên là final, private hoặc static để không bị override.",
+        "Không để this rò rỉ khỏi constructor, vì bảo đảm hiển thị của final field phụ thuộc điều đó."
+      ],
+      "trap": "Câu hỏi in thứ tự các chữ số khi new một class con. Sai lầm phổ biến là cho rằng instance initializer của con chạy trước constructor của cha; thực tế toàn bộ chuỗi khởi tạo của cha luôn hoàn tất trước.",
+      "followUp": [
+        "Vì sao holder idiom cho singleton lazy lại thread-safe mà không cần synchronized?",
+        "Nếu constructor cha gọi một method final thì bẫy này còn xảy ra không?",
+        "Bảo đảm của JMM với final field bị mất trong trường hợp nào?"
+      ]
+    },
+    {
+      "id": "t-2-5",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Hợp đồng equals/hashCode và vì sao composition thường tốt hơn inheritance",
+      "summary": "Kế thừa làm vỡ hợp đồng equals theo cách không sửa được, và đó là một trong những lập luận mạnh nhất cho composition.",
+      "sections": [
+        "<b>Hợp đồng equals gồm năm điều.</b> Phản xạ (<code>a.equals(a)</code>), đối xứng (<code>a.equals(b)</code> thì <code>b.equals(a)</code>), bắc cầu, nhất quán qua nhiều lần gọi, và <code>a.equals(null)</code> luôn false. Kèm theo là ràng buộc với <code>hashCode</code>: hai object bằng nhau bắt buộc phải cùng hashCode; ngược lại thì không bắt buộc. Vi phạm không gây lỗi biên dịch — nó chỉ khiến <code>HashMap</code>, <code>HashSet</code>, <code>List.contains</code>, <code>distinct()</code> cho kết quả sai một cách lặng lẽ.",
+        "<b>Cơ chế trong HashMap giải thích vì sao hashCode quan trọng đến thế.</b> <code>get</code> dùng hashCode để chọn bucket rồi mới dùng equals để so trong bucket đó. Nếu override equals mà quên hashCode, hai object bằng nhau rơi vào hai bucket khác nhau và <code>get</code> không bao giờ tìm thấy. Cùng lý do đó, key của map phải bất biến: sửa một field tham gia hashCode sau khi đã put sẽ khiến object nằm sai bucket và gần như không lấy lại được.",
+        "<b>Bẫy chữ ký: equals(MyType) là overload chứ không phải override.</b> <code>Object.equals</code> nhận <code>Object</code>; nếu bạn viết <code>public boolean equals(Point p)</code> thì đó là một method mới hoàn toàn. Code vẫn biên dịch, gọi trực tiếp vẫn 'đúng', nhưng mọi collection đều gọi qua <code>equals(Object)</code> nên rơi về so sánh tham chiếu của <code>Object</code>. Chú thích <code>@Override</code> là thứ duy nhất bắt được lỗi này ngay lúc biên dịch.",
+        "<b>Kế thừa làm vỡ equals theo cách không có lời giải đẹp.</b> Nếu <code>ColorPoint extends Point</code> và thêm một field màu, bạn buộc phải chọn: dùng <code>instanceof</code> thì <code>point.equals(colorPoint)</code> ra true còn chiều ngược lại ra false — vỡ tính đối xứng; dùng <code>getClass()</code> thì hai object khác class không bao giờ bằng nhau, kể cả khi class con không thêm gì — vỡ nguyên lý thay thế Liskov. Không tồn tại cách nào vừa mở rộng class có state vừa thêm field mà giữ nguyên hợp đồng equals. Đây là lập luận mạnh nhất cho việc thay kế thừa bằng composition: cho <code>ColorPoint</code> chứa một <code>Point</code> làm field và lộ ra method <code>asPoint()</code>.",
+        "<b>Fragile base class: kế thừa gắn class con vào chi tiết cài đặt của cha.</b> Ví dụ kinh điển là một class con của <code>HashSet</code> đếm số phần tử đã thêm bằng cách override cả <code>add</code> lẫn <code>addAll</code>; vì <code>addAll</code> của <code>HashSet</code> bên trong tự gọi <code>add</code>, mỗi phần tử bị đếm hai lần. Class con đúng hay sai phụ thuộc vào việc class cha gọi method của chính nó ra sao — một chi tiết không nằm trong hợp đồng và có thể đổi ở bản JDK sau. Composition không có vấn đề này vì mọi lời gọi đều đi qua một API công khai.",
+        "<b>Khi nào thì kế thừa vẫn đúng, và các lối thoát hiện đại.</b> Kế thừa hợp lý khi quan hệ đúng nghĩa is-a, class cha được <i>thiết kế</i> để kế thừa (tài liệu hoá rõ method nào gọi method nào, cung cấp các hook <code>protected</code>), và cả hai nằm trong tầm kiểm soát của bạn. Ngoài ra: class không định cho kế thừa nên khai báo <code>final</code>; và từ Java 16 <code>record</code> tự sinh <code>equals</code>/<code>hashCode</code> theo các component và bản thân record là final, nên nó tránh được toàn bộ nhóm vấn đề này — có sẵn ở Java 17 và 21. Sealed class, chuẩn từ Java 17, cho phép giới hạn tập class con để tập hợp phân cấp trở nên đóng và kiểm soát được."
+      ],
+      "example": "class Point {\n    final int x, y;\n    Point(int x, int y) { this.x = x; this.y = y; }\n\n    // BẪY: đây là overload, KHÔNG phải override\n    public boolean equals(Point p) { return p.x == x && p.y == y; }\n}\n\nSet<Point> set = new HashSet<>();\nset.add(new Point(1, 1));\nSystem.out.println(set.contains(new Point(1, 1))); // false\n\n// Đúng:\nclass Point2 {\n    final int x, y;\n    Point2(int x, int y) { this.x = x; this.y = y; }\n\n    @Override public boolean equals(Object o) {\n        if (this == o) return true;\n        if (o == null || getClass() != o.getClass()) return false;\n        Point2 p = (Point2) o;\n        return x == p.x && y == p.y;\n    }\n    @Override public int hashCode() { return Objects.hash(x, y); }\n}\n\n// Java 16+ (có ở 17, 21): record tự sinh equals/hashCode và là final\nrecord Point3(int x, int y) { }",
+      "exampleTitle": "equals sai chữ ký, equals đúng, và record",
+      "keyPoints": [
+        "equals phải phản xạ, đối xứng, bắc cầu, nhất quán, và false với null; bằng nhau thì buộc phải cùng hashCode.",
+        "HashMap dùng hashCode chọn bucket rồi mới dùng equals — quên hashCode làm get() không bao giờ tìm thấy.",
+        "Key của map phải bất biến ở các field tham gia hashCode.",
+        "equals(MyType) là overload; chỉ @Override mới bắt được lỗi này lúc biên dịch.",
+        "Mở rộng class có state rồi thêm field thì không giữ được đồng thời đối xứng và Liskov — hãy dùng composition.",
+        "record (Java 16+, có ở 17 và 21) tự sinh equals/hashCode và là final nên tránh được cả nhóm vấn đề."
+      ],
+      "trap": "Người phỏng vấn đưa class có public boolean equals(Point p) rồi hỏi vì sao HashSet.contains trả về false. Trả lời 'vì thiếu hashCode' mới đúng một nửa; nguyên nhân gốc là chữ ký sai nên equals(Object) chưa hề được override.",
+      "followUp": [
+        "Vì sao không thể vừa giữ tính đối xứng của equals vừa cho class con thêm field?",
+        "getClass() và instanceof trong equals đánh đổi điều gì?",
+        "Ví dụ HashSet đếm phần tử nói lên điều gì về việc kế thừa một class mà bạn không kiểm soát?"
+      ]
+    },
+    {
+      "id": "t-13-1",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "var là suy luận kiểu lúc biên dịch, không phải dynamic typing",
+      "summary": "Hiểu đúng bản chất của var để không rơi vào câu hỏi vặn 'var có biến Java thành ngôn ngữ động không'.",
+      "sections": [
+        "<b>Java vẫn là ngôn ngữ static typing, không thay đổi gì cả.</b> Khi gặp <code>var</code>, compiler suy ra kiểu từ biểu thức khởi tạo rồi ghi cố định kiểu đó cho biến. Biến vẫn có đúng một kiểu duy nhất trong suốt vòng đời và không bao giờ đổi được — <code>var x = 10; x = \"abc\";</code> là lỗi biên dịch. Điều duy nhất bạn tiết kiệm được là việc gõ tên kiểu ra, chứ không phải sự ràng buộc về kiểu.",
+        "<b>Bytecode sinh ra giống hệt như khi viết kiểu tường minh.</b> <code>var x = 10;</code> và <code>int x = 10;</code> cho ra cùng một class file (khác biệt duy nhất có thể xuất hiện là bảng debug tuỳ chọn về tên biến). Vì thế chi phí runtime của <code>var</code> đúng bằng không: không có phép kiểm tra kiểu lúc chạy, không có boxing, không có reflection. Đây là điểm khác biệt căn bản so với <code>var</code> của JavaScript hay biến trong Python, nơi kiểu thật sự được xác định lúc chạy.",
+        "<b>var không phải keyword mà là một 'reserved type name'.</b> Nhờ vậy code cũ vẫn tương thích: một biến, method hay package đặt tên <code>var</code> viết từ thời Java 8 vẫn biên dịch được trên các bản sau. Chỉ có một hạn chế là bạn không được đặt tên <i>class hay interface</i> là <code>var</code>. Đây là chi tiết nhỏ nhưng thỉnh thoảng được hỏi để kiểm tra xem ứng viên có đọc đặc tả hay chỉ dùng theo thói quen.",
+        "<b>Mốc phiên bản cần nhớ chính xác.</b> <code>var</code> cho biến local xuất hiện ở Java 10 (JEP 286); Java 11 mở rộng cho tham số lambda (JEP 323). Java 8 hoàn toàn không có <code>var</code>, nên mọi ví dụ dùng nó đều yêu cầu tối thiểu Java 11 trong các bản LTS. Từ Java 11 trở đi không có thay đổi ngữ nghĩa nào đáng kể cho <code>var</code> — nó hoạt động y hệt ở 17 và 21.",
+        "<b>var không tự động là final.</b> Biến khai báo bằng <code>var</code> vẫn gán lại được (miễn là cùng kiểu). Muốn bất biến thì viết <code>final var x = ...</code>, hoàn toàn hợp lệ. Ngược lại, một biến <code>var</code> chưa bị gán lại vẫn được coi là effectively final nên dùng được trong lambda bình thường.",
+        "<b>Cách trả lời gọn khi bị hỏi vặn.</b> 'var chỉ chuyển việc viết kiểu từ lập trình viên sang compiler; kiểu vẫn được kiểm tra đầy đủ lúc biên dịch, bytecode không đổi, và không có bất kỳ chi phí runtime nào.' Nếu người phỏng vấn hỏi tiếp 'vậy nó khác gì Object?', câu trả lời là: <code>Object</code> làm mất thông tin kiểu và buộc phải ép kiểu về sau, còn <code>var</code> giữ nguyên kiểu cụ thể nhất mà compiler suy ra được."
+      ],
+      "example": "var count = 10;          // suy ra int\n// count = \"mười\";       // lỗi biên dịch: không gán String cho int\n\nvar name = \"Java\";       // String\nvar list = new ArrayList<String>();  // ArrayList<String>\nfinal var LIMIT = 100;   // vẫn dùng được final\n\n// var không phải keyword: dòng dưới vẫn hợp lệ\nint var = 5;\nSystem.out.println(var);\n\n// nhưng class không được đặt tên var:\n// class var { }         // lỗi biên dịch",
+      "exampleTitle": "var suy ra kiểu và bị ràng buộc kiểu như bình thường",
+      "keyPoints": [
+        "var là suy luận kiểu lúc biên dịch; biến vẫn có đúng một kiểu cố định.",
+        "Bytecode sinh ra giống hệt như viết kiểu tường minh, chi phí runtime bằng không.",
+        "var là reserved type name chứ không phải keyword: vẫn đặt tên biến là var được, nhưng không đặt tên class.",
+        "var cho biến local có từ Java 10; var cho tham số lambda có từ Java 11; Java 8 không có.",
+        "var không tự động final, nhưng final var là hợp lệ."
+      ],
+      "trap": "Câu hỏi 'var có làm Java thành ngôn ngữ động không?' — trả lời 'có, giống JavaScript' là sai hoàn toàn. Kiểu được xác định và kiểm tra hết lúc biên dịch; không có gì được quyết định lúc chạy.",
+      "followUp": [
+        "Nếu var và int cho ra cùng bytecode thì thông tin về var còn nằm ở đâu trong class file?",
+        "var khác Object ở điểm nào khi khai báo biến?",
+        "Vì sao Java chọn làm var thành reserved type name thay vì một keyword thật sự?"
+      ]
+    },
+    {
+      "id": "t-13-2",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "var dùng được ở đâu và không dùng được ở đâu",
+      "summary": "Danh sách chính xác các vị trí hợp lệ của var, và lý do đằng sau từng chỗ bị cấm.",
+      "sections": [
+        "<b>var chỉ dành cho biến local, và bắt buộc phải có biểu thức khởi tạo.</b> Các vị trí hợp lệ gồm: biến local trong method, constructor hoặc block khởi tạo; biến chỉ số của vòng <code>for</code> cổ điển; biến của vòng <code>for-each</code>; và biến resource trong <code>try-with-resources</code>. Ở tất cả những chỗ này, compiler luôn có một biểu thức ngay bên phải để suy kiểu.",
+        "<b>Những chỗ bị cấm và lý do chung.</b> Không dùng được cho field (kể cả static), tham số method, tham số constructor, kiểu trả về, tham số của khối <code>catch</code>, hay tham số kiểu generic. Lý do thống nhất: đó đều là những chỗ tạo thành <i>API</i> hoặc giao diện của một thành phần, nơi kiểu cần được viết ra rõ ràng và ổn định; và ở nhiều chỗ trong số đó cũng không có biểu thức khởi tạo nào để suy kiểu.",
+        "<b>Không có khởi tạo thì không suy được kiểu.</b> <code>var x;</code> rồi gán ở dòng sau là không hợp lệ, dù compiler 'có vẻ' đoán được. Suy luận trong Java được giới hạn ở phạm vi một khai báo để dễ dự đoán và để thông báo lỗi có nghĩa, chứ không phải suy luận toàn cục kiểu Hindley-Milner như một số ngôn ngữ khác.",
+        "<b>Không dùng được với null, lambda hay method reference.</b> <code>var s = null;</code> bị từ chối vì kiểu của <code>null</code> là kiểu null đặc biệt, không phải một kiểu viết ra được. <code>var f = () -&gt; ...;</code> và <code>var g = String::valueOf;</code> cũng bị từ chối vì lambda và method reference là <i>poly expression</i>: bản thân chúng không có kiểu riêng mà lấy kiểu từ ngữ cảnh đích, mà ở đây ngữ cảnh đích lại chính là thứ ta đang muốn suy ra. Mẹo thoát: ép kiểu tường minh, ví dụ <code>var r = (Runnable) () -&gt; {};</code> là hợp lệ vì phép ép kiểu đã cung cấp kiểu đích.",
+        "<b>Không dùng được với cú pháp khởi tạo mảng rút gọn và không khai báo nhiều biến một dòng.</b> <code>var arr = {1, 2, 3};</code> sai vì <code>{1,2,3}</code> cũng không có kiểu độc lập; phải viết <code>var arr = new int[]{1, 2, 3};</code>. Ngoài ra <code>var a = 1, b = 2;</code> không hợp lệ, và cũng không được viết <code>var[] a</code> — dấu ngoặc vuông phải nằm ở phía biểu thức khởi tạo.",
+        "<b>Trường hợp var thực sự đáng dùng nhất.</b> Là vòng <code>for-each</code> trên collection có kiểu generic dài, ví dụ duyệt <code>Map&lt;String, List&lt;OrderItem&gt;&gt;</code>: viết <code>for (var entry : map.entrySet())</code> ngắn hơn hẳn mà không mất chút thông tin nào cho người đọc, vì kiểu đã hiện rõ ngay ở tên của map."
+      ],
+      "example": "// HỢP LỆ\nvar total = 0;\nfor (var i = 0; i < 10; i++) { total += i; }\n\nMap<String, List<Integer>> map = new HashMap<>();\nfor (var entry : map.entrySet()) {\n    System.out.println(entry.getKey());\n}\n\ntry (var in = new BufferedReader(new FileReader(\"a.txt\"))) {\n    System.out.println(in.readLine());\n}\n\nvar r = (Runnable) () -> System.out.println(\"ok\"); // cast cung cấp kiểu đích\nvar arr = new int[]{1, 2, 3};\n\n// KHÔNG HỢP LỆ\n// var x;                      // thiếu khởi tạo\n// var s = null;               // không suy được kiểu\n// var f = () -> {};           // lambda cần kiểu đích\n// var g = String::valueOf;    // method reference cần kiểu đích\n// var nums = {1, 2, 3};       // khởi tạo mảng rút gọn\n// var a = 1, b = 2;           // nhiều biến một dòng\n// private var name = \"x\";     // field\n// void f(var x) { }           // tham số method",
+      "exampleTitle": "Hợp lệ và không hợp lệ",
+      "keyPoints": [
+        "var chỉ dùng cho biến local có khởi tạo, biến vòng for, biến for-each và resource trong try-with-resources.",
+        "Cấm ở field, tham số method/constructor, kiểu trả về, tham số catch và tham số generic.",
+        "null, lambda và method reference không có kiểu độc lập nên không suy được; ép kiểu tường minh là lối thoát.",
+        "Không dùng được với cú pháp mảng rút gọn {1,2,3}, không khai báo nhiều biến một dòng, không viết var[].",
+        "Chỗ var có giá trị rõ nhất là for-each trên generic dài dòng."
+      ],
+      "trap": "Nhiều người tin rằng var x; rồi x = 5; ở dòng sau là hợp lệ vì compiler thừa sức suy ra. Java cố tình giới hạn suy luận trong phạm vi một khai báo duy nhất để giữ tính dự đoán được và để thông báo lỗi rõ ràng.",
+      "followUp": [
+        "Vì sao lambda cần kiểu đích, và cách ép kiểu lại làm cho var hợp lệ?",
+        "var có dùng được cho tham số của khối catch không, và vì sao?",
+        "Nếu var được cho phép ở field thì sẽ nảy sinh vấn đề gì với API công khai?"
+      ]
+    },
+    {
+      "id": "t-13-3",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "var suy ra kiểu gì: literal, diamond và kiểu không gọi tên được",
+      "summary": "Quy tắc suy kiểu của var, cái bẫy new ArrayList<>() và trường hợp var làm được điều mà kiểu tường minh không làm được.",
+      "sections": [
+        "<b>Với literal, kiểu suy ra là kiểu của chính literal.</b> <code>var i = 1;</code> cho <code>int</code>, <code>var l = 1L;</code> cho <code>long</code>, <code>var d = 1.0;</code> cho <code>double</code>, <code>var c = 'a';</code> cho <code>char</code>, <code>var s = \"x\";</code> cho <code>String</code>, <code>var b = true;</code> cho <code>boolean</code>. Không có bước mở rộng nào cả — nghĩa là <code>var x = 1;</code> rồi gán 3 tỉ vào sau đó sẽ hỏng, trong khi nếu bạn viết <code>long x = 1;</code> thì không. Đây là chỗ <code>var</code> âm thầm thu hẹp lựa chọn của bạn.",
+        "<b>Phép toán số học vẫn tuân theo numeric promotion.</b> <code>var c = 'x'; var n = c + 1;</code> cho <code>n</code> kiểu <code>int</code> với giá trị 121, không phải <code>char</code> 'y'. Người mới hay tưởng <code>var</code> sẽ 'giữ nguyên kiểu char'; thực tế <code>var</code> chỉ nhận lấy kiểu của biểu thức, và biểu thức <code>char + int</code> có kiểu <code>int</code> theo quy tắc có từ đầu của Java.",
+        "<b>Bẫy lớn nhất: var kết hợp với diamond.</b> <code>var list = new ArrayList&lt;&gt;();</code> biên dịch được nhưng suy ra <code>ArrayList&lt;Object&gt;</code>. Lý do: diamond cần một kiểu đích để suy tham số generic, mà khi vế trái là <code>var</code> thì không có kiểu đích nào, nên compiler lùi về ràng buộc yếu nhất là <code>Object</code>. Hậu quả xuất hiện muộn và khó hiểu — bạn <code>add</code> String vào bình thường nhưng <code>get</code> lại trả về <code>Object</code>. Quy tắc: dùng <code>var</code> thì phải ghi tham số generic ở vế phải (<code>new ArrayList&lt;String&gt;()</code>). Tương tự, <code>var l = List.of();</code> cho <code>List&lt;Object&gt;</code>.",
+        "<b>var giữ kiểu cụ thể của biểu thức, không giữ interface.</b> <code>var map = new HashMap&lt;String, Integer&gt;();</code> cho biến kiểu <code>HashMap</code> chứ không phải <code>Map</code>. Về mặt kỹ thuật không sai, nhưng về mặt thiết kế nó khoá biến vào một implementation cụ thể: code phía sau có thể vô tình gọi method riêng của <code>HashMap</code>, và khi cần đổi sang <code>LinkedHashMap</code> hay <code>TreeMap</code> thì việc đổi không còn là sửa một chỗ. Đây là lý do thực dụng nhất để viết kiểu tường minh cho các biến quan trọng.",
+        "<b>Ngược lại, var làm được một điều mà kiểu tường minh không làm được: giữ kiểu không gọi tên được.</b> <code>var o = new Object() { int twice(int n) { return n * 2; } };</code> cho <code>o</code> kiểu của chính anonymous class đó, nên gọi <code>o.twice(21)</code> hợp lệ. Nếu khai báo <code>Object o = ...</code> thì method biến mất khỏi tầm nhìn. Cùng cơ chế đó áp dụng cho kiểu giao (intersection type) và capture của wildcard sinh ra từ biểu thức — những kiểu bạn không có cú pháp nào để viết ra trong khai báo biến.",
+        "<b>Đánh đổi cần nêu khi thảo luận thiết kế.</b> Việc <code>var</code> giữ kiểu chi tiết nhất là con dao hai lưỡi: nó giúp không mất thông tin trong các chuỗi xử lý trung gian, nhưng cũng khiến kiểu của biến trở thành thứ có thể thay đổi khi ai đó sửa vế phải, kể cả khi họ chỉ định đổi implementation. Với biến sống ngắn trong vài dòng thì rủi ro nhỏ; với biến dùng xuyên một method dài thì nên viết kiểu ra."
+      ],
+      "example": "var i = 1;        // int\nvar l = 1L;       // long\nvar c = 'x';      // char\nvar n = c + 1;    // int, giá trị 121 (numeric promotion)\nSystem.out.println(n);\n\n// BẪY: diamond + var\nvar bad = new ArrayList<>();       // ArrayList<Object>\nbad.add(\"hello\");\n// String s = bad.get(0);          // lỗi biên dịch: Object không phải String\n\nvar good = new ArrayList<String>(); // ArrayList<String>\nString s = good.get(0);\n\n// var giữ kiểu cụ thể, không giữ interface\nvar map = new HashMap<String, Integer>(); // HashMap, không phải Map\n\n// var giữ được kiểu không gọi tên được\nvar helper = new Object() {\n    int twice(int x) { return x * 2; }\n};\nSystem.out.println(helper.twice(21)); // 42",
+      "exampleTitle": "Quy tắc suy kiểu và hai mặt của nó",
+      "keyPoints": [
+        "var lấy đúng kiểu của biểu thức khởi tạo, không có mở rộng kiểu: var x = 1 luôn là int.",
+        "Biểu thức số học vẫn chịu numeric promotion, nên char + int cho var kiểu int.",
+        "var + diamond suy ra Object; luôn ghi tham số generic ở vế phải khi dùng var.",
+        "var giữ kiểu cài đặt cụ thể (HashMap) chứ không giữ interface (Map) — mất đi một lớp trừu tượng.",
+        "var là cách duy nhất để giữ kiểu không gọi tên được như anonymous class hay intersection type."
+      ],
+      "trap": "var list = new ArrayList<>(); trông hoàn toàn bình thường và vẫn biên dịch, nhưng suy ra ArrayList<Object>. Lỗi chỉ lộ ra ở chỗ khác, khi get() trả về Object thay vì kiểu mong đợi.",
+      "followUp": [
+        "Vì sao diamond cần kiểu đích để suy generic, còn var lại không cung cấp được kiểu đích đó?",
+        "Nêu một tình huống mà việc var giữ kiểu cụ thể thay vì interface gây rắc rối thật sự khi refactor.",
+        "Ngoài anonymous class, còn kiểu nào không viết ra được mà chỉ var mới nắm giữ được?"
+      ]
+    },
+    {
+      "id": "t-13-4",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "var trong tham số lambda và trong các cấu trúc vòng lặp",
+      "summary": "Java 11 cho phép var trong tham số lambda — nhưng mục đích thật của nó không phải để gõ ít đi.",
+      "sections": [
+        "<b>Java 11 bổ sung var cho tham số lambda (JEP 323).</b> Trước đó chỉ có hai lựa chọn: bỏ trống kiểu (<code>(a, b) -&gt; a + b</code>) hoặc ghi kiểu đầy đủ (<code>(Integer a, Integer b) -&gt; a + b</code>). Từ Java 11 có thêm dạng thứ ba: <code>(var a, var b) -&gt; a + b</code>. Về mặt kiểu, dạng này tương đương hoàn toàn với dạng bỏ trống — kiểu vẫn được suy từ functional interface đích.",
+        "<b>Mục đích thật là để có chỗ gắn annotation và modifier.</b> Cú pháp Java không cho phép gắn annotation lên một tham số không có kiểu, nên trước Java 11 nếu muốn viết <code>@NonNull</code> hay <code>final</code> trên tham số lambda thì buộc phải ghi kiểu đầy đủ ra, kể cả khi kiểu đó rất dài. <code>var</code> giải quyết đúng chỗ đó: <code>(@NonNull var s) -&gt; s.trim()</code>. Nếu chỉ để cho ngắn thì <code>var</code> ở đây không có lợi gì so với việc bỏ trống — đây chính là điều người phỏng vấn muốn nghe.",
+        "<b>Quy tắc all-or-nothing.</b> Trong một danh sách tham số lambda, ba dạng khai báo không được trộn lẫn: hoặc tất cả bỏ trống, hoặc tất cả ghi kiểu tường minh, hoặc tất cả dùng <code>var</code>. Viết <code>(var a, b) -&gt; ...</code> hay <code>(var a, String b) -&gt; ...</code> đều là lỗi biên dịch. Ngoài ra khi dùng <code>var</code> thì bắt buộc phải có dấu ngoặc đơn, kể cả với lambda một tham số.",
+        "<b>var trong vòng for-each là chỗ nó phát huy giá trị rõ nhất.</b> Với <code>Map&lt;String, List&lt;OrderItem&gt;&gt;</code>, viết <code>for (Map.Entry&lt;String, List&lt;OrderItem&gt;&gt; e : map.entrySet())</code> chiếm gần hết chiều ngang màn hình mà không nói thêm điều gì; <code>for (var e : map.entrySet())</code> ngắn hơn và người đọc vẫn suy ra được kiểu từ tên biến map. Đây là ví dụ điển hình cho nguyên tắc 'dùng var khi kiểu đã hiển nhiên từ ngữ cảnh'.",
+        "<b>var trong try-with-resources và trong for cổ điển.</b> <code>try (var in = new BufferedReader(...))</code> hợp lệ và giữ nguyên mọi bảo đảm đóng tài nguyên, vì kiểu suy ra vẫn phải cài đặt <code>AutoCloseable</code>. Với <code>for (var i = 0; i &lt; n; i++)</code> thì cần cẩn thận: <code>i</code> là <code>int</code>, nên nếu <code>n</code> là <code>long</code> lớn thì vòng lặp có thể không bao giờ kết thúc do tràn số — một lỗi mà kiểu tường minh sẽ khiến bạn phải nghĩ tới.",
+        "<b>Không có thay đổi nào từ Java 11 tới 21.</b> Ngữ nghĩa của <code>var</code> ở cả ba bản LTS 11, 17 và 21 là như nhau; những gì mới ở 17 và 21 (record, sealed class, pattern matching) là tính năng khác và không sửa đổi cách <code>var</code> suy kiểu. Nói được điều này giúp tránh việc bịa ra khác biệt phiên bản không tồn tại."
+      ],
+      "example": "// Ba dạng tham số lambda — không được trộn lẫn\nBiFunction<Integer, Integer, Integer> a = (x, y) -> x + y;               // bỏ trống\nBiFunction<Integer, Integer, Integer> b = (Integer x, Integer y) -> x + y; // tường minh\nBiFunction<Integer, Integer, Integer> c = (var x, var y) -> x + y;        // Java 11+\n\n// BiFunction<Integer, Integer, Integer> d = (var x, y) -> x + y;  // lỗi: trộn lẫn\n\n// Lý do thật sự để dùng var: gắn annotation\n// Function<String, String> f = (@NonNull var s) -> s.trim();\n\n// for-each với generic dài\nMap<String, List<Integer>> orders = new HashMap<>();\nfor (var entry : orders.entrySet()) {\n    for (var item : entry.getValue()) {\n        System.out.println(entry.getKey() + \" -> \" + item);\n    }\n}\n\ntry (var in = new BufferedReader(new FileReader(\"a.txt\"))) {\n    System.out.println(in.readLine());\n}",
+      "exampleTitle": "var trong lambda, for-each và try-with-resources",
+      "keyPoints": [
+        "var cho tham số lambda có từ Java 11; về kiểu nó tương đương với việc bỏ trống kiểu.",
+        "Giá trị thật của nó là tạo chỗ để gắn annotation hoặc final lên tham số lambda.",
+        "Ba dạng khai báo tham số lambda không được trộn lẫn; dùng var thì bắt buộc có ngoặc đơn.",
+        "for-each trên generic dài dòng là nơi var có lợi rõ nhất mà không mất thông tin.",
+        "var trong for cổ điển suy ra int cho literal 0 — cẩn thận khi cận trên là long.",
+        "Ngữ nghĩa của var không thay đổi giữa Java 11, 17 và 21."
+      ],
+      "trap": "Hỏi 'var trong tham số lambda để làm gì?' — trả lời 'để gõ ngắn hơn' là sai trọng tâm, vì bỏ trống kiểu còn ngắn hơn. Lý do đúng là để có chỗ đặt annotation và modifier.",
+      "followUp": [
+        "Vì sao Java không cho trộn var với tham số bỏ trống trong cùng một lambda?",
+        "for (var i = 0; i < n; i++) với n kiểu long thì có rủi ro gì?",
+        "var trong try-with-resources có ảnh hưởng gì tới việc kiểm tra AutoCloseable không?"
+      ]
+    },
+    {
+      "id": "t-13-5",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "Khi nào var giúp, khi nào var hại và chi phí thật sự của nó",
+      "summary": "Chi phí runtime bằng không, nên toàn bộ cuộc tranh luận về var là về khả năng đọc code.",
+      "sections": [
+        "<b>Chi phí kỹ thuật bằng không, nên đây thuần tuý là câu chuyện thiết kế.</b> Không có gì để đo đạc: cùng bytecode, cùng tốc độ, cùng bộ nhớ. Cái được và cái mất đều nằm ở người đọc code sau này. Vì thế mọi lập luận kiểu 'var chậm hơn' hay 'var làm tăng bộ nhớ' đều sai, và người phỏng vấn thường dùng chính điểm này để kiểm tra xem ứng viên hiểu bản chất hay chỉ nghe truyền miệng.",
+        "<b>Dùng var khi kiểu đã hiển nhiên ngay ở vế phải.</b> <code>var user = new User();</code>, <code>var items = new ArrayList&lt;OrderItem&gt;();</code>, <code>var entries = map.entrySet();</code> — trong cả ba trường hợp, viết kiểu ra chỉ là lặp lại thông tin đã có. Đặc biệt <code>var</code> loại bỏ kiểu bị lặp hai lần ở hai vế, thứ mà Java bị chê suốt nhiều năm.",
+        "<b>Tránh var khi vế phải là lời gọi method mờ nghĩa.</b> <code>var result = service.process(request);</code> buộc người đọc phải mở định nghĩa của <code>process</code> mới biết đang cầm cái gì. Trong code review, một dấu hiệu tốt để quyết định là: nếu bạn phải nhảy sang file khác mới hiểu dòng đó thì đừng dùng <code>var</code>. Nguyên tắc chung, được nhắc trong hướng dẫn phong cách chính thức về type inference của OpenJDK, là <code>var</code> càng an toàn khi phạm vi sống của biến càng ngắn.",
+        "<b>Tránh var khi bạn cần một kiểu rộng hơn kiểu của biểu thức.</b> Đây là trường hợp <code>Map m = new HashMap&lt;&gt;()</code> đã nói ở phần suy kiểu, và cũng là trường hợp bạn muốn biến có kiểu <code>long</code> hay <code>double</code> ngay từ đầu để tránh tràn số hoặc chia nguyên. <code>var</code> không cho bạn nói điều đó; nó chỉ lặp lại kiểu của vế phải.",
+        "<b>Bù lại bằng cách đặt tên biến tốt hơn.</b> Khi bỏ kiểu đi, tên biến trở thành nguồn thông tin chính. <code>var list = repo.find(id);</code> là tệ, <code>var activeOrders = repo.findActiveOrders(id);</code> thì hoàn toàn ổn dù cũng không có kiểu. Nhiều nhóm áp dụng var thành công chính là vì họ đồng thời siết chặt quy ước đặt tên.",
+        "<b>Cách trả lời cân bằng khi bị hỏi quan điểm.</b> Nêu ba điều: chi phí runtime bằng không nên đây là quyết định về khả năng đọc; <code>var</code> tốt khi kiểu hiển nhiên và phạm vi ngắn; hai cái bẫy cụ thể cần biết là <code>new ArrayList&lt;&gt;()</code> suy ra <code>Object</code> và việc mất lớp trừu tượng interface. Trả lời được cả mặt lợi lẫn mặt hại quan trọng hơn nhiều so với việc chọn phe."
+      ],
+      "example": "// Nên dùng: kiểu hiển nhiên ngay ở vế phải\nvar user = new User(\"an\");\nvar orders = new ArrayList<Order>();\nfor (var entry : indexByCity.entrySet()) { }\n\n// Không nên: phải mở file khác mới biết kiểu\n// var result = orderService.process(request);\nOrderResult result = orderService.process(request);\n\n// Không nên: cần kiểu rộng hơn biểu thức\n// var total = 0;          // int, dễ tràn khi cộng dồn tiền\nlong total = 0;\n\n// Không nên: mất lớp trừu tượng\n// var cache = new HashMap<String, User>();  // kiểu là HashMap\nMap<String, User> cache = new HashMap<>();\n\n// Bẫy im lặng cần nhớ\nvar wrong = new ArrayList<>();   // ArrayList<Object>\nvar right = new ArrayList<String>();",
+      "exampleTitle": "Hướng dẫn thực dụng khi nào dùng var",
+      "keyPoints": [
+        "var không có chi phí runtime, nên toàn bộ đánh đổi nằm ở khả năng đọc code.",
+        "Dùng var khi vế phải đã nói rõ kiểu, đặc biệt là new và các biểu thức generic dài.",
+        "Tránh var khi vế phải là lời gọi method mờ nghĩa hoặc khi biến sống dài trong method.",
+        "Tránh var khi cần kiểu rộng hơn: Map thay vì HashMap, long thay vì int.",
+        "Bỏ kiểu đi thì tên biến phải gánh phần thông tin đó, nên quy ước đặt tên cần chặt hơn.",
+        "Hai bẫy phải nhớ: diamond suy ra Object và việc mất lớp trừu tượng interface."
+      ],
+      "trap": "Người phỏng vấn hỏi 'var có ảnh hưởng hiệu năng không?'. Đây là câu bẫy: đáp án là không hề, vì suy kiểu xảy ra hoàn toàn lúc biên dịch và bytecode sinh ra giống hệt. Trả lời 'có, một chút' là lộ ngay việc hiểu sai bản chất.",
+      "followUp": [
+        "Bạn sẽ đặt quy ước gì về var trong coding standard của nhóm, và dựa trên tiêu chí nào?",
+        "Vì sao phạm vi sống của biến càng ngắn thì var càng an toàn?",
+        "Nếu một biến var được gán từ method trả về kiểu cụ thể rồi sau này method đổi kiểu trả về, điều gì xảy ra ở nơi dùng biến?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-1-1",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "Integer a = 127, b = 127;\nInteger c = 128, d = 128;\nSystem.out.println((a == b) + \" \" + (c == d));",
+      "choices": [
+        "true true",
+        "true false",
+        "false true",
+        "false false"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 'true false'. Autoboxing gọi Integer.valueOf(), và method này trả về object dùng lại từ cache đúc sẵn cho các giá trị -128..127, nên a và b là cùng một object và == cho true. Với 128 thì mỗi lần tạo một object mới nên == so sánh hai tham chiếu khác nhau và cho false. Quy tắc rút ra: == trên wrapper là so sánh tham chiếu, luôn dùng equals() hoặc so sánh trên kiểu nguyên thuỷ.",
+      "whyWrong": [
+        "Giá trị 128 nằm ngoài khoảng cache nên hai Integer là hai object khác nhau; == cho false chứ không phải true.",
+        "",
+        "127 nằm trong khoảng cache -128..127 nên a và b trỏ tới cùng một object; == cho true chứ không phải false.",
+        "Cả hai đều false chỉ đúng nếu Java không cache wrapper; thực tế Integer.valueOf dùng lại object cho mọi giá trị trong khoảng -128..127."
+      ]
+    },
+    {
+      "id": "d-1-2",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Bốn dòng sau in ra lần lượt những giá trị nào?",
+      "code": "System.out.println(-7 / 2);\nSystem.out.println(-7 % 2);\nSystem.out.println(Math.floorDiv(-7, 2));\nSystem.out.println(Math.floorMod(-7, 2));",
+      "choices": [
+        "-4, 1, -4, 1",
+        "-3, 1, -4, 1",
+        "-3, -1, -4, 1",
+        "-4, -1, -3, -1"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Kết quả là -3, -1, -4, 1. Phép chia số nguyên của Java cắt phần thập phân về phía 0 nên -7/2 = -3, và phần dư luôn mang dấu của số bị chia nên -7%2 = -1. Math.floorDiv làm tròn xuống (về phía âm vô cực) nên cho -4, còn Math.floorMod cho kết quả cùng dấu với số chia nên cho 1. Trong thực tế điều này quan trọng khi băm: hash % numShards có thể ra số âm và làm vỡ chỉ số mảng, còn Math.floorMod thì luôn không âm khi số chia dương.",
+      "whyWrong": [
+        "Phép chia nguyên cắt về phía 0 nên -7/2 là -3; chỉ Math.floorDiv mới làm tròn xuống thành -4.",
+        "Toán tử % trong Java trả phần dư mang dấu của số bị chia nên -7%2 là -1; giá trị 1 là kết quả của Math.floorMod.",
+        "",
+        "Cả hai method Math đều bị hiểu sai: floorDiv làm tròn xuống nên là -4, còn floorMod luôn trả kết quả không âm khi số chia dương nên là 1."
+      ]
+    },
+    {
+      "id": "d-1-3",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Hai dòng sau in ra gì?",
+      "code": "System.out.println(0.1 + 0.2);\nSystem.out.println(0.1 + 0.2 == 0.3);",
+      "choices": [
+        "0.30000000000000004 và false",
+        "0.3 và true",
+        "0.30000000000000004 và true",
+        "0.3 và false"
+      ],
+      "correctAnswer": 0,
+      "explanation": "In ra 0.30000000000000004 rồi false. double tuân theo IEEE 754 và lưu số theo cơ số 2, mà 0.1 và 0.2 đều không biểu diễn hết được trong hệ nhị phân nên giá trị thật là xấp xỉ gần nhất; sai số của hai xấp xỉ cộng lại vượt qua ngưỡng làm tròn nên kết quả lệch khỏi 0.3 ở chữ số cuối. Vì thế không bao giờ so sánh số thực bằng ==; hãy so sánh sai số Math.abs(a-b) < epsilon, và dùng BigDecimal hoặc số nguyên đơn vị nhỏ nhất cho tiền tệ.",
+      "whyWrong": [
+        "",
+        "Nếu 0.1 + 0.2 ra đúng 0.3 thì phép so sánh mới cho true; thực tế phép cộng nhị phân để lại sai số ở chữ số thứ 17.",
+        "Giá trị in ra đúng là 0.30000000000000004, nhưng chính vì nó khác 0.3 nên phép so sánh cho false chứ không phải true.",
+        "Phép so sánh đúng là false, nhưng giá trị in ra không phải 0.3: println của double in đủ số chữ số cần thiết để phân biệt giá trị nên hiện ra 0.30000000000000004."
+      ]
+    },
+    {
+      "id": "d-1-4",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code tính số mili giây trong 30 ngày. Nó in ra gì?",
+      "code": "long millis = 1000 * 60 * 60 * 24 * 30;\nSystem.out.println(millis);",
+      "choices": [
+        "2592000000",
+        "-1702967296",
+        "Lỗi biên dịch vì giá trị vượt quá phạm vi kiểu int",
+        "0"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra -1702967296. Kiểu của một biểu thức do các toán hạng quyết định chứ không phải do kiểu của biến đích, mà cả năm literal đều là int nên toàn bộ phép nhân diễn ra trong 32 bit. Kết quả đúng 2592000000 vượt Integer.MAX_VALUE nên bị quấn vòng theo modulo 2^32 rồi mới được mở rộng lên long — việc gán vào long xảy ra sau khi đã mất bit. Cách sửa là để một toán hạng là long: 1000L * 60 * 60 * 24 * 30.",
+      "whyWrong": [
+        "Đây là kết quả toán học đúng, nhưng chỉ đạt được nếu phép nhân được thực hiện ở kiểu long; ở đây nó chạy hoàn toàn trong int và đã tràn.",
+        "",
+        "Compiler chỉ báo lỗi khi một literal đơn lẻ vượt phạm vi int; tràn số trong lúc tính toán là hành vi hợp lệ được đặc tả, không phải lỗi biên dịch.",
+        "Tràn số là phép lấy modulo 2^32 rồi diễn giải lại theo bù hai, không phải là cắt về 0."
+      ]
+    },
+    {
+      "id": "d-1-5",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Sau khi chạy đoạn code, x và y có giá trị bao nhiêu?",
+      "code": "int x = 5;\nint y = x++ + ++x;\nSystem.out.println(x + \" \" + y);",
+      "choices": [
+        "x = 7, y = 11",
+        "x = 6, y = 12",
+        "x = 7, y = 12",
+        "x = 7, y = 13"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra '7 12'. Java quy định toán hạng trái được đánh giá hoàn toàn, kể cả hiệu ứng phụ, trước toán hạng phải — khác với C/C++ nơi thứ tự này là undefined. Vậy x++ trả về 5 rồi đẩy x lên 6; tiếp theo ++x đẩy x lên 7 rồi trả về 7; tổng là 5 + 7 = 12 và x còn lại 7. Chính vì thứ tự được đặc tả chặt nên biểu thức này có một kết quả duy nhất trên mọi JVM và trở thành câu hỏi phỏng vấn quen thuộc.",
+      "whyWrong": [
+        "Giá trị 11 xuất hiện nếu ++x được cho là trả về 6, nhưng x đã bị x++ đẩy lên 6 từ trước nên ++x cho 7.",
+        "x bị tăng hai lần nên kết thúc ở 7 chứ không phải 6.",
+        "",
+        "Giá trị 13 tương ứng với 6 + 7, tức là hiểu nhầm rằng x++ trả về giá trị sau khi tăng; hậu tố trả về giá trị cũ."
+      ]
+    },
+    {
+      "id": "d-1-6",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau xảy ra chuyện gì khi chạy?",
+      "code": "Map<String, Integer> counts = new HashMap<>();\ncounts.put(\"a\", 1);\nint n = counts.get(\"missing\");\nSystem.out.println(n);",
+      "choices": [
+        "In ra 0",
+        "In ra null",
+        "Ném NullPointerException",
+        "Lỗi biên dịch vì không thể gán Integer cho int"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Ném NullPointerException ngay tại dòng gán. HashMap.get trả về null cho key không tồn tại, và vì biến đích là int nên compiler chèn thêm lời gọi intValue() để unbox — gọi method trên null chính là NPE. Điều gây khó chịu là stack trace chỉ vào dòng gán chứ không nhắc gì tới map nên người mới hay tìm sai chỗ. Cách phòng chuẩn là counts.getOrDefault(\"missing\", 0), hoặc giữ kiểu Integer và kiểm tra null tường minh.",
+      "whyWrong": [
+        "int có giá trị mặc định 0 khi nó là field, nhưng ở đây giá trị đến từ map; unbox null không cho 0 mà ném exception.",
+        "Biến n có kiểu int nên không bao giờ giữ được null; phép unbox xảy ra trước khi có gì để in.",
+        "",
+        "Phép gán này biên dịch hoàn toàn bình thường vì Java tự động unboxing từ Integer sang int; lỗi chỉ lộ ra lúc chạy."
+      ]
+    },
+    {
+      "id": "d-1-7",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau chạy ra sao?",
+      "code": "int[] data = null;\nif (data != null & data.length > 0) {\n    System.out.println(\"có dữ liệu\");\n} else {\n    System.out.println(\"rỗng\");\n}",
+      "choices": [
+        "In ra rỗng",
+        "Ném NullPointerException",
+        "Lỗi biên dịch vì & không dùng được cho boolean",
+        "In ra có dữ liệu"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Ném NullPointerException. Trên toán hạng boolean, & là toán tử logic hợp lệ nhưng KHÔNG cắt ngắn: nó luôn đánh giá cả hai vế trước khi lấy kết quả AND. Vì thế data.length vẫn được thực thi dù vế trái đã cho false, và truy cập length trên tham chiếu null gây NPE. Chỉ && mới bảo đảm bỏ qua vế phải khi vế trái đã false — lỗi gõ thiếu một ký tự này rất khó phát hiện khi đọc lướt code.",
+      "whyWrong": [
+        "Nhánh else chỉ chạy được nếu biểu thức điều kiện tính xong; ở đây nó ném exception ngay khi đánh giá vế phải.",
+        "",
+        "& hoàn toàn hợp lệ với hai toán hạng boolean, khi đó nó là phép AND logic không cắt ngắn; với hai toán hạng số nguyên thì nó là phép AND bit.",
+        "Vế trái đã là false nên kết quả AND không thể là true; vấn đề nằm ở chỗ vế phải vẫn bị đánh giá."
+      ]
+    },
+    {
+      "id": "d-1-8",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "byte b = 10;\n// b = b + 300;   // dòng này KHÔNG biên dịch được\nb += 300;\nSystem.out.println(b);",
+      "choices": [
+        "310",
+        "Lỗi biên dịch vì 300 vượt phạm vi byte",
+        "54",
+        "127"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra 54. Toán tử gán rút gọn mang sẵn một phép ép kiểu ngầm về kiểu của vế trái, nên b += 300 tương đương b = (byte)(b + 300). Phép cộng được thực hiện ở kiểu int cho 310, sau đó ép về byte chỉ giữ lại 8 bit thấp: 310 - 256 = 54, vẫn nhỏ hơn 128 nên giá trị cuối là 54. Đây là lý do b = b + 300 báo lỗi biên dịch còn b += 300 thì im lặng làm hỏng dữ liệu — hai cách viết trông tương đương nhưng không hề tương đương.",
+      "whyWrong": [
+        "byte chỉ chứa được -128..127 nên không thể giữ 310; giá trị bị cắt còn 8 bit thấp.",
+        "Chính vì += có ép kiểu ngầm nên dòng này biên dịch bình thường; chỉ dạng b = b + 300 mới bị compiler từ chối.",
+        "",
+        "Java không kẹp giá trị về biên (saturating) khi ép kiểu; nó cắt bit, nên kết quả không phải là giá trị lớn nhất của byte."
+      ]
+    },
+    {
+      "id": "d-1-9",
+      "topicId": 1,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code so sánh hai BigDecimal in ra gì?",
+      "code": "BigDecimal a = new BigDecimal(\"2.0\");\nBigDecimal b = new BigDecimal(\"2.00\");\nSystem.out.println(a.equals(b));\nSystem.out.println(a.compareTo(b) == 0);",
+      "choices": [
+        "true / true",
+        "true / false",
+        "false / false",
+        "false / true"
+      ],
+      "correctAnswer": 3,
+      "explanation": "In ra false rồi true. BigDecimal lưu một số nguyên không dấu cùng với scale, và equals() so sánh cả hai thành phần nên 2.0 (scale 1) không equals 2.00 (scale 2) dù giá trị số học bằng nhau; compareTo chỉ so giá trị nên cho 0. Hệ quả thực tế rất nghiêm trọng: đặt BigDecimal làm key của HashMap hoặc vào HashSet sẽ khiến hai số bằng nhau về giá trị bị coi là hai phần tử khác nhau. Quy tắc: luôn dùng compareTo() == 0 để so tiền, và cân nhắc stripTrailingZeros hoặc setScale trước khi lưu.",
+      "whyWrong": [
+        "equals của BigDecimal cố tình so cả scale để phân biệt 2.0 với 2.00 về mặt độ chính xác, nên nó trả về false.",
+        "compareTo so sánh thuần giá trị số học và bỏ qua scale, nên với 2.0 và 2.00 nó trả về 0 chứ không phải khác 0.",
+        "Nếu cả hai đều false thì BigDecimal sẽ không dùng được để so sánh giá trị; thực tế compareTo là cách đúng và cho kết quả bằng nhau.",
+        ""
+      ]
+    },
+    {
+      "id": "d-2-1",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "class Parent {\n    static String who() { return \"Parent\"; }\n}\nclass Child extends Parent {\n    static String who() { return \"Child\"; }\n}\n\nParent p = new Child();\nSystem.out.println(p.who());",
+      "choices": [
+        "Child",
+        "Parent",
+        "Lỗi biên dịch vì static method không được khai báo lại ở class con",
+        "Ném exception lúc chạy vì lời gọi mơ hồ"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 'Parent'. static method không được override mà chỉ bị che (method hiding): hai method tồn tại song song và việc chọn dựa hoàn toàn vào kiểu khai báo của tham chiếu lúc biên dịch. Về bytecode, lời gọi được dịch thành invokestatic với tên class đã ghi cố định, còn instance method mới dùng invokevirtual và tra bảng method ảo theo object thật. Vì cách viết này gây hiểu nhầm, quy tắc thực hành là luôn gọi static method qua tên class: Parent.who().",
+      "whyWrong": [
+        "Đây là kết quả nếu who() là instance method được override; static method không tham gia dynamic dispatch nên object thật là Child không ảnh hưởng gì.",
+        "",
+        "Khai báo lại static method ở class con là hợp lệ và được gọi là hiding; compiler chỉ báo lỗi nếu kiểu trả về không tương thích.",
+        "Không có sự mơ hồ nào: compiler đã quyết định xong bản nào được gọi ngay lúc biên dịch."
+      ]
+    },
+    {
+      "id": "d-2-2",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Vì sao Java cho một class implements nhiều interface nhưng chỉ extends được đúng một class?",
+      "choices": [
+        "Vì JVM chỉ cấp phát được một vùng nhớ liên tục cho object nên không chứa nổi hai phần class cha",
+        "Vì interface được nạp lúc runtime còn class được nạp lúc biên dịch nên không xung đột",
+        "Vì interface không có field instance và (trước Java 8) không có thân method, nên đa kế thừa interface không sinh ra mơ hồ về state hay hành vi; còn đa kế thừa class dẫn tới diamond problem",
+        "Vì đây chỉ là hạn chế tạm thời của JVM, các phiên bản sau sẽ mở đa kế thừa class như C++"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Java cho đa kế thừa kiểu chứ không cho đa kế thừa state và cài đặt. Với diamond problem, nếu D kế thừa B và C mà cả hai cùng kế thừa A, thì không có quy tắc tự nhiên nào chọn bản method nào, và tệ hơn là không rõ D chứa một hay hai bản sao field của A; C++ phải thêm virtual inheritance chỉ để trả lời câu hỏi đó. Interface không có field instance nên vấn đề không tồn tại. Cần nói thêm cho đủ: từ Java 8, default method mang xung đột hành vi quay lại, và Java xử lý bằng cách bắt compiler báo lỗi buộc class phải override, giải bằng Interface.super.method().",
+      "whyWrong": [
+        "Bố cục bộ nhớ không phải trở ngại: C++ vẫn làm được đa kế thừa. Đây là quyết định thiết kế ngôn ngữ chứ không phải giới hạn cấp phát.",
+        "Cả class lẫn interface đều được nạp lúc runtime bởi class loader; thời điểm nạp không liên quan gì tới câu hỏi.",
+        "",
+        "Đây là lựa chọn thiết kế cố ý và ổn định từ đầu, không phải hạn chế tạm thời; Java 8 chỉ nới về hành vi qua default method chứ không mở đa kế thừa state."
+      ]
+    },
+    {
+      "id": "d-2-3",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Class cha có method như trong đoạn code. Khai báo nào ở class con là một override HỢP LỆ?",
+      "code": "class Parent {\n    protected Number calc() throws java.io.IOException {\n        return 1;\n    }\n}",
+      "choices": [
+        "private Integer calc() throws java.io.IOException",
+        "public Object calc()",
+        "public Number calc() throws Exception",
+        "public Integer calc() throws java.io.FileNotFoundException"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Chỉ phương án cuối hợp lệ: nó mở rộng access từ protected lên public (được phép), trả về Integer là kiểu con của Number nên hợp lệ theo covariant return (có từ Java 5), và ném FileNotFoundException là class con của IOException nên hẹp hơn bản cha. Ba ràng buộc này đều phục vụ nguyên lý Liskov: mọi chỗ đang dùng Parent phải dùng được class con mà không phải sửa code gọi. Vì thế thu hẹp access, nới rộng checked exception, hay nới rộng kiểu trả về đều bị compiler từ chối.",
+      "whyWrong": [
+        "Bản override không được thu hẹp access modifier; từ protected xuống private sẽ khiến code đang gọi qua tham chiếu Parent không dùng được nữa.",
+        "Kiểu trả về chỉ được thu hẹp chứ không được nới rộng; caller đang mong nhận Number sẽ vỡ nếu nhận về Object.",
+        "Bản override không được ném checked exception mới hoặc rộng hơn bản cha; Exception rộng hơn IOException nên code gọi cũ sẽ không xử lý hết.",
+        ""
+      ]
+    },
+    {
+      "id": "d-2-4",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Hai lời gọi print() in ra gì?",
+      "code": "static void print(Object o) { System.out.println(\"Object\"); }\nstatic void print(String s) { System.out.println(\"String\"); }\n\nObject o = \"abc\";\nprint(o);\nprint(\"abc\");",
+      "choices": [
+        "String / String",
+        "Object / String",
+        "Object / Object",
+        "String / Object"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 'Object' rồi 'String'. Overload resolution xảy ra hoàn toàn lúc biên dịch và dựa vào kiểu khai báo của biểu thức đối số, không phải kiểu thật của giá trị: biến o được khai báo Object nên compiler ghi cứng lời gọi tới print(Object), dù runtime giá trị là String. Lời gọi thứ hai có đối số là literal kiểu String nên compiler chọn bản cụ thể hơn. Rút ra: overloading là static binding, chỉ overriding mới là dynamic binding — và vì thế nhiều overload có kiểu tham số gần nhau là một nguồn nhầm lẫn nên tránh khi thiết kế API.",
+      "whyWrong": [
+        "Lời gọi đầu đi qua biến khai báo kiểu Object nên compiler không thể và không được phép nhìn vào giá trị thật để chọn print(String).",
+        "",
+        "Lời gọi thứ hai có đối số là literal String, và khi có nhiều bản khả dụng compiler luôn chọn bản cụ thể nhất, tức print(String).",
+        "Cả hai kết quả đều bị đảo: đây là hiểu nhầm rằng overload được chọn theo kiểu thật lúc runtime."
+      ]
+    },
+    {
+      "id": "d-2-5",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra hai dòng nào?",
+      "code": "class Animal {\n    String name = \"Animal\";\n    String describe() { return \"tôi là \" + name; }\n}\nclass Dog extends Animal {\n    String name = \"Dog\";\n    @Override String describe() { return \"tôi là \" + name; }\n}\n\nAnimal a = new Dog();\nSystem.out.println(a.name);\nSystem.out.println(a.describe());",
+      "choices": [
+        "Animal / tôi là Dog",
+        "Dog / tôi là Dog",
+        "Animal / tôi là Animal",
+        "Dog / tôi là Animal"
+      ],
+      "correctAnswer": 0,
+      "explanation": "In ra 'Animal' rồi 'tôi là Dog'. Field không đa hình: truy cập field được giải quyết lúc biên dịch theo kiểu khai báo của tham chiếu, mà a được khai báo Animal nên a.name đọc field của Animal. Ngược lại describe() là instance method được override nên JVM tra bảng method ảo theo object thật và chạy bản của Dog, bản này đọc field name của Dog. Điểm cốt lõi: object thật chứa CẢ HAI field name, chúng không đè lên nhau — đó là lý do vì sao nên luôn để field private và chỉ truy cập qua method.",
+      "whyWrong": [
+        "",
+        "a.name không lấy field của Dog vì truy cập field đi theo kiểu khai báo Animal, không theo kiểu thật.",
+        "describe() được override nên bản của Dog chạy và đọc field name của Dog; đây không phải trường hợp method bị hide.",
+        "Cả hai vế đều bị đảo: field mới là thứ đi theo kiểu khai báo, còn method đi theo kiểu thật."
+      ]
+    },
+    {
+      "id": "d-2-6",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Dòng new Child(); dẫn tới kết quả gì?",
+      "code": "class Base {\n    Base() { init(); }\n    void init() { }\n}\nclass Child extends Base {\n    private String value = \"hello\";\n    @Override void init() { System.out.println(value.length()); }\n}\n\nnew Child();",
+      "choices": [
+        "In ra 5",
+        "Ném NullPointerException",
+        "In ra 0",
+        "Lỗi biên dịch vì không được gọi method có thể override trong constructor"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Ném NullPointerException. Trình tự khởi tạo là: constructor của Child gọi super() trước, constructor của Base chạy và gọi init(); vì init() bị override nên dynamic dispatch chạy bản của Child — nhưng lúc này các field initializer của Child CHƯA chạy, nên value vẫn là null và value.length() ném NPE. Đây là lý do quy tắc 'không gọi method có thể override từ constructor' tồn tại; nếu bắt buộc phải gọi thì khai báo method đó final, private hoặc static, hoặc tách logic ra một init() gọi sau khi object đã dựng xong.",
+      "whyWrong": [
+        "Giá trị \"hello\" chỉ được gán sau khi constructor của Base chạy xong, nên tại thời điểm init() được gọi field vẫn chưa có giá trị.",
+        "",
+        "value là kiểu tham chiếu nên mặc định là null chứ không phải chuỗi rỗng; không có cách nào để length() trả về 0 ở đây.",
+        "Compiler không cấm gọi method overridable trong constructor; nó chỉ là một cảnh báo về thiết kế mà nhiều công cụ static analysis nêu ra."
+      ]
+    },
+    {
+      "id": "d-2-7",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Chạy new Child(); một lần, chương trình in ra chuỗi nào?",
+      "code": "class Parent {\n    static { System.out.print(\"1\"); }\n    { System.out.print(\"2\"); }\n    Parent() { System.out.print(\"3\"); }\n}\nclass Child extends Parent {\n    static { System.out.print(\"4\"); }\n    { System.out.print(\"5\"); }\n    Child() { System.out.print(\"6\"); }\n}\n\nnew Child();",
+      "choices": [
+        "123456",
+        "412356",
+        "142356",
+        "145236"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra 142356. Trước hết class được khởi tạo: JVM khởi tạo superclass trước nên static block của Parent chạy ('1') rồi tới của Child ('4'); phần này chỉ chạy đúng một lần cho toàn bộ vòng đời class. Sau đó tới khởi tạo instance: constructor của Child ngầm gọi super() nên toàn bộ chuỗi của Parent hoàn tất trước — instance initializer '2' rồi thân constructor '3'; cuối cùng mới tới instance initializer của Child '5' và thân constructor '6'. Trật tự cần nhớ là: super() -> instance/field initializer của lớp hiện tại theo thứ tự khai báo -> thân constructor.",
+      "whyWrong": [
+        "Đây là thứ tự nếu static block chạy xen kẽ theo từng class ngay trước constructor tương ứng; thực tế mọi static block đều chạy xong trước khi có object đầu tiên.",
+        "Static block của Parent chạy trước của Child vì JVM luôn khởi tạo superclass trước.",
+        "",
+        "Instance initializer của Child không thể chạy trước constructor của Parent; lời gọi super() luôn hoàn tất trước khi phần thân của class con bắt đầu."
+      ]
+    },
+    {
+      "id": "d-2-8",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Chuyện gì xảy ra với đoạn code sau?",
+      "code": "interface Flyer   { default String move() { return \"bay\"; } }\ninterface Swimmer { default String move() { return \"bơi\"; } }\n\nclass Duck implements Flyer, Swimmer { }\n\nSystem.out.println(new Duck().move());",
+      "choices": [
+        "Biên dịch được, Duck lấy bản của Flyer vì interface này được liệt kê trước",
+        "Biên dịch được nhưng ném exception lúc chạy vì lời gọi mơ hồ",
+        "Lỗi biên dịch: Duck buộc phải override move(), và trong bản override có thể chọn bản cha bằng Flyer.super.move()",
+        "Biên dịch được, JVM chọn bản của interface được class loader nạp trước"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Lỗi biên dịch với thông báo kiểu 'inherits unrelated defaults for move()'. Từ Java 8, default method mang thân hàm vào interface nên diamond problem về hành vi quay trở lại; Java xử lý bằng cách từ chối đoán thay lập trình viên và bắt class phải override để chọn tường minh, bên trong có thể ủy quyền bằng Flyer.super.move() hoặc Swimmer.super.move(). Lưu ý hai quy tắc ưu tiên liên quan: method kế thừa từ superclass luôn thắng default method của interface ('class wins'), và giữa hai interface có quan hệ kế thừa thì bản của interface cụ thể hơn thắng, khi đó không có xung đột.",
+      "whyWrong": [
+        "Thứ tự liệt kê trong mệnh đề implements không có ý nghĩa ngữ nghĩa nào; Java cố tình không dùng nó để phá vỡ xung đột.",
+        "Xung đột được phát hiện hoàn toàn lúc biên dịch nên không thể tồn tại một chương trình chạy được rồi mới ném exception vì lý do này.",
+        "",
+        "Thứ tự nạp class là chi tiết cài đặt và không xác định; nếu ngữ nghĩa chương trình phụ thuộc vào nó thì kết quả sẽ không tất định, điều Java không cho phép."
+      ]
+    },
+    {
+      "id": "d-2-9",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Dòng cuối in ra gì?",
+      "code": "class Point {\n    final int x, y;\n    Point(int x, int y) { this.x = x; this.y = y; }\n\n    public boolean equals(Point p) {\n        return p.x == x && p.y == y;\n    }\n}\n\nSet<Point> set = new HashSet<>();\nset.add(new Point(1, 1));\nSystem.out.println(set.contains(new Point(1, 1)));",
+      "choices": [
+        "true",
+        "false",
+        "Lỗi biên dịch vì override equals mà không override hashCode",
+        "true, nhưng chỉ khi thêm @Override lên equals"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra false, và có hai tầng nguyên nhân. Tầng thứ nhất: equals(Point) là một OVERLOAD chứ không phải override, vì Object.equals nhận tham số kiểu Object; mọi collection gọi qua equals(Object) nên rơi về so sánh tham chiếu mặc định của Object. Tầng thứ hai: hashCode cũng không được override, mà HashSet dùng hashCode để chọn bucket trước rồi mới so equals, nên hai object khác identity hash gần như chắc chắn rơi vào bucket khác nhau và không bao giờ được đem ra so. Cách sửa là đổi tham số thành Object, thêm @Override để compiler bắt lỗi chữ ký, và override hashCode bằng Objects.hash(x, y) — hoặc dùng record từ Java 16 trở đi để trình biên dịch tự sinh cả hai.",
+      "whyWrong": [
+        "Kết quả true chỉ đạt được khi cả equals(Object) lẫn hashCode đều được override đúng; ở đây không có cái nào được override.",
+        "",
+        "Việc override equals mà quên hashCode chỉ là một cảnh báo của công cụ phân tích tĩnh, không phải lỗi biên dịch; ngoài ra ở đây equals còn chưa được override.",
+        "Thêm @Override vào equals(Point) sẽ khiến code KHÔNG biên dịch được, vì đó không phải override — đúng ra phải đổi tham số thành Object và bổ sung hashCode."
+      ]
+    },
+    {
+      "id": "d-13-1",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau cho kết quả gì?",
+      "code": "var count = 10;\ncount = \"mười\";\nSystem.out.println(count);",
+      "choices": [
+        "In ra mười",
+        "Lỗi biên dịch: count đã được suy ra kiểu int nên không gán được String",
+        "Chạy được vì var cho phép biến đổi kiểu lúc runtime",
+        "Lỗi lúc chạy: ClassCastException"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Lỗi biên dịch. var là suy luận kiểu lúc biên dịch chứ không phải dynamic typing: compiler nhìn biểu thức khởi tạo 10, suy ra int, rồi gắn cố định kiểu đó cho biến trong suốt vòng đời của nó. Từ đó trở đi biến bị kiểm tra kiểu chặt chẽ y hệt như khi bạn viết int count = 10. Bytecode sinh ra cũng giống hệt, nên var không hề mang lại chi phí hay sự linh hoạt nào lúc chạy.",
+      "whyWrong": [
+        "Điều này chỉ đúng với ngôn ngữ động như JavaScript hay Python; Java vẫn kiểm tra kiểu đầy đủ lúc biên dịch.",
+        "",
+        "var không tạo ra dynamic typing: kiểu được quyết định xong lúc biên dịch và không bao giờ thay đổi lúc chạy.",
+        "Lỗi bị bắt ngay lúc biên dịch nên chương trình không bao giờ chạy tới mức có thể ném ClassCastException."
+      ]
+    },
+    {
+      "id": "d-13-2",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Trường hợp nào dưới đây dùng var là HỢP LỆ?",
+      "choices": [
+        "Field của class: private var name = \"abc\";",
+        "Tham số method: void process(var input) { }",
+        "Biến local có khởi tạo: var list = new ArrayList<String>();",
+        "Kiểu trả về của method: var findUser(long id) { ... }"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Chỉ biến local có biểu thức khởi tạo mới dùng được var; các vị trí hợp lệ khác cũng đều thuộc nhóm này: biến chỉ số của vòng for, biến của for-each và biến resource trong try-with-resources. Field, tham số method, tham số constructor, kiểu trả về và tham số của khối catch đều bị cấm. Lý do thống nhất là những chỗ đó tạo thành API hoặc giao diện của một thành phần, nơi kiểu cần được viết ra rõ ràng và ổn định — và phần lớn trong số đó cũng không có biểu thức nào để suy kiểu từ đó.",
+      "whyWrong": [
+        "Field là một phần giao diện của class và có thể được truy cập từ nơi khác, nên Java không cho phép suy kiểu ở đây.",
+        "Tham số method thuộc về chữ ký, tức là hợp đồng công khai; ngoài ra nó không có biểu thức khởi tạo để compiler suy kiểu.",
+        "",
+        "Kiểu trả về là phần quan trọng nhất của chữ ký method và không thể suy từ một biểu thức duy nhất khi method có nhiều câu lệnh return."
+      ]
+    },
+    {
+      "id": "d-13-3",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Sau khi biên dịch, var x = 10; khác gì so với int x = 10;?",
+      "choices": [
+        "Không khác gì đáng kể: var chỉ là suy luận kiểu lúc biên dịch, bytecode sinh ra là như nhau",
+        "var sinh ra biến kiểu Object và JVM tự ép kiểu mỗi lần sử dụng",
+        "var chậm hơn một chút vì JVM phải xác định kiểu khi chạy",
+        "var khiến biến được lưu trên heap thay vì trong stack frame"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Không khác gì: compiler suy ra int từ biểu thức khởi tạo rồi sinh ra đúng cùng bytecode như khi bạn viết kiểu tường minh (khác biệt duy nhất có thể có nằm ở bảng debug tuỳ chọn ghi tên biến). Vì thế chi phí runtime của var đúng bằng không — không có kiểm tra kiểu lúc chạy, không boxing, không reflection. Toàn bộ đánh đổi của var nằm ở khả năng đọc code của con người chứ không nằm ở hiệu năng, và đây chính là điểm người phỏng vấn muốn kiểm tra.",
+      "whyWrong": [
+        "",
+        "Nếu var suy ra Object thì bạn sẽ phải ép kiểu tường minh mỗi lần dùng; thực tế var giữ đúng kiểu cụ thể nhất mà compiler suy được.",
+        "JVM không làm gì thêm cả: mọi việc suy kiểu diễn ra lúc biên dịch nên không có chi phí runtime nào.",
+        "Vị trí lưu biến do phạm vi và kiểu quyết định, hoàn toàn không liên quan tới việc bạn viết var hay viết kiểu ra."
+      ]
+    },
+    {
+      "id": "d-13-4",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau có vấn đề gì?",
+      "code": "var list = new ArrayList<>();\nlist.add(\"hello\");\nString s = list.get(0);\nSystem.out.println(s);",
+      "choices": [
+        "Chạy bình thường và in ra hello",
+        "Lỗi biên dịch ở dòng 3: list được suy ra ArrayList<Object> nên get(0) trả về Object",
+        "Lỗi biên dịch ở dòng 1: không dùng được cú pháp diamond cùng với var",
+        "Lỗi lúc chạy: ClassCastException khi gán vào String"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Lỗi biên dịch ở dòng gán vào String. Cú pháp diamond cần một kiểu đích để suy ra tham số generic, nhưng khi vế trái là var thì không có kiểu đích nào cả, nên compiler lùi về ràng buộc yếu nhất và suy ra ArrayList<Object>. Vì thế add(\"hello\") vẫn hợp lệ (String là Object) nhưng get(0) trả về Object và không gán thẳng vào String được. Quy tắc thực hành: khi dùng var thì phải ghi tham số generic ở vế phải, tức new ArrayList<String>(). Bẫy tương tự với var l = List.of(); cũng cho List<Object>.",
+      "whyWrong": [
+        "Code không biên dịch được nên không chạy tới bước in ra; kiểu phần tử đã bị suy thành Object ngay từ dòng đầu.",
+        "",
+        "Kết hợp var với diamond là hợp lệ về cú pháp và biên dịch được ở dòng đầu; vấn đề nằm ở kiểu được suy ra chứ không phải ở tính hợp lệ.",
+        "Đây là lỗi kiểu tĩnh nên compiler bắt được ngay; không có phép ép kiểu ngầm nào để phải chờ tới runtime."
+      ]
+    },
+    {
+      "id": "d-13-5",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Trong bốn dòng khai báo dưới đây, dòng nào biên dịch được?",
+      "code": "var a = (Runnable) () -> System.out.println(\"hi\");\nvar b = () -> System.out.println(\"hi\");\nvar c = null;\nvar d = {1, 2, 3};",
+      "choices": [
+        "a và b",
+        "a, b và d",
+        "Không dòng nào",
+        "Chỉ dòng khai báo a"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Chỉ dòng a hợp lệ. Lambda và method reference là poly expression: bản thân chúng không mang kiểu riêng mà nhận kiểu từ ngữ cảnh đích, mà ở đây ngữ cảnh đích lại chính là thứ var đang cần suy ra — nên dòng b bị từ chối. Phép ép kiểu (Runnable) ở dòng a cung cấp sẵn kiểu đích nên biểu thức trở thành một biểu thức độc lập và var suy ra được Runnable. Dòng c sai vì kiểu của null là kiểu null đặc biệt, không phải kiểu viết ra được; dòng d sai vì cú pháp khởi tạo mảng rút gọn cũng không có kiểu độc lập, phải viết new int[]{1, 2, 3}.",
+      "whyWrong": [
+        "Dòng b là lambda trần, không có ngữ cảnh đích nào để suy ra functional interface tương ứng, nên compiler từ chối.",
+        "Ngoài lambda trần, cú pháp {1, 2, 3} cũng không có kiểu độc lập; phải viết new int[]{1, 2, 3} thì var mới suy được.",
+        "Dòng a hoàn toàn hợp lệ vì phép ép kiểu (Runnable) đã cung cấp kiểu đích cho lambda.",
+        ""
+      ]
+    },
+    {
+      "id": "d-13-6",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau cho kết quả gì?",
+      "code": "var helper = new Object() {\n    int twice(int n) { return n * 2; }\n};\nSystem.out.println(helper.twice(21));",
+      "choices": [
+        "Lỗi biên dịch: kiểu suy ra là Object nên không nhìn thấy method twice",
+        "42",
+        "Lỗi biên dịch: var không dùng được với anonymous class",
+        "Chạy được nhưng phải ép kiểu trước khi gọi twice"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 42. var suy ra kiểu của chính anonymous class đó — một kiểu không có tên nên bạn không có cách nào viết nó ra trong phần khai báo — vì thế method twice vẫn nằm trong tầm nhìn. Nếu khai báo Object helper = ... thì method biến mất và code không biên dịch được. Đây là một trong số ít trường hợp var làm được điều mà kiểu tường minh không làm được; cơ chế tương tự cũng áp dụng cho intersection type và capture của wildcard sinh ra từ biểu thức.",
+      "whyWrong": [
+        "Kiểu suy ra không phải Object mà là kiểu của anonymous class; chỉ khi bạn tự viết Object ở vế trái thì method mới bị che khuất.",
+        "",
+        "var hoàn toàn dùng được với anonymous class, và đây chính là một trong những trường hợp nó có giá trị riêng.",
+        "Không cần ép kiểu, và thực tế cũng không ép được vì kiểu anonymous class không có tên để viết ra."
+      ]
+    },
+    {
+      "id": "d-13-7",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Dòng khai báo lambda sau có hợp lệ trên Java 11 trở lên không?",
+      "code": "BiFunction<Integer, Integer, Integer> f = (var a, b) -> a + b;",
+      "choices": [
+        "Hợp lệ, b được suy kiểu ngầm như bình thường",
+        "Lỗi biên dịch: trong một danh sách tham số lambda phải đồng nhất — hoặc tất cả dùng var, hoặc tất cả ghi kiểu tường minh, hoặc tất cả bỏ trống",
+        "Lỗi biên dịch: var không bao giờ dùng được cho tham số lambda",
+        "Hợp lệ khi biên dịch nhưng ném exception lúc chạy"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Lỗi biên dịch vì trộn lẫn ba dạng khai báo tham số. Java 11 (JEP 323) cho phép (var a, var b) -> a + b, nhưng quy tắc là all-or-nothing: không được trộn var với tham số bỏ trống, cũng không được trộn var với kiểu tường minh. Điều đáng nói khi phỏng vấn là mục đích thật của tính năng này: về mặt kiểu, var ở đây tương đương hoàn toàn với việc bỏ trống, giá trị của nó là tạo chỗ để gắn annotation hoặc final lên tham số lambda, ví dụ (@NonNull var s) -> s.trim(), điều mà trước đó buộc phải ghi kiểu đầy đủ mới làm được.",
+      "whyWrong": [
+        "Nếu chỉ một tham số dùng var thì compiler từ chối ngay, bất kể việc suy kiểu cho tham số còn lại có khả thi hay không.",
+        "",
+        "Từ Java 11, var được phép trong tham số lambda; điều bị cấm ở đây là trộn lẫn các dạng khai báo chứ không phải bản thân var.",
+        "Đây là lỗi cú pháp và kiểu, bị bắt hoàn toàn lúc biên dịch nên chương trình không bao giờ chạy được."
+      ]
+    },
+    {
+      "id": "d-13-8",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "var c = 'x';\nvar n = c + 1;\nSystem.out.println(n);",
+      "choices": [
+        "y",
+        "121",
+        "x1",
+        "Lỗi biên dịch vì n không xác định được kiểu"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 121. var chỉ nhận lấy kiểu của biểu thức khởi tạo, và biểu thức char + int có kiểu int theo quy tắc binary numeric promotion vốn có từ đầu của Java: char được nâng lên int (mã của 'x' là 120) rồi cộng 1 thành 121. var không hề 'giữ nguyên kiểu char' như nhiều người tưởng. Muốn in ra ký tự thì phải ép kiểu tường minh: System.out.println((char)(c + 1)). Bài học chung là var không thay đổi bất kỳ quy tắc kiểu nào của Java, nó chỉ ghi lại kết quả của những quy tắc đó.",
+      "whyWrong": [
+        "Muốn ra ký tự 'y' thì phải ép kiểu (char)(c + 1); bản thân phép cộng đã nâng char lên int.",
+        "",
+        "Phép nối chuỗi chỉ xảy ra khi có ít nhất một toán hạng là String; ở đây cả hai đều là số nên đây là phép cộng số học.",
+        "Kiểu của biểu thức hoàn toàn xác định được: char + int cho int, nên var suy kiểu không gặp trở ngại nào."
+      ]
+    },
+    {
+      "id": "d-13-9",
+      "topicId": 13,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Viết var cache = new HashMap<String, User>(); thay vì Map<String, User> cache = new HashMap<>(); có nhược điểm gì?",
+      "choices": [
+        "var khiến generic bị xoá nên cache trở thành raw type và mất kiểm tra kiểu",
+        "var làm chậm lúc chạy vì JVM phải xác định kiểu của biến khi truy cập",
+        "Biến được suy ra kiểu cụ thể HashMap<String, User> chứ không phải Map, nên code phía sau có thể vô tình phụ thuộc vào API riêng của HashMap và việc đổi implementation về sau trở nên khó hơn",
+        "Không dùng được var khi generic có từ hai tham số kiểu trở lên"
+      ],
+      "correctAnswer": 2,
+      "explanation": "var luôn suy ra kiểu cụ thể nhất của biểu thức khởi tạo, nên biến bị khoá vào implementation thay vì vào interface. Về mặt biên dịch thì hoàn toàn hợp lệ, nhưng ta mất đi một lớp trừu tượng: code phía sau có thể gọi method chỉ có ở HashMap, và khi cần đổi sang LinkedHashMap hay ConcurrentHashMap thì việc đổi không còn gói gọn ở một dòng. Quy tắc thực hành là dùng kiểu tường minh khi bạn cố tình muốn một kiểu rộng hơn biểu thức — Map thay vì HashMap, hay long thay vì int — và để dành var cho những biến sống ngắn mà kiểu đã hiển nhiên ngay ở vế phải.",
+      "whyWrong": [
+        "Tham số generic được ghi đầy đủ ở vế phải nên kiểu suy ra là HashMap<String, User> có generic đầy đủ, không phải raw type.",
+        "var không có chi phí runtime nào: mọi việc suy kiểu xảy ra lúc biên dịch và bytecode sinh ra giống hệt bản viết kiểu tường minh.",
+        "",
+        "var không có giới hạn nào về số tham số kiểu; nó suy được mọi kiểu generic mà biểu thức khởi tạo mang theo."
+      ]
+    }
+  ]
+}

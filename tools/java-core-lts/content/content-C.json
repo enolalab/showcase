@@ -1,0 +1,1251 @@
+{
+  "tutorials": [
+    {
+      "id": "t-6-1",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Checked vs unchecked: cây Throwable và tranh luận thiết kế",
+      "summary": "Vì sao Java chia exception thành hai nhánh, compiler ép buộc điều gì, và vì sao giới thiết kế API hiện đại phần lớn quay lưng với checked exception.",
+      "sections": [
+        "<b>Cấu trúc cây.</b> Gốc là <code>Throwable</code>, chia hai nhánh: <code>Error</code> và <code>Exception</code>. Trong nhánh <code>Exception</code> lại tách ra <code>RuntimeException</code>. Quy tắc của compiler rất gọn: mọi thứ kế thừa <code>Error</code> hoặc <code>RuntimeException</code> là <i>unchecked</i>, phần còn lại là <i>checked</i>. Đây là quy tắc cú pháp thuần tuý, không phụ thuộc ngữ nghĩa — nên đừng học thuộc danh sách, hãy nhìn cây kế thừa.",
+        "<b>Checked nghĩa là compiler ép catch-or-declare.</b> Nếu một method có thể ném checked exception, nó buộc phải hoặc bắt tại chỗ, hoặc khai báo <code>throws</code> để đẩy trách nhiệm lên trên. Ý đồ ban đầu của Gosling là biến các lỗi <i>có thể phục hồi được</i> thành một phần của chữ ký method, để người gọi không thể vô tình bỏ qua. <code>IOException</code>, <code>SQLException</code>, <code>InterruptedException</code>, <code>ClassNotFoundException</code> đều thuộc nhóm này.",
+        "<b>Unchecked dành cho lỗi lập trình.</b> <code>NullPointerException</code>, <code>IllegalArgumentException</code>, <code>IllegalStateException</code>, <code>IndexOutOfBoundsException</code> mô tả những tình huống mà cách sửa đúng là <i>sửa code</i>, không phải viết catch. Bắt chúng thường chỉ để che giấu bug. Ngoại lệ hợp lý duy nhất là ở biên hệ thống, nơi bạn phải chuyển mọi lỗi thành một response thay vì để process chết.",
+        "<b>Vì sao cộng đồng quay lưng với checked exception.</b> Ba lý do thực tế: (1) nó rò rỉ chi tiết cài đặt vào chữ ký — đổi từ JDBC sang HTTP là đổi cả <code>throws</code> của mọi tầng; (2) nó không tương thích với lambda, vì các functional interface trong <code>java.util.function</code> đều không khai báo <code>throws</code>, nên gọi code ném checked exception trong <code>map()</code> là compile error; (3) trên thực tế nó đẻ ra <code>catch (IOException e) { }</code> rỗng — tệ hơn hẳn việc để exception bay lên. Spring, Hibernate và phần lớn framework hiện đại đều bọc lại thành unchecked (<code>DataAccessException</code>) chính vì vậy.",
+        "<b>Error là chuyện của JVM, không phải của bạn.</b> <code>OutOfMemoryError</code>, <code>StackOverflowError</code>, <code>NoClassDefFoundError</code> báo hiệu môi trường chạy đã hỏng. Bắt <code>Throwable</code> để 'cho chắc' là anti-pattern: sau một <code>OutOfMemoryError</code>, heap vẫn đầy và mọi thao tác tiếp theo đều không đáng tin, nên chiến lược đúng gần như luôn là để process chết và cho orchestrator khởi động lại.",
+        "<b>Nguyên tắc chọn khi tự thiết kế.</b> Chỉ dùng checked khi người gọi <i>có hành động cụ thể và hợp lý</i> để phục hồi, và bạn muốn ép họ nghĩ về nó. Nếu câu trả lời cho 'người gọi làm gì với exception này?' là 'log rồi ném tiếp' thì hãy để nó unchecked. Đây là câu hỏi vặn rất hay gặp và người phỏng vấn muốn nghe lập luận, không muốn nghe định nghĩa."
+      ],
+      "example": "// Checked: compiler ép bạn xử lý\nvoid load(Path p) throws IOException {\n    String s = Files.readString(p);\n}\n\n// Unchecked: không cần khai báo, dùng cho lỗi lập trình / vi phạm hợp đồng\nvoid withdraw(long amount) {\n    if (amount <= 0) {\n        throw new IllegalArgumentException(\"amount must be positive: \" + amount);\n    }\n}\n\n// Vì sao checked exception không hợp với lambda:\n// list.stream().map(p -> Files.readString(p))  // KHÔNG compile\n// Function.apply() không khai báo throws IOException",
+      "exampleTitle": "Hai nhánh và điểm va chạm với lambda",
+      "keyPoints": [
+        "Unchecked = kế thừa RuntimeException hoặc Error; mọi thứ còn lại dưới Exception là checked.",
+        "Checked thể hiện lỗi phục hồi được; unchecked thể hiện bug hoặc vi phạm hợp đồng.",
+        "Checked exception không dùng được trong lambda của java.util.function vì các interface đó không khai báo throws.",
+        "Framework hiện đại (Spring, Hibernate) bọc checked exception thành unchecked để không rò rỉ chi tiết hạ tầng.",
+        "Không bao giờ bắt Error: sau OutOfMemoryError, trạng thái JVM không còn đáng tin."
+      ],
+      "trap": "Nhiều người nói RuntimeException là 'exception xảy ra lúc chạy' còn checked là 'lúc compile'. Sai hoàn toàn: mọi exception đều xảy ra lúc chạy, khác biệt chỉ nằm ở việc compiler có ép bạn khai báo hay không.",
+      "followUp": [
+        "InterruptedException là checked hay unchecked, và vì sao nuốt nó là lỗi nghiêm trọng?",
+        "Nếu bạn thiết kế lại Java hôm nay, bạn có giữ checked exception không? Vì sao?",
+        "Vì sao Spring chọn bọc SQLException thành DataAccessException unchecked?"
+      ]
+    },
+    {
+      "id": "t-6-2",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "finally: quy tắc thực thi và hai cách nó phá code của bạn",
+      "summary": "finally luôn chạy, nhưng chính điều đó khiến return và throw đặt trong finally có thể âm thầm xoá mất kết quả hoặc exception gốc.",
+      "sections": [
+        "<b>Hợp đồng của finally.</b> Khối <code>finally</code> chạy dù khối <code>try</code> kết thúc bình thường, kết thúc bằng <code>return</code>/<code>break</code>/<code>continue</code>, hay kết thúc bằng exception. Nó chỉ không chạy khi tiến trình biến mất hoặc luồng điều khiển không bao giờ ra khỏi <code>try</code>: <code>System.exit()</code>, <code>Runtime.getRuntime().halt()</code> (khác <code>exit()</code> ở chỗ nó bỏ qua cả shutdown hook), JVM bị kill từ bên ngoài, JVM crash hoặc <code>abort</code>, và thread chạy trong đó không bao giờ kết thúc (deadlock, vòng lặp vô hạn).",
+        "<b>Cơ chế của return trong try + finally.</b> Khi <code>try</code> gặp <code>return expr</code>, JVM <i>tính giá trị của expr trước</i>, cất vào một slot tạm, rồi mới chạy <code>finally</code>, cuối cùng mới thực sự trả về giá trị đã cất. Hệ quả cực kỳ hay bị hỏi: nếu <code>finally</code> sửa một biến local đã được đọc xong, giá trị trả về <b>không đổi</b>; nhưng nếu <code>finally</code> gọi method làm thay đổi <i>nội dung</i> của object đang được trả về thì thay đổi đó có tác dụng, vì thứ được cất đi là reference chứ không phải bản sao.",
+        "<b>return trong finally nuốt tất cả.</b> Nếu bản thân <code>finally</code> chứa <code>return</code>, nó ghi đè giá trị của <code>try</code> và — nghiêm trọng hơn nhiều — <b>huỷ luôn exception đang bay lên</b>. Một exception vừa được ném trong <code>try</code> sẽ biến mất không dấu vết, method trả về bình thường như thể không có gì xảy ra. Đây là một trong những nguồn bug khó chẩn đoán nhất; mọi static analyzer nghiêm túc (SpotBugs, Error Prone, SonarQube) đều báo lỗi ở đây.",
+        "<b>throw trong finally cũng nuốt exception gốc.</b> Nếu <code>try</code> ném <code>A</code> và <code>finally</code> ném <code>B</code>, thứ bay lên trên là <code>B</code>; <code>A</code> bị vứt đi hoàn toàn — không được gắn vào <code>getSuppressed()</code>, không có cách nào lấy lại. Đây chính là lý do vì sao pattern <code>finally { conn.close(); }</code> thủ công lại nguy hiểm: <code>close()</code> ném <code>IOException</code> và nuốt mất nguyên nhân thật của lỗi. Chi tiết này phân biệt rất rõ ứng viên đã đọc kỹ với ứng viên chỉ dùng theo thói quen.",
+        "<b>Quy tắc thực hành.</b> Không bao giờ đặt <code>return</code>, <code>break</code>, <code>continue</code> hay <code>throw</code> trong <code>finally</code>. Khối <code>finally</code> chỉ nên làm đúng một việc: dọn dẹp, và nếu thao tác dọn dẹp có thể ném exception thì phải tự bắt và log tại chỗ. Với tài nguyên, hãy dùng <code>try-with-resources</code> — nó giải quyết đúng bài toán này bằng cơ chế suppressed exception.",
+        "<b>Liên hệ thực tế.</b> Trong code có transaction, một <code>return</code> lạc trong <code>finally</code> có thể khiến method báo thành công trong khi rollback đã xảy ra, và tầng trên tưởng dữ liệu đã được ghi. Loại bug này thường chỉ lộ ra dưới tải hoặc khi database timeout."
+      ],
+      "example": "static int a() {\n    int x = 1;\n    try {\n        return x;      // giá trị 1 được cất trước\n    } finally {\n        x = 99;        // sửa biến local -> KHÔNG ảnh hưởng\n    }\n}                      // -> 1\n\nstatic int b() {\n    try {\n        return 1;\n    } finally {\n        return 2;      // ghi đè -> 2\n    }\n}\n\nstatic int c() {\n    try {\n        throw new IllegalStateException(\"boom\");\n    } finally {\n        return 3;      // exception biến mất, method trả về 3\n    }\n}\n\nstatic List<String> d() {\n    List<String> list = new ArrayList<>();\n    try {\n        return list;   // cất reference\n    } finally {\n        list.add(\"x\"); // sửa NỘI DUNG -> caller thấy [\"x\"]\n    }\n}",
+      "exampleTitle": "Bốn biến thể return/finally hay bị hỏi",
+      "keyPoints": [
+        "return trong try tính giá trị trước, chạy finally sau, rồi mới trả về giá trị đã tính.",
+        "Sửa biến local trong finally không đổi giá trị trả về; sửa nội dung object đang trả về thì có.",
+        "return hoặc throw trong finally huỷ hoàn toàn exception đang bay lên — không có suppressed nào được giữ lại.",
+        "finally không chạy khi System.exit() hoặc Runtime.halt(), khi JVM bị kill hay crash, hoặc khi thread không bao giờ thoát khỏi try.",
+        "finally chỉ nên dọn dẹp; mọi exception phát sinh khi dọn dẹp nên được bắt và log tại chỗ."
+      ],
+      "trap": "Câu hỏi kinh điển: 'try có return, finally cũng có return, kết quả là gì?' Đáp án là giá trị của finally, và nếu try đang ném exception thì exception đó bị nuốt mất luôn — phần thứ hai mới là điều người phỏng vấn thực sự chờ nghe.",
+      "followUp": [
+        "Nếu try ném IllegalArgumentException và finally ném IllegalStateException, exception nào bay lên và exception kia đi đâu?",
+        "Vì sao try-with-resources không gặp vấn đề này?",
+        "System.exit() trong try thì finally có chạy không?"
+      ]
+    },
+    {
+      "id": "t-6-3",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "try-with-resources: thứ tự đóng ngược và suppressed exception",
+      "summary": "Vì sao try-with-resources không chỉ là đường cú pháp gọn hơn mà thực sự bảo toàn được thông tin lỗi mà finally thủ công làm mất.",
+      "sections": [
+        "<b>Cơ chế cơ bản.</b> Có từ Java 7, mọi tài nguyên khai báo trong ngoặc của <code>try</code> phải implement <code>AutoCloseable</code>. Compiler sinh ra khối <code>finally</code> tự động gọi <code>close()</code>. Điểm quan trọng về thứ tự thực thi: tài nguyên được đóng <b>trước</b> khi khối <code>catch</code> và <code>finally</code> của chính câu <code>try</code> đó chạy — nên trong <code>catch</code> bạn không được phép giả định tài nguyên còn mở.",
+        "<b>Đóng theo thứ tự ngược với thứ tự khai báo.</b> Khai báo <code>A</code> rồi <code>B</code> thì đóng <code>B</code> trước, <code>A</code> sau. Đây không phải chi tiết vụn vặt mà là điều kiện đúng đắn: tài nguyên khai báo sau thường được xây trên tài nguyên khai báo trước (<code>BufferedWriter</code> bọc <code>FileWriter</code>, <code>PreparedStatement</code> lấy từ <code>Connection</code>), nên phải đóng lớp ngoài trước khi lớp trong biến mất.",
+        "<b>Suppressed exception — điểm khác biệt lớn nhất so với finally thủ công.</b> Nếu thân <code>try</code> ném exception <code>A</code> và <code>close()</code> ném exception <code>B</code>, thì <code>A</code> là exception chính bay lên, còn <code>B</code> được gắn vào <code>A</code> qua <code>addSuppressed()</code> và lấy lại được bằng <code>getSuppressed()</code>. Với <code>finally { r.close(); }</code> viết tay thì ngược lại hoàn toàn: <code>B</code> bay lên và <code>A</code> — nguyên nhân thật của sự cố — mất sạch. Đây chính là lý do kỹ thuật khiến try-with-resources ra đời, chứ không phải để code ngắn hơn.",
+        "<b>AutoCloseable vs Closeable.</b> <code>Closeable</code> (Java 5, trong <code>java.io</code>) kế thừa <code>AutoCloseable</code> (Java 7, trong <code>java.lang</code>). Hai khác biệt: <code>Closeable.close()</code> chỉ ném <code>IOException</code> còn <code>AutoCloseable.close()</code> khai báo <code>throws Exception</code>; và javadoc của <code>Closeable</code> yêu cầu <code>close()</code> phải <i>idempotent</i> — gọi lần thứ hai không có tác dụng gì — trong khi <code>AutoCloseable</code> không bắt buộc, chỉ 'khuyến khích mạnh'. Khi tự viết resource, nên thu hẹp chữ ký <code>close()</code> xuống exception cụ thể (hoặc không ném gì) để người dùng không bị ép bắt <code>Exception</code>.",
+        "<b>Biến effectively final từ Java 9.</b> Java 7 và 8 bắt buộc phải <i>khai báo</i> biến ngay trong ngoặc. Từ Java 9 (JEP 213), bạn được dùng lại một biến final hoặc effectively final có sẵn: <code>try (existingResource) { ... }</code>. Điều này hữu ích khi tài nguyên được truyền vào từ ngoài, nhưng cần cẩn trọng về quyền sở hữu — đóng một tài nguyên mà bạn không tạo ra thường là thiết kế sai.",
+        "<b>Bẫy về phạm vi.</b> Một biểu thức như <code>try (var out = new BufferedWriter(new FileWriter(f)))</code> chỉ an toàn một nửa: nếu constructor của <code>BufferedWriter</code> ném exception, <code>FileWriter</code> đã tạo xong sẽ không bao giờ được đóng vì nó chưa kịp trở thành resource được quản lý. Cách an toàn là khai báo tách thành hai resource."
+      ],
+      "example": "class Res implements AutoCloseable {\n    private final String name;\n    Res(String name) { this.name = name; System.out.println(\"open \" + name); }\n    public void close() { System.out.println(\"close \" + name); }\n}\n\ntry (Res a = new Res(\"A\"); Res b = new Res(\"B\")) {\n    System.out.println(\"body\");\n}\n// open A / open B / body / close B / close A\n\n// Suppressed exception\ntry (Res r = new ThrowingRes()) {      // close() ném IllegalStateException\n    throw new RuntimeException(\"primary\");\n} catch (Exception e) {\n    System.out.println(e.getMessage());                  // primary\n    System.out.println(e.getSuppressed()[0].getMessage()); // từ close()\n}\n\n// Không an toàn: FileWriter rò rỉ nếu BufferedWriter ném exception\n// try (BufferedWriter w = new BufferedWriter(new FileWriter(f))) { }\n\n// An toàn:\ntry (FileWriter fw = new FileWriter(f);\n     BufferedWriter bw = new BufferedWriter(fw)) {\n    bw.write(\"ok\");\n}",
+      "exampleTitle": "Thứ tự đóng, suppressed, và bẫy constructor lồng nhau",
+      "keyPoints": [
+        "Tài nguyên được đóng theo thứ tự ngược với thứ tự khai báo, và đóng trước khi catch/finally của cùng câu try chạy.",
+        "Exception từ close() trở thành suppressed, exception từ thân try là exception chính — finally thủ công thì ngược lại và làm mất nguyên nhân gốc.",
+        "Closeable.close() chỉ ném IOException và phải idempotent; AutoCloseable.close() ném Exception và không bắt buộc idempotent.",
+        "Từ Java 9 có thể đưa biến effectively final vào ngoặc try mà không cần khai báo mới.",
+        "Lồng constructor trong một khai báo resource duy nhất có thể làm rò rỉ tài nguyên bên trong."
+      ],
+      "trap": "Nhiều người tin rằng viết finally { r.close(); } là tương đương try-with-resources, chỉ dài hơn. Không tương đương: bản thủ công làm mất exception gốc khi close() cũng ném, còn try-with-resources giữ lại nó qua getSuppressed().",
+      "followUp": [
+        "Nếu có ba resource và resource ở giữa ném exception khi close(), hai cái còn lại có được đóng không?",
+        "Vì sao trong catch của try-with-resources bạn không được dùng lại tài nguyên?",
+        "Tự viết một class resource thì nên khai báo close() throws gì?"
+      ]
+    },
+    {
+      "id": "t-6-4",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Bắt exception cho đúng: multi-catch, precise rethrow, và vì sao đừng bắt Exception",
+      "summary": "Quy tắc thứ tự catch, ràng buộc implicitly final của multi-catch, và tác hại thật sự của catch (Exception e) trong code production.",
+      "sections": [
+        "<b>Thứ tự catch phải từ hẹp tới rộng.</b> JVM chọn khối <code>catch</code> đầu tiên có kiểu tương thích, quét từ trên xuống. Vì thế nếu đặt <code>catch (Exception e)</code> trước <code>catch (IOException e)</code>, compiler báo lỗi <i>exception has already been caught</i> — đây là compile error chứ không phải warning, vì khối sau không bao giờ đến được. Với các exception <i>không</i> có quan hệ kế thừa thì thứ tự tuỳ ý.",
+        "<b>Multi-catch (Java 7) và ràng buộc implicitly final.</b> Cú pháp <code>catch (IOException | SQLException e)</code> gộp nhiều nhánh xử lý giống nhau. Hai ràng buộc: các kiểu liệt kê không được có quan hệ cha-con với nhau (nếu có thì cái con là thừa, compiler báo lỗi); và biến <code>e</code> là <b>implicitly final</b> — bạn không gán lại được cho nó. Lý do là kiểu tĩnh của <code>e</code> được suy ra là tổ tiên chung gần nhất, nên cho phép gán lại sẽ phá vỡ suy luận kiểu của compiler.",
+        "<b>Precise rethrow (Java 7).</b> Nếu tham số catch là final hoặc effectively final, compiler biết chính xác tập kiểu <i>thực sự có thể</i> đi vào khối đó, nên bạn có thể viết <code>catch (Exception e) { throw e; }</code> mà chỉ cần khai báo <code>throws IOException, SQLException</code> chứ không phải <code>throws Exception</code>. Đây là lý do quy tắc effectively final tồn tại: nó cho phép compiler suy luận hẹp hơn kiểu khai báo.",
+        "<b>Vì sao catch (Exception e) là mùi code.</b> Nó bắt luôn cả những <code>RuntimeException</code> mà bạn không hề dự tính — <code>NullPointerException</code> do bug, <code>IllegalStateException</code> do vi phạm hợp đồng — và biến bug thành 'lỗi đã xử lý'. Tệ hơn, nó bắt cả <code>InterruptedException</code>: nuốt exception này làm mất tín hiệu ngắt và khiến thread pool không shutdown được. Nếu buộc phải bắt <code>InterruptedException</code>, hãy khôi phục cờ bằng <code>Thread.currentThread().interrupt()</code>.",
+        "<b>Nơi duy nhất bắt rộng là hợp lý: biên hệ thống.</b> Trong một <code>@ControllerAdvice</code>, một message consumer, hay vòng lặp chính của worker, việc bắt <code>Exception</code> để chuyển thành response lỗi và giữ cho process sống là đúng — miễn là có log đầy đủ kèm stack trace và không nuốt im lặng. Nguyên tắc là: bắt rộng ở đúng một chỗ trên cùng, còn các tầng dưới thì để exception bay lên.",
+        "<b>Nuốt exception là anti-pattern nặng nhất.</b> <code>catch (IOException e) { }</code> hoặc <code>catch (Exception e) { e.printStackTrace(); }</code> khiến hệ thống chạy tiếp trên dữ liệu sai và làm mất hoàn toàn dấu vết trong log tập trung. Nếu thật sự có lý do bỏ qua (ví dụ đóng socket khi đang shutdown), hãy log ở mức debug kèm bình luận giải thích vì sao bỏ qua là an toàn."
+      ],
+      "example": "// Compile error: unreachable\n// try { ... } catch (Exception e) { } catch (IOException e) { }\n\n// Multi-catch: e là implicitly final\ntry {\n    process();\n} catch (IOException | SQLException e) {\n    // e = new IOException();  // compile error: không gán lại được\n    throw new ServiceException(\"process failed\", e);   // luôn truyền cause\n}\n\n// Precise rethrow (Java 7+): khai báo hẹp hơn kiểu bắt\nvoid run() throws IOException, SQLException {\n    try {\n        process();                 // chỉ ném IOException hoặc SQLException\n    } catch (Exception e) {        // e effectively final\n        log.error(\"failed\", e);\n        throw e;                   // compiler suy ra đúng 2 kiểu trên\n    }\n}\n\n// InterruptedException: khôi phục cờ, đừng nuốt\ntry {\n    queue.take();\n} catch (InterruptedException e) {\n    Thread.currentThread().interrupt();\n    return;\n}",
+      "exampleTitle": "Thứ tự catch, multi-catch, precise rethrow",
+      "keyPoints": [
+        "Catch phải xếp từ kiểu hẹp tới kiểu rộng, đặt ngược lại là compile error chứ không phải warning.",
+        "Biến của multi-catch là implicitly final và các kiểu liệt kê không được có quan hệ kế thừa với nhau.",
+        "Precise rethrow cho phép khai báo throws hẹp hơn kiểu đã bắt, với điều kiện tham số catch effectively final.",
+        "catch (Exception e) nuốt luôn bug runtime và InterruptedException — chỉ dùng ở biên hệ thống, kèm log đầy đủ.",
+        "Bắt InterruptedException mà không gọi Thread.currentThread().interrupt() làm mất tín hiệu shutdown."
+      ],
+      "trap": "Ứng viên hay nói multi-catch chỉ là 'viết gọn nhiều catch'. Người phỏng vấn thường vặn tiếp: vì sao biến trong multi-catch không gán lại được? Câu trả lời nằm ở suy luận kiểu — compiler dùng tổ tiên chung và dựa vào tính final để làm precise rethrow.",
+      "followUp": [
+        "Vì sao catch (IOException | FileNotFoundException e) không compile được?",
+        "Nuốt InterruptedException gây hậu quả gì cho một ExecutorService đang shutdown?",
+        "Ở tầng nào trong ứng dụng Spring thì bắt Exception là hợp lý?"
+      ]
+    },
+    {
+      "id": "t-6-5",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Chi phí của exception và cách thiết kế custom exception",
+      "summary": "Vì sao ném exception đắt, phần đắt nằm ở đâu, và những quy tắc khiến custom exception hữu ích thay vì làm mất thông tin.",
+      "sections": [
+        "<b>Chi phí nằm ở việc tạo object, không ở khối try.</b> Một khối <code>try</code> không ném gì gần như miễn phí: JVM không sinh lệnh nào ở đầu khối, thông tin handler nằm trong <i>exception table</i> của method và chỉ được tra khi thực sự có exception. Phần đắt là constructor của <code>Throwable</code> gọi <code>fillInStackTrace()</code>, vốn phải duyệt toàn bộ call stack và ghi lại từng frame. Stack càng sâu — và stack của Spring thì rất sâu — chi phí càng lớn.",
+        "<b>Vì sao dùng exception cho luồng điều khiển là sai.</b> Ngoài chi phí, nó phá vỡ khả năng đọc hiểu: người đọc không thể suy luận luồng bình thường của chương trình khi luồng đó đi qua <code>throw</code>. Trong vòng lặp nóng, exception còn cản trở JIT inline và tối ưu. Nếu tình huống là <i>bình thường</i> (không tìm thấy bản ghi, input người dùng sai định dạng), hãy trả về <code>Optional</code>, một kiểu kết quả, hoặc <code>boolean</code> — đừng ném exception.",
+        "<b>Exception stackless khi thật sự cần.</b> Từ Java 7, <code>Throwable</code> có constructor <code>protected Throwable(String, Throwable, boolean enableSuppression, boolean writableStackTrace)</code>. Đặt <code>writableStackTrace = false</code> làm exception gần như miễn phí, dùng cho các exception dùng như signal ở tần suất rất cao. Đây là tối ưu cuối cùng chứ không phải mặc định — bỏ stack trace nghĩa là mất khả năng debug, và bạn nên đo trước khi làm.",
+        "<b>Bẫy production: stack trace biến mất.</b> HotSpot có tối ưu <code>-XX:+OmitStackTraceInFastThrow</code> (bật mặc định): khi cùng một vị trí đã được JIT biên dịch ném đi ném lại cùng loại exception ngầm định (<code>NullPointerException</code>, <code>ArrayIndexOutOfBoundsException</code>...), JVM chuyển sang dùng một instance dựng sẵn <b>không có stack trace</b>. Đó là lý do log production đôi khi chỉ có dòng <code>java.lang.NullPointerException</code> trơ trọi. Đây là hành vi riêng của HotSpot; tắt bằng <code>-XX:-OmitStackTraceInFastThrow</code> khi cần điều tra.",
+        "<b>Luôn truyền cause khi bọc exception.</b> <code>throw new ServiceException(\"failed\")</code> vứt bỏ toàn bộ nguyên nhân gốc; phải là <code>throw new ServiceException(\"failed\", e)</code>. Custom exception nên có ít nhất constructor nhận <code>(String, Throwable)</code>. Kèm theo đó là ngữ cảnh có ích: id đơn hàng, tên file — chứ không phải chuỗi chung chung 'error occurred'. Tuyệt đối không nhét dữ liệu nhạy cảm (mật khẩu, token) vào message vì message sẽ đi vào log.",
+        "<b>Đừng đẻ ra một exception cho mỗi tình huống.</b> Chỉ tạo kiểu mới khi có người <i>thực sự bắt riêng</i> nó để xử lý khác đi. Nếu mọi chỗ đều bắt chung, một kiểu duy nhất kèm mã lỗi (enum) sẽ gọn hơn hẳn. Từ Java 15, message của <code>NullPointerException</code> đã có <i>helpful NPE</i> bật mặc định (JEP 358, có từ Java 14 nhưng phải bật thủ công), chỉ rõ biến nào null — giảm hẳn nhu cầu tự bọc NPE lại."
+      ],
+      "example": "// Đắt: fillInStackTrace duyệt toàn bộ call stack\nthrow new ValidationException(\"invalid\");\n\n// Rẻ gần như bằng 0: exception dùng làm signal, không có stack trace\npublic class NoStackException extends RuntimeException {\n    public NoStackException(String msg) {\n        super(msg, null, false, false);   // disable suppression + stack trace\n    }\n}\n\n// Sai: mất hoàn toàn nguyên nhân gốc\ntry { repo.save(o); }\ncatch (SQLException e) { throw new ServiceException(\"save failed\"); }\n\n// Đúng: giữ cause + ngữ cảnh, không lộ dữ liệu nhạy cảm\ntry { repo.save(o); }\ncatch (SQLException e) {\n    throw new ServiceException(\"save failed for orderId=\" + o.getId(), e);\n}\n\n// Custom exception tối thiểu nên có\npublic class ServiceException extends RuntimeException {\n    public ServiceException(String message) { super(message); }\n    public ServiceException(String message, Throwable cause) { super(message, cause); }\n}",
+      "exampleTitle": "Chi phí, stackless exception, và giữ cause",
+      "keyPoints": [
+        "Khối try không tốn chi phí runtime khi không có exception; chi phí nằm ở fillInStackTrace lúc tạo object.",
+        "Không dùng exception cho luồng điều khiển bình thường — dùng Optional hoặc kiểu kết quả.",
+        "Constructor 4 tham số của Throwable cho phép tạo exception không stack trace khi cần hiệu năng cực cao.",
+        "OmitStackTraceInFastThrow của HotSpot có thể làm mất stack trace trong log production.",
+        "Custom exception luôn phải có constructor nhận cause; quên truyền cause là mất toàn bộ dấu vết."
+      ],
+      "trap": "Câu vặn hay gặp: 'Đặt try-catch quanh code có làm chậm không?' Trả lời đúng là không — chi phí chỉ phát sinh khi exception thực sự bị ném, và nằm chủ yếu ở việc thu thập stack trace.",
+      "followUp": [
+        "Vì sao log production đôi khi chỉ thấy NullPointerException mà không có stack trace nào?",
+        "Khi nào bạn chấp nhận tạo exception không có stack trace?",
+        "Nên chọn checked hay unchecked cho custom exception của tầng service?"
+      ]
+    },
+    {
+      "id": "t-7-1",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Các vùng bộ nhớ của JVM và cái chết của PermGen",
+      "summary": "Heap, stack, metaspace, code cache — vùng nào dùng làm gì, vùng nào chia sẻ giữa các thread, và OutOfMemoryError của từng vùng nghĩa là gì.",
+      "sections": [
+        "<b>Heap — vùng chia sẻ, nơi mọi object sống.</b> Mọi instance tạo bằng <code>new</code> và mọi mảng đều nằm trên heap, dùng chung cho toàn bộ thread và là vùng duy nhất chứa object của ứng dụng. Nói &quot;vùng duy nhất được garbage collector quản lý&quot; là không chính xác: metaspace cũng được GC thu hồi khi class unloading diễn ra trong một chu kỳ GC, và string table cũng được dọn theo GC. Kích thước điều khiển bằng <code>-Xms</code> (khởi tạo) và <code>-Xmx</code> (tối đa). Khi heap không còn chỗ cho object mới sau khi GC đã cố hết sức, bạn nhận <code>OutOfMemoryError: Java heap space</code>.",
+        "<b>Stack — riêng cho từng thread.</b> Mỗi thread có stack riêng, mỗi lần gọi method đẩy vào một <i>frame</i> chứa biến local, tham số, operand stack và địa chỉ trả về. Vì stack là riêng nên biến local luôn thread-safe một cách tự nhiên. Kích thước mỗi stack đặt bằng <code>-Xss</code> (mặc định thường 512KB–1MB tuỳ nền tảng); đệ quy quá sâu cho <code>StackOverflowError</code>. Lưu ý về ngân sách bộ nhớ: stack nằm ngoài <code>-Xmx</code>, nên vài nghìn thread có thể làm cạn RAM của container dù heap còn trống — đó là lỗi <code>OutOfMemoryError: unable to create new native thread</code>.",
+        "<b>Metaspace thay PermGen từ Java 8.</b> Trước Java 8, metadata của class nằm trong PermGen — một vùng thuộc heap, kích thước cố định qua <code>-XX:MaxPermSize</code>, và là thủ phạm kinh điển của <code>OutOfMemoryError: PermGen space</code> khi redeploy nhiều lần trên app server. Java 8 (JEP 122) xoá bỏ PermGen; metadata chuyển sang <b>metaspace</b> nằm trong <i>native memory</i>, mặc định không giới hạn trên (chỉ bị chặn bởi RAM của máy), giới hạn bằng <code>-XX:MaxMetaspaceSize</code>. Cờ <code>-XX:MaxPermSize</code> trên Java 8+ bị bỏ qua kèm cảnh báo — đây là câu hỏi rất hay gặp khi phỏng vấn về migration.",
+        "<b>String pool đã rời PermGen từ Java 7.</b> Nhiều người vẫn nhầm rằng string pool nằm trong PermGen. Từ Java 7 nó đã chuyển vào heap, nghĩa là chuỗi được <code>intern()</code> nay chịu GC bình thường và không còn làm tràn PermGen. Kích thước bảng băm của pool chỉnh được bằng <code>-XX:StringTableSize</code>.",
+        "<b>Code cache — nơi JIT cất mã máy.</b> Mã do JIT biên dịch nằm trong code cache (native memory, <code>-XX:ReservedCodeCacheSize</code>). Khi vùng này đầy, JVM tắt compiler và toàn bộ ứng dụng rơi về chế độ thông dịch — triệu chứng là hiệu năng tụt đột ngột nhiều lần mà GC log hoàn toàn bình thường. Từ Java 9, code cache được chia thành nhiều segment theo vòng đời của mã.",
+        "<b>Bức tranh tổng bộ nhớ của một process.</b> RSS của process = heap + metaspace + code cache + stack của mọi thread + direct/mapped ByteBuffer + bộ nhớ nội bộ của GC (remembered set, card table) + native của thư viện. Đặt <code>-Xmx</code> bằng đúng memory limit của container là sai lầm phổ biến khiến pod bị OOMKilled dù heap chưa đầy; công cụ chẩn đoán đúng là Native Memory Tracking (<code>-XX:NativeMemoryTracking=summary</code>)."
+      ],
+      "example": "// Heap: object và mảng\nbyte[] buf = new byte[1024];        // object trên heap\nPoint p = new Point(1, 2);          // object trên heap\n\n// Stack: biến local và reference\nvoid m() {\n    int x = 5;                      // giá trị nằm trong frame trên stack\n    Point local = p;                // reference nằm trên stack, object vẫn trên heap\n}\n\n// Các cờ tương ứng với từng vùng\n// -Xms2g -Xmx2g                 heap\n// -Xss512k                      stack mỗi thread\n// -XX:MaxMetaspaceSize=256m     metadata class (native memory)\n// -XX:ReservedCodeCacheSize=240m  mã do JIT sinh\n// -XX:MaxDirectMemorySize=512m  direct ByteBuffer\n// -XX:NativeMemoryTracking=summary  để chẩn đoán RSS vượt mức",
+      "exampleTitle": "Vùng nào chứa gì và cờ nào điều khiển",
+      "keyPoints": [
+        "Heap chia sẻ giữa mọi thread và là vùng duy nhất chứa object của ứng dụng (metaspace cũng được GC thu hồi khi class unloading, nên đừng nói heap là vùng duy nhất GC quản lý); stack riêng từng thread nên biến local mặc nhiên thread-safe.",
+        "Metaspace thay PermGen từ Java 8, nằm ở native memory và mặc định không có trần trên.",
+        "-XX:MaxPermSize bị bỏ qua từ Java 8; cờ đúng là -XX:MaxMetaspaceSize.",
+        "String pool đã chuyển từ PermGen vào heap từ Java 7.",
+        "Bộ nhớ process lớn hơn -Xmx rất nhiều: stack, metaspace, code cache và direct buffer đều nằm ngoài heap."
+      ],
+      "trap": "Đặt -Xmx bằng đúng memory limit của container. Khi đó heap có thể chưa đầy nhưng tổng RSS đã vượt limit và container bị OOMKilled — một sự cố không để lại bất kỳ dấu vết nào trong GC log.",
+      "followUp": [
+        "OutOfMemoryError: unable to create new native thread khác gì OutOfMemoryError: Java heap space?",
+        "Vì sao ứng dụng chậm đột ngột mà GC log lại hoàn toàn bình thường?",
+        "Direct ByteBuffer được giải phóng bằng cơ chế nào nếu nó không nằm trên heap?"
+      ]
+    },
+    {
+      "id": "t-7-2",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Java luôn pass-by-value — kể cả với object",
+      "summary": "Vì sao tráo đổi hai object trong method không có tác dụng nhưng sửa nội dung thì có, và mối liên hệ với bố cục stack/heap.",
+      "sections": [
+        "<b>Phát biểu chính xác.</b> Java <b>luôn</b> truyền tham số theo giá trị, không có ngoại lệ. Với kiểu nguyên thuỷ, giá trị được sao chép là chính con số. Với object, giá trị được sao chép là <i>reference</i> — tức là địa chỉ, chứ không phải object. Bản sao reference này nằm trong frame của method được gọi, hoàn toàn tách biệt với biến ở phía người gọi.",
+        "<b>Hai hệ quả trái ngược nhau.</b> Nếu bên trong method bạn <i>gán lại</i> tham số (<code>s = new String(...)</code>), bạn chỉ ghi đè bản sao trong frame của mình; biến ở người gọi không hề đổi. Nhưng nếu bạn <i>gọi method làm thay đổi trạng thái</i> của object (<code>sb.append(...)</code>, <code>list.add(...)</code>), thì cả hai reference cùng trỏ tới một object trên heap nên người gọi thấy thay đổi. Phân biệt được 'gán lại reference' với 'sửa nội dung object' là toàn bộ nội dung của câu hỏi này.",
+        "<b>Vì sao swap không bao giờ hoạt động.</b> Một method <code>swap(Object a, Object b)</code> hoán đổi hai tham số chỉ hoán đổi hai ô nhớ trong frame của chính nó rồi biến mất khi method kết thúc. Java không có tham chiếu kiểu C++ (<code>&amp;</code>) hay con trỏ tới con trỏ, nên muốn trả hai giá trị ra ngoài bạn buộc phải dùng mảng, object bọc, hoặc trả về một record.",
+        "<b>Vì sao String làm chủ đề này dễ nhầm.</b> <code>String</code> immutable nên không có method nào sửa được nội dung của nó; mọi thao tác đều tạo object mới và gán lại. Người mới thường kết luận sai rằng 'String được truyền theo giá trị còn object khác theo tham chiếu'. Thực tế cơ chế truyền hoàn toàn giống nhau — chỉ có tính bất biến làm cho hệ quả trông khác.",
+        "<b>Liên hệ với bố cục bộ nhớ.</b> Biến local kiểu nguyên thuỷ và biến giữ reference đều nằm trong frame trên stack của thread; object mà reference trỏ tới nằm trên heap dùng chung. Đây chính là lý do vì sao truyền một object giữa hai thread lập tức tạo ra vấn đề đồng bộ hoá, trong khi biến local thì không bao giờ.",
+        "<b>Sắc thái cần biết: escape analysis.</b> Câu 'object luôn nằm trên heap' đúng ở mức đặc tả ngôn ngữ, nhưng ở mức cài đặt HotSpot, JIT có thể phân tích thấy một object không thoát khỏi method và thay nó bằng các biến vô hướng nằm trong thanh ghi/stack — gọi là scalar replacement. Người phỏng vấn cấp senior thường thích nghe ứng viên nêu đúng sắc thái này thay vì phát biểu tuyệt đối."
+      ],
+      "example": "static void reassign(StringBuilder sb) {\n    sb = new StringBuilder(\"changed\");   // chỉ đổi bản sao reference trong frame\n}\n\nstatic void mutate(StringBuilder sb) {\n    sb.append(\" world\");                 // đổi object trên heap -> caller thấy\n}\n\nstatic void swap(int[] a) {              // muốn ra ngoài thì phải bọc\n    int t = a[0]; a[0] = a[1]; a[1] = t;\n}\n\npublic static void main(String[] args) {\n    StringBuilder sb = new StringBuilder(\"hello\");\n    reassign(sb);\n    System.out.println(sb);              // hello\n    mutate(sb);\n    System.out.println(sb);              // hello world\n\n    String s = \"hello\";\n    upper(s);\n    System.out.println(s);               // hello - String immutable\n}\n\nstatic void upper(String s) { s = s.toUpperCase(); }",
+      "exampleTitle": "Gán lại reference vs sửa nội dung object",
+      "keyPoints": [
+        "Java luôn pass-by-value; với object thì giá trị được sao chép là reference chứ không phải object.",
+        "Gán lại tham số bên trong method không ảnh hưởng người gọi; sửa trạng thái object thì có.",
+        "Không thể viết swap cho hai tham số object — phải dùng mảng, object bọc hoặc record trả về.",
+        "String trông 'khác' chỉ vì immutable, cơ chế truyền tham số hoàn toàn giống mọi object khác.",
+        "Reference nằm trên stack frame, object nằm trên heap — trừ khi JIT làm scalar replacement."
+      ],
+      "trap": "Câu trả lời 'Java truyền primitive theo giá trị và object theo tham chiếu' là sai và người phỏng vấn dùng đúng câu này để loại ứng viên. Cách nói đúng là: truyền theo giá trị của reference (pass-by-value of the reference).",
+      "followUp": [
+        "Nếu Java là pass-by-reference thì đoạn code swap sẽ chạy khác như thế nào?",
+        "Vì sao truyền một collection mutable ra khỏi API công khai lại nguy hiểm?",
+        "Escape analysis thay đổi gì trong phát biểu 'mọi object đều nằm trên heap'?"
+      ]
+    },
+    {
+      "id": "t-7-3",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "GC theo thế hệ: eden, survivor, old và vì sao cấp phát lại rẻ",
+      "summary": "Giả thuyết thế hệ, đường đi của một object từ eden tới old gen, và vì sao minor GC nhanh hơn full GC nhiều bậc.",
+      "sections": [
+        "<b>Giả thuyết thế hệ yếu (weak generational hypothesis).</b> Quan sát thực nghiệm trên hầu hết ứng dụng: đại đa số object chết rất trẻ, và rất ít tham chiếu đi từ object già sang object trẻ. Toàn bộ thiết kế GC của HotSpot dựng trên hai quan sát này — chia heap thành young generation và old generation để có thể dọn phần trẻ thường xuyên với chi phí thấp mà không phải chạm vào phần già.",
+        "<b>Young generation gồm eden và hai survivor.</b> Object mới sinh ra ở eden. Khi eden đầy, một <i>minor GC</i> chạy: nó tìm các object còn sống bằng cách duyệt từ GC roots <i>và</i> — điểm rất hay bị bỏ sót — từ remembered set / card table, tức tập các tham chiếu đi từ old gen xuống young gen; không quét phần này thì một object trẻ chỉ còn được object già trỏ tới sẽ bị coi nhầm là rác. Sau đó nó sao chép các object sống sang survivor đang trống, rồi <b>xoá sạch toàn bộ eden trong một thao tác</b>. Chi phí tỉ lệ với lượng object <i>sống</i>, không tỉ lệ với lượng object chết — nên nếu 95% object chết trẻ, minor GC gần như miễn phí. Đó là lý do vì sao tạo nhiều object ngắn hạn trong Java rẻ hơn nhiều so với trực giác của người quen C/C++.",
+        "<b>Tenuring: đường lên old generation.</b> Mỗi lần sống sót qua một minor GC, object tăng age lên 1 và được sao chép qua survivor còn lại. Khi age vượt ngưỡng (<code>-XX:MaxTenuringThreshold</code>, mặc định thường là 15 với các collector theo thế hệ) hoặc khi survivor không đủ chỗ, object được <i>promote</i> lên old gen. Object quá lớn có thể được cấp phát thẳng vào old gen. Khi young gen quá nhỏ, object bị đẩy lên old sớm — gọi là <i>premature promotion</i> — làm old gen đầy nhanh và full GC dồn dập.",
+        "<b>Cấp phát nhanh nhờ TLAB và bump-the-pointer.</b> Eden được chia thành các Thread-Local Allocation Buffer, mỗi thread có vùng riêng nên cấp phát chỉ là tăng một con trỏ, không cần khoá. Đây là lý do <code>new</code> trong Java thường nhanh hơn <code>malloc</code>. Kết hợp với copying collector — vốn tự nén (compact) khi sao chép — heap không bị phân mảnh ở young gen.",
+        "<b>Thuật toán: mark-sweep-compact vs copying.</b> Young gen dùng <i>copying</i> (sao chép phần sống, bỏ tất cả phần còn lại) vì tỉ lệ sống thấp. Old gen dùng <i>mark-sweep-compact</i>: đánh dấu object sống, quét bỏ object chết, rồi dồn các object sống lại để tránh phân mảnh. Bước compact tốn kém và thường là thành phần chính của một pha stop-the-world dài.",
+        "<b>Minor, major, full — phân biệt cho chuẩn.</b> <i>Minor GC</i> dọn young gen. <i>Major GC</i> dọn old gen. <i>Full GC</i> dọn cả heap lẫn metaspace và gần như luôn là stop-the-world toàn phần. Cần lưu ý thuật ngữ này không được chuẩn hoá tuyệt đối giữa các collector, và với G1 thì bức tranh khác đi: G1 chia heap thành hàng nghìn region cùng kích thước, gán vai trò eden/survivor/old cho từng region, và các pha hỗn hợp (mixed GC) dọn young cộng thêm một số region old sinh lợi nhất."
+      ],
+      "example": "// Object ngắn hạn: sinh ra ở eden, gần như luôn chết trước minor GC kế tiếp\nfor (int i = 0; i < 1_000_000; i++) {\n    String s = \"item-\" + i;    // rác, chi phí thu hồi gần bằng 0\n    consume(s);\n}\n\n// Object dài hạn: sống sót nhiều minor GC rồi bị promote lên old gen\nstatic final Map<Long, User> CACHE = new ConcurrentHashMap<>();\n\n// Cờ liên quan tới thế hệ (áp dụng với collector theo thế hệ)\n// -Xmn512m                      kích thước young generation\n// -XX:MaxTenuringThreshold=15   số lần sống sót trước khi promote\n// -XX:SurvivorRatio=8           eden : mỗi survivor = 8 : 1\n// -Xlog:gc*                     GC log hợp nhất, Java 9 trở lên\n// -XX:+PrintGCDetails           cú pháp cũ dùng cho Java 8",
+      "exampleTitle": "Object ngắn hạn vs dài hạn và các cờ liên quan",
+      "keyPoints": [
+        "Chi phí minor GC tỉ lệ với lượng object còn SỐNG, không tỉ lệ với lượng rác — nên object chết trẻ gần như miễn phí.",
+        "Object sinh ra ở eden, sang survivor và tăng age mỗi lần sống sót, rồi được promote lên old gen khi vượt ngưỡng tenuring.",
+        "TLAB cho phép cấp phát bằng cách tăng con trỏ, không cần khoá, nên new thường nhanh hơn malloc.",
+        "Young gen dùng copying (tự nén), old gen dùng mark-sweep-compact với bước compact đắt.",
+        "Young gen quá nhỏ gây premature promotion, làm old gen đầy nhanh và sinh full GC dồn dập."
+      ],
+      "trap": "Nhiều người nghĩ tối ưu là 'tạo ít object đi'. Với object ngắn hạn thì gần như không có lợi, thậm chí việc tự tái sử dụng object (object pooling) còn làm chậm hơn vì object sống lâu bị promote lên old gen và làm tăng chi phí major GC.",
+      "followUp": [
+        "Vì sao cần tới hai vùng survivor mà không phải một?",
+        "Premature promotion biểu hiện thế nào trong GC log và sửa bằng cách nào?",
+        "Mô hình region của G1 khác mô hình eden/survivor/old cố định ở chỗ nào?"
+      ]
+    },
+    {
+      "id": "t-7-4",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Các collector qua từng bản LTS và bản chất của stop-the-world",
+      "summary": "Serial, Parallel, CMS, G1, ZGC, Shenandoah: cái nào mặc định ở bản nào, đánh đổi throughput với latency ra sao, và vì sao không thể xoá sạch pause.",
+      "sections": [
+        "<b>Serial và Parallel — tối ưu throughput.</b> <code>Serial GC</code> (<code>-XX:+UseSerialGC</code>) dùng một thread, phù hợp heap nhỏ và container một CPU. <code>Parallel GC</code> (<code>-XX:+UseParallelGC</code>) dùng nhiều thread cho cùng công việc đó và là <b>mặc định của Java 8</b>. Cả hai đều stop-the-world hoàn toàn: throughput tổng cao nhất nhưng pause tỉ lệ với kích thước heap, nên heap vài chục GB có thể pause hàng giây.",
+        "<b>CMS — đã bị xoá khỏi JDK.</b> Concurrent Mark Sweep chạy phần lớn công việc đánh dấu song song với ứng dụng để giảm pause. Nhược điểm là nó <i>không compact</i>, nên old gen dần phân mảnh cho tới khi buộc phải chạy một full GC single-thread rất dài (concurrent mode failure). CMS bị deprecate ở <b>Java 9</b> (JEP 291) và <b>gỡ bỏ hoàn toàn ở Java 14</b> (JEP 363). Cần phân biệt cho đúng vòng đời của một cờ JVM: ở <b>Java 14</b> cờ <code>-XX:+UseConcMarkSweepGC</code> mới chỉ là <i>obsolete</i> — JVM in cảnh báo <code>Ignoring option UseConcMarkSweepGC; support was removed in 14.0</code> rồi <b>vẫn khởi động bình thường</b> và chạy trên G1. Phải từ <b>Java 15</b>, khi cờ <i>expired</i>, JVM mới báo <code>Unrecognized VM option</code> và không khởi động được.",
+        "<b>G1 — mặc định từ Java 9 và là lựa chọn hợp lý nhất hiện nay.</b> G1 chia heap thành hàng nghìn region cùng kích thước, thu thập thống kê rồi ưu tiên dọn những region nhiều rác nhất trước (garbage-first). Nó nhận mục tiêu pause mềm qua <code>-XX:MaxGCPauseMillis</code> (mặc định 200ms) và tự điều chỉnh để cố đạt — đây là <i>mục tiêu</i> chứ không phải cam kết. G1 có compact nên không gặp bài toán phân mảnh của CMS. Với Java 11/17/21, G1 là mặc định trên máy được JVM xếp loại server-class.",
+        "<b>ZGC và Shenandoah — nhóm low-latency.</b> Cả hai làm gần như toàn bộ công việc (kể cả di chuyển object) song song với ứng dụng, dùng load/read barrier để chuyển hướng tham chiếu. Điểm mấu chốt: <b>pause gần như không phụ thuộc kích thước heap</b>, nên heap hàng trăm GB vẫn giữ pause rất ngắn. ZGC: experimental ở Java 11 (JEP 333), production-ready ở Java 15 (JEP 377); mục tiêu pause dưới 10ms ở các bản đầu và thường dưới 1ms từ Java 16 trở đi. Java 21 bổ sung <b>Generational ZGC</b> (JEP 439) — ở bản này vẫn là tuỳ chọn, bật bằng <code>-XX:+ZGenerational</code>. Shenandoah: experimental ở Java 12, production ở Java 15 (JEP 379), nhưng nó chỉ có trong một số bản build OpenJDK chứ không phải mọi JDK — cần kiểm tra bản phân phối bạn dùng.",
+        "<b>Đánh đổi thật sự.</b> Không có collector 'tốt nhất'. Nhóm low-latency trả giá bằng throughput thấp hơn (do barrier trên mỗi lần đọc tham chiếu) và tiêu tốn nhiều CPU cùng bộ nhớ phụ trợ hơn. Với job batch, Parallel GC thường vẫn cho tổng thời gian chạy tốt nhất. Với API cần p99 ổn định và heap lớn, ZGC hoặc Shenandoah mới đáng. Ứng dụng heap vừa phải thì G1 mặc định là đúng và không cần chỉnh gì.",
+        "<b>Vì sao không xoá được stop-the-world hoàn toàn.</b> Mọi collector đều cần vài thời điểm mà toàn bộ thread ứng dụng dừng tại <i>safepoint</i> — chủ yếu để quét root (biến local trên stack của từng thread) một cách nhất quán. ZGC và Shenandoah rút các pha này xuống mức rất ngắn và không phụ thuộc kích thước heap, nhưng không xoá được. Ngoài ra còn có <i>time-to-safepoint</i>: nếu một thread đang ở vòng lặp không có safepoint poll, cả JVM phải chờ nó — đó là loại pause không hiện rõ trong GC log."
+      ],
+      "example": "// Mặc định theo phiên bản (trên máy JVM xếp loại server-class)\n// Java 8   -> Parallel GC\n// Java 11  -> G1\n// Java 17  -> G1\n// Java 21  -> G1\n// Máy/container nhỏ (dưới 2 CPU hoặc RAM thấp) -> JVM ergonomics có thể chọn Serial GC\n\n// Chọn tường minh\n// -XX:+UseSerialGC\n// -XX:+UseParallelGC\n// -XX:+UseG1GC   -XX:MaxGCPauseMillis=100\n// -XX:+UseZGC                       Java 15+ production\n// -XX:+UseZGC -XX:+ZGenerational    Java 21, generational ZGC (tuỳ chọn)\n// -XX:+UseShenandoahGC              chỉ có ở một số bản build OpenJDK\n// -XX:+UseConcMarkSweepGC           Java 14: obsolete - canh bao roi bo qua, chay tren G1\n//                                   Java 15+: expired - Unrecognized VM option, JVM khong khoi dong\n\n// Quan sát trước khi chỉnh\n// -Xlog:gc*,safepoint:file=gc.log:time,uptime,level,tags",
+      "exampleTitle": "Bảng mặc định theo LTS và cờ tương ứng",
+      "keyPoints": [
+        "Parallel GC là mặc định ở Java 8; G1 là mặc định từ Java 9 trở đi trên máy server-class.",
+        "CMS bị deprecate ở Java 9 và gỡ bỏ ở Java 14; trên Java 14 cờ cũ chỉ bị cảnh báo rồi bỏ qua (JVM vẫn chạy trên G1), từ Java 15 cờ mới hết hạn và làm JVM không khởi động.",
+        "ZGC production từ Java 15; Generational ZGC xuất hiện ở Java 21 và ở bản này vẫn phải bật bằng -XX:+ZGenerational.",
+        "Pause của ZGC/Shenandoah gần như không phụ thuộc kích thước heap, đổi lại throughput thấp hơn do barrier.",
+        "Không collector nào bỏ được stop-the-world hoàn toàn vì luôn cần safepoint để quét root nhất quán."
+      ],
+      "trap": "Bật ZGC cho mọi ứng dụng vì nghĩ 'pause thấp hơn thì luôn tốt hơn'. Với job batch hoặc service throughput-bound, chi phí barrier khiến tổng thời gian chạy tệ hơn Parallel/G1 rõ rệt — phải đo p99 và throughput trước khi đổi.",
+      "followUp": [
+        "Concurrent mode failure của CMS là gì và vì sao nó dẫn tới full GC dài?",
+        "MaxGCPauseMillis của G1 là cam kết hay chỉ là mục tiêu?",
+        "Time-to-safepoint gây pause kiểu gì mà GC log không thể hiện?"
+      ]
+    },
+    {
+      "id": "t-7-5",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Memory leak trong Java, bốn loại reference, và vì sao finalize() bị khai tử",
+      "summary": "GC không cứu bạn khỏi rò rỉ bộ nhớ: các mẫu leak điển hình, cách soft/weak/phantom reference hoạt động, và thay thế đúng cho finalize().",
+      "sections": [
+        "<b>Định nghĩa leak trong ngôn ngữ có GC.</b> GC chỉ thu hồi object <i>không còn reachable</i> từ GC roots (biến local đang hoạt động, biến static, thread đang chạy, JNI reference). Leak trong Java nghĩa là: object không còn cần dùng nhưng vẫn còn ai đó giữ tham chiếu, nên GC không được phép thu hồi. Triệu chứng đặc trưng là mức old gen <i>sau mỗi full GC</i> tăng đều theo thời gian — chứ không phải heap dao động lên xuống, vốn hoàn toàn bình thường.",
+        "<b>Bốn mẫu leak hay gặp nhất.</b> (1) <b>Static collection</b>: một <code>static Map</code> dùng làm cache mà không có giới hạn hoặc TTL — biến static là GC root sống suốt vòng đời class loader. (2) <b>Listener/callback không gỡ</b>: đăng ký observer mà quên <code>removeListener</code>, publisher giữ subscriber sống mãi. (3) <b>ThreadLocal trong thread pool</b>: thread trong pool không chết nên giá trị của ThreadLocal không được dọn — chi tiết cơ chế ở đoạn dưới. (4) <b>ClassLoader leak</b>: sau khi redeploy trong app server, một reference còn sót (ví dụ một thread do webapp tạo, hoặc một field static ở thư viện dùng chung) giữ cả class loader cũ sống, kéo theo toàn bộ class và static field của bản deploy cũ.",
+        "<b>Vì sao ThreadLocal đặc biệt nguy hiểm với thread pool.</b> Trong <code>ThreadLocalMap</code> của mỗi thread, <i>key</i> là một weak reference tới object <code>ThreadLocal</code>, còn <i>value</i> là strong reference. Thường thì <code>ThreadLocal</code> được khai báo <code>static final</code> nên key không bao giờ bị thu hồi, và value cứ sống theo tuổi thọ của thread. Trong Tomcat hay ExecutorService, thread sống hàng tháng, nên mỗi request bỏ quên một value là một lần rò rỉ. Quy tắc bắt buộc: luôn <code>remove()</code> trong <code>finally</code>.",
+        "<b>Bốn mức reference.</b> <i>Strong</i> — tham chiếu thông thường, object không bao giờ bị thu hồi khi còn nó. <i>Soft</i> (<code>SoftReference</code>) — GC được phép giữ lại, nhưng đảm bảo mọi soft reference sẽ bị clear trước khi ném <code>OutOfMemoryError</code>; phù hợp cho cache nhạy cảm bộ nhớ, tuy thực tế hay khuyên dùng thư viện cache có chính sách rõ ràng (Caffeine) hơn là dựa vào GC. <i>Weak</i> (<code>WeakReference</code>) — bị clear ngay ở kỳ GC kế tiếp khi object chỉ còn weakly reachable; đây là cơ chế đằng sau <code>WeakHashMap</code>. <i>Phantom</i> (<code>PhantomReference</code>) — <code>get()</code> luôn trả về <code>null</code>, chỉ dùng cùng <code>ReferenceQueue</code> để biết object đã thực sự được thu hồi và chạy dọn dẹp sau đó.",
+        "<b>finalize() và người thay thế.</b> <code>Object.finalize()</code> không đảm bảo bao giờ chạy hay có chạy hay không, làm object phải qua ít nhất hai chu kỳ GC, có thể 'hồi sinh' object, và exception ném ra từ nó bị nuốt im lặng. Nó bị <code>@Deprecated</code> từ <b>Java 9</b>, rồi bị deprecate-for-removal ở <b>Java 18</b> (JEP 421) kèm tuỳ chọn <code>--finalization=disabled</code> để tắt hẳn, với kế hoạch gỡ bỏ ở bản sau. Thay thế đúng, theo thứ tự ưu tiên: <code>AutoCloseable</code> + try-with-resources cho mọi tài nguyên có vòng đời rõ ràng; <code>java.lang.ref.Cleaner</code> (Java 9+, dựng trên phantom reference) chỉ làm lưới an toàn cho tài nguyên native.",
+        "<b>Quy trình chẩn đoán thực tế.</b> Đo trước rồi mới sửa: bật <code>-Xlog:gc*</code> và xem old gen sau full GC có tăng đơn điệu không; lấy heap dump (<code>-XX:+HeapDumpOnOutOfMemoryError</code> hoặc <code>jcmd &lt;pid&gt; GC.heap_dump</code>); mở bằng Eclipse MAT và dùng báo cáo <i>Leak Suspects</i> cùng <i>dominator tree</i> để tìm đường tham chiếu giữ object sống. Việc tăng <code>-Xmx</code> chỉ làm sự cố xảy ra muộn hơn, không sửa được leak."
+      ],
+      "example": "// LEAK: thread trong pool sống mãi nên value của ThreadLocal không bao giờ được dọn\nprivate static final ThreadLocal<Context> CTX = new ThreadLocal<>();\n\npublic void handle(Request r) {\n    CTX.set(new Context(r));\n    try {\n        process();\n    } finally {\n        CTX.remove();       // BẮT BUỘC, nếu không sẽ rò rỉ theo từng request\n    }\n}\n\n// LEAK: cache static không giới hạn, biến static là GC root\nprivate static final Map<String, byte[]> CACHE = new HashMap<>();\n\n// Đúng: cache có giới hạn và chính sách hết hạn rõ ràng\nprivate static final Cache<String, byte[]> CACHE2 =\n    Caffeine.newBuilder().maximumSize(10_000)\n            .expireAfterWrite(Duration.ofMinutes(10)).build();\n\n// Thay finalize() bằng Cleaner (Java 9+) cho tài nguyên native\nprivate static final Cleaner CLEANER = Cleaner.create();\n\nclass NativeHandle implements AutoCloseable {\n    private final Cleaner.Cleanable cleanable;\n    NativeHandle(long ptr) {\n        this.cleanable = CLEANER.register(this, () -> free(ptr)); // KHÔNG bắt this\n    }\n    public void close() { cleanable.clean(); }\n}",
+      "exampleTitle": "Leak điển hình và cách thay thế finalize()",
+      "keyPoints": [
+        "Dấu hiệu leak thật là old gen sau mỗi full GC tăng đơn điệu, không phải heap dao động lên xuống.",
+        "Bốn nguồn leak kinh điển: static collection, listener không gỡ, ThreadLocal trong thread pool, ClassLoader leak khi redeploy.",
+        "ThreadLocalMap giữ key là weak reference nhưng value là strong — bắt buộc gọi remove() trong finally.",
+        "Soft reference chắc chắn bị clear trước khi ném OutOfMemoryError; weak reference bị clear ngay ở kỳ GC kế tiếp.",
+        "finalize() deprecate từ Java 9, deprecate-for-removal ở Java 18 (JEP 421); thay bằng try-with-resources, dùng Cleaner làm lưới an toàn."
+      ],
+      "trap": "Lambda truyền vào Cleaner.register() tuyệt đối không được tham chiếu tới this — nếu có, object sẽ luôn strongly reachable từ chính hành động dọn dẹp của nó và không bao giờ bị thu hồi, tức là Cleaner tự tạo ra leak.",
+      "followUp": [
+        "Vì sao WeakHashMap dùng weak reference ở key mà không phải ở value?",
+        "Tăng -Xmx có sửa được memory leak không, và vì sao?",
+        "Làm sao phân biệt leak thật với heap chỉ đơn giản là được cấp phát chưa đủ?"
+      ]
+    },
+    {
+      "id": "t-20-1",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Đo trước khi tối ưu: vì sao benchmark viết tay hầu như luôn sai",
+      "summary": "JIT làm mọi phép đo ngây thơ trở nên vô nghĩa — warm-up, dead code elimination, constant folding và lý do JMH tồn tại.",
+      "sections": [
+        "<b>Câu của Knuth bị trích sai suốt.</b> Nguyên văn là 'premature optimization is the root of all evil' <i>trong khoảng 97% trường hợp không quan trọng</i> — vế sau thường bị bỏ đi. Ý thật không phải 'đừng quan tâm hiệu năng' mà là: hãy tìm ra 3% thực sự quan trọng bằng cách <b>đo</b>, thay vì đoán. Trực giác của lập trình viên về chỗ chậm sai gần như luôn luôn, vì bottleneck thật thường nằm ở I/O, ở truy vấn N+1, hoặc ở một vòng lặp không ai ngờ tới.",
+        "<b>JIT làm hỏng mọi phép đo ngây thơ.</b> HotSpot chạy thông dịch trước, thu thập profile, rồi mới biên dịch method nóng sang mã máy (C1 rồi C2), và có thể deoptimize khi giả định bị phá vỡ. Nghĩa là vài nghìn vòng lặp đầu tiên chạy chậm hơn nhiều lần so với trạng thái ổn định. Đo bằng <code>System.nanoTime()</code> quanh một vòng lặp chạy một lần thì bạn chủ yếu đang đo tốc độ của interpreter — kết quả có thể lệch hàng chục lần so với thực tế production.",
+        "<b>Dead code elimination.</b> Nếu bạn tính một giá trị mà không dùng đến nó, C2 hoàn toàn có quyền xoá luôn phép tính đó. Benchmark đo <code>Math.log(x)</code> mà không dùng kết quả sẽ ra thời gian gần bằng 0 — không phải vì hàm nhanh mà vì nó không hề được chạy. Tương tự, <i>constant folding</i>: nếu đầu vào là hằng số biết trước lúc biên dịch, JIT tính sẵn kết quả và vòng lặp trở thành rỗng.",
+        "<b>JMH giải quyết đúng những vấn đề đó.</b> JMH (Java Microbenchmark Harness, do chính đội HotSpot viết) chạy warm-up iteration riêng để JIT đạt trạng thái ổn định, fork JVM mới cho mỗi benchmark để tránh nhiễu profile giữa các bài, dùng <code>Blackhole</code> để nuốt kết quả và chặn dead code elimination, và dùng <code>@State</code> để đầu vào không bị coi là hằng. Chạy microbenchmark bằng bất cứ cách nào khác nên bị coi là không đáng tin cho tới khi chứng minh ngược lại.",
+        "<b>Đo cái đúng, ở tầng đúng.</b> Microbenchmark chỉ trả lời câu hỏi vi mô. Trong hệ thống thật, thứ quyết định trải nghiệm là <i>phân vị</i> chứ không phải trung bình: p99 mới là con số người dùng cảm nhận, và trung bình cộng che giấu hoàn toàn đuôi phân phối. Công cụ tương ứng là profiler (async-profiler, JFR) để tìm hotspot, và tracing phân tán để biết thời gian thực sự bị tiêu ở service nào.",
+        "<b>Quy trình đúng.</b> Đặt mục tiêu số cụ thể (p99 dưới 200ms), đo baseline, profile để tìm điểm nóng thật, sửa một thứ, đo lại, giữ nếu tốt hơn. Mỗi tối ưu đều có giá — code khó đọc hơn, cache phải invalidate, thêm một tầng phải bảo trì — nên tối ưu không đo được là tối ưu chỉ có chi phí mà không có lợi ích."
+      ],
+      "example": "// SAI: đo interpreter, và JIT có thể xoá sạch vòng lặp\nlong t0 = System.nanoTime();\nfor (int i = 0; i < 1000; i++) {\n    Math.log(42);           // kết quả không dùng -> dead code\n}\nSystem.out.println(System.nanoTime() - t0);\n\n// ĐÚNG: JMH\n@BenchmarkMode(Mode.AverageTime)\n@OutputTimeUnit(TimeUnit.NANOSECONDS)\n@Warmup(iterations = 5, time = 1)\n@Measurement(iterations = 10, time = 1)\n@Fork(2)\n@State(Scope.Benchmark)\npublic class LogBenchmark {\n\n    private double x;                    // không phải hằng -> chặn constant folding\n\n    @Setup\n    public void setup() { x = ThreadLocalRandom.current().nextDouble(1, 100); }\n\n    @Benchmark\n    public double measure() {\n        return Math.log(x);              // trả về giá trị -> JMH tự nuốt, chặn DCE\n    }\n\n    @Benchmark\n    public void measureWithBlackhole(Blackhole bh) {\n        bh.consume(Math.log(x));         // cách khác khi có nhiều kết quả\n    }\n}",
+      "exampleTitle": "Benchmark sai và bản JMH tương ứng",
+      "keyPoints": [
+        "Đo trước, tối ưu sau — trực giác về chỗ chậm gần như luôn sai, bottleneck thật thường ở I/O hoặc truy vấn.",
+        "Không warm-up thì bạn đang đo interpreter chứ không phải mã đã được JIT biên dịch.",
+        "Kết quả không được dùng sẽ bị dead code elimination xoá; đầu vào là hằng sẽ bị constant folding tính sẵn.",
+        "JMH xử lý warm-up, fork JVM, Blackhole và @State — đây là công cụ chuẩn cho microbenchmark trên JVM.",
+        "Trong hệ thống thật hãy nhìn p99 chứ không nhìn trung bình, và dùng profiler (async-profiler, JFR) để tìm hotspot."
+      ],
+      "trap": "Benchmark cho ra con số 0.3ns cho một phép tính phức tạp không có nghĩa là code nhanh — nó gần như luôn có nghĩa là JIT đã xoá đoạn code đó. Con số đẹp bất thường là dấu hiệu benchmark hỏng, không phải dấu hiệu tối ưu thành công.",
+      "followUp": [
+        "Vì sao JMH phải fork một JVM mới cho mỗi benchmark?",
+        "Vì sao p99 quan trọng hơn giá trị trung bình khi đánh giá độ trễ?",
+        "Làm sao phát hiện một microbenchmark đã bị dead code elimination phá hỏng?"
+      ]
+    },
+    {
+      "id": "t-20-2",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Immutability và fail fast: hai nguyên tắc rẻ tiền nhất để giảm bug",
+      "summary": "Vì sao object bất biến làm code dễ suy luận và thread-safe miễn phí, và vì sao kiểm tra ở biên tốt hơn phòng thủ ở khắp nơi.",
+      "sections": [
+        "<b>Immutability làm giảm không gian trạng thái.</b> Một object bất biến chỉ có đúng một trạng thái trong suốt vòng đời, nên khi đọc code bạn không phải truy vết xem ai đã sửa nó ở đâu. Hệ quả kèm theo là <b>thread-safe miễn phí</b>: không có ghi thì không có race condition, không cần <code>synchronized</code>, không cần nghĩ về visibility. Nó cũng làm object an toàn khi dùng làm key của <code>HashMap</code> — key bị mutate sau khi put là một trong những bug kinh điển nhất.",
+        "<b>Cách làm một class bất biến đúng chuẩn.</b> Class <code>final</code> (hoặc mọi constructor <code>private</code>), tất cả field <code>private final</code>, không có setter, và <b>defensive copy ở cả hai đầu</b>: sao chép collection/mảng/<code>Date</code> khi nhận vào constructor và khi trả ra qua getter. Bỏ qua bước copy là lỗi hay gặp nhất — một field <code>final</code> kiểu <code>List</code> chỉ đảm bảo reference không đổi, còn nội dung list vẫn bị người ngoài sửa thoải mái.",
+        "<b>Record (Java 16, có ở LTS 17 và 21) làm việc này gọn hơn.</b> <code>record Point(int x, int y) {}</code> sinh sẵn constructor, accessor, <code>equals</code>, <code>hashCode</code>, <code>toString</code>, và field là final. Nhưng cần nói rõ sắc thái ở phỏng vấn: record là <i>shallow immutable</i> — nếu một component là <code>List</code> mutable thì record đó không thật sự bất biến. Muốn chặt chẽ phải dùng compact constructor để copy: <code>List.copyOf(items)</code>.",
+        "<b>Fail fast: lỗi phải nổ càng gần nguyên nhân càng tốt.</b> Một <code>null</code> lọt vào constructor và chỉ gây <code>NullPointerException</code> sau ba tầng gọi, nửa tiếng sau, trong một thread khác, là cơn ác mộng khi debug. <code>Objects.requireNonNull(x, \"x\")</code> ngay tại constructor biến nó thành lỗi tại đúng dòng gây ra. Chi phí gần bằng 0, lợi ích là stack trace chỉ thẳng vào thủ phạm.",
+        "<b>Validate ở biên, tin tưởng ở trong.</b> Chiến lược đúng là kiểm tra dữ liệu <i>một lần</i> tại nơi nó đi vào hệ thống (controller, message listener, tầng đọc file), rồi chuyển nó thành một kiểu đã được đảm bảo hợp lệ. Sau ranh giới đó, code nội bộ không cần kiểm tra lại. Rải <code>if (x == null) return;</code> khắp mọi tầng là kiểu 'phòng thủ' làm code phình ra mà vẫn không ai biết ai chịu trách nhiệm về tính hợp lệ.",
+        "<b>Chi phí thật của immutability.</b> Nó tạo nhiều object hơn. Trong phần lớn trường hợp điều đó không đáng lo vì object ngắn hạn rất rẻ với GC theo thế hệ. Chỉ ở vòng lặp thật sự nóng — ví dụ ghép chuỗi hàng triệu lần — mới nên đổi sang cấu trúc mutable cục bộ như <code>StringBuilder</code>, và chỉ khi phép đo cho thấy nó đáng."
+      ],
+      "example": "// Bất biến đúng: defensive copy cả hai đầu\npublic final class Order {\n    private final String id;\n    private final List<Item> items;\n\n    public Order(String id, List<Item> items) {\n        this.id = Objects.requireNonNull(id, \"id\");           // fail fast\n        this.items = List.copyOf(items);                      // copy khi nhan (List.copyOf: Java 10+)\n        // Java 8: this.items = Collections.unmodifiableList(new ArrayList<>(items));\n    }\n\n    public List<Item> getItems() { return items; }            // đã unmodifiable\n}\n\n// Record: shallow immutable, cần compact constructor để chặt chẽ\npublic record Shipment(String code, List<Item> items) {\n    public Shipment {\n        Objects.requireNonNull(code, \"code\");\n        items = List.copyOf(items);      // nếu không, list bên ngoài vẫn sửa được\n    }\n}\n\n// Bẫy kinh điển: field final nhưng nội dung vẫn mutable\npublic class Bad {\n    private final List<String> tags = new ArrayList<>();\n    public List<String> getTags() { return tags; }   // caller gọi add() thoải mái\n}",
+      "exampleTitle": "Bất biến thật vs bất biến giả",
+      "keyPoints": [
+        "Object bất biến chỉ có một trạng thái nên thread-safe mà không cần đồng bộ hoá, và an toàn khi làm key của HashMap.",
+        "final trên field chỉ khoá reference; muốn bất biến thật phải defensive copy khi nhận vào và khi trả ra.",
+        "Record (Java 16+, có ở LTS 17/21) là shallow immutable — dùng compact constructor với List.copyOf để làm chặt.",
+        "Objects.requireNonNull tại constructor biến bug xa nguồn thành lỗi ngay tại dòng gây ra.",
+        "Validate một lần ở biên rồi tin tưởng bên trong, thay vì rải kiểm tra null khắp mọi tầng."
+      ],
+      "trap": "Coi record là 'immutable data class' rồi bỏ qua defensive copy. Một record chứa List mutable hoàn toàn có thể bị sửa từ bên ngoài, và equals/hashCode sinh sẵn sẽ thay đổi theo — đủ để phá hỏng một HashMap.",
+      "followUp": [
+        "Vì sao mutate một object đang dùng làm key của HashMap lại làm get() trả về null?",
+        "Record có phải luôn immutable không, và vì sao?",
+        "Khi nào bạn chấp nhận dùng object mutable thay vì bất biến?"
+      ]
+    },
+    {
+      "id": "t-20-3",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Chiến lược test: kim tự tháp, mock vừa đủ, test hành vi chứ không test cài đặt",
+      "summary": "Vì sao mock quá nhiều làm test luôn xanh mà hệ thống vẫn hỏng, và cách chia tỉ lệ giữa unit test và integration test.",
+      "sections": [
+        "<b>Kim tự tháp test và lý do nó có hình đó.</b> Đáy là nhiều unit test — nhanh, ổn định, chạy trong mili giây, chỉ ra chính xác chỗ hỏng. Giữa là ít integration test hơn — chạy chậm hơn nhưng kiểm chứng được những thứ unit test không thể: SQL có đúng không, transaction có commit không, JSON có serialize đúng không. Đỉnh là rất ít end-to-end test — đắt, chậm, dễ flaky. Hình dạng này xuất phát từ đánh đổi giữa tốc độ phản hồi và độ tin cậy, không phải từ giáo điều.",
+        "<b>Ice-cream cone — phản đề hay gặp.</b> Nhiều đội có rất nhiều E2E test và gần như không có unit test. Kết quả: bộ test chạy 40 phút, hỏng ngẫu nhiên, và khi đỏ thì không ai biết hỏng ở đâu. Dần dần mọi người bỏ qua kết quả test — lúc đó bộ test có cũng như không.",
+        "<b>Test hành vi, không test cài đặt.</b> Test tốt khẳng định <i>kết quả quan sát được</i>: giá trị trả về, trạng thái đã thay đổi, message đã được gửi đi. Test tệ khẳng định <i>cách làm</i>: gọi đúng bao nhiêu lần method nào theo thứ tự nào. Loại thứ hai sẽ đỏ mỗi lần bạn refactor dù hành vi không đổi — nó biến bộ test từ lưới an toàn thành xiềng xích, đúng ngược lại mục đích ban đầu.",
+        "<b>Mock quá nhiều làm test mất ý nghĩa.</b> Khi mọi collaborator đều bị mock, thứ bạn test là <i>giả định của bạn về collaborator</i> chứ không phải hệ thống thật. Mock trả về đúng thứ bạn muốn, nên test luôn xanh trong khi production hỏng vì collaborator thật hành xử khác. Nguyên tắc thực dụng: chỉ mock những gì bạn <b>không kiểm soát</b> hoặc <b>không đủ rẻ để chạy thật</b> — HTTP client bên thứ ba, đồng hồ, sinh số ngẫu nhiên, hàng đợi. Đừng mock repository của chính bạn khi có thể chạy Testcontainers với database thật.",
+        "<b>Integration test đáng tin nhờ Testcontainers.</b> Mock JDBC không bao giờ phát hiện được lỗi cú pháp SQL, sai kiểu cột hay lỗi khoá ngoại. Testcontainers khởi động PostgreSQL/Kafka thật trong Docker cho từng lần chạy, cho độ tin cậy gần production mà vẫn tự động hoá được trong CI. Database in-memory như H2 rẻ hơn nhưng khác biệt phương ngữ SQL sẽ giấu bug tới tận khi deploy.",
+        "<b>Coverage là chỉ báo, không phải mục tiêu.</b> 100% coverage với toàn assert vô nghĩa còn tệ hơn 60% coverage tập trung vào logic nghiệp vụ và các nhánh biên. Chỉ số hữu ích hơn là: bug thoát ra production, thời gian chạy CI, và tỉ lệ test flaky. Một test flaky nên bị coi như bug nghiêm trọng — vì nó dạy cả đội thói quen chạy lại cho tới khi xanh."
+      ],
+      "example": "// Test tệ: khẳng định cách làm, sẽ đỏ mỗi lần refactor\n@Test\nvoid badTest() {\n    service.placeOrder(order);\n    verify(repo, times(1)).findById(1L);\n    verify(repo).save(any());\n    verify(mailer).send(any());\n    verifyNoMoreInteractions(repo, mailer);   // xiềng xích, không phải lưới an toàn\n}\n\n// Test tốt: khẳng định hành vi quan sát được\n@Test\nvoid shouldRejectOrderWhenStockInsufficient() {\n    stock.set(\"SKU-1\", 2);\n\n    assertThatThrownBy(() -> service.placeOrder(orderOf(\"SKU-1\", 5)))\n        .isInstanceOf(InsufficientStockException.class);\n\n    assertThat(stock.get(\"SKU-1\")).isEqualTo(2);   // trạng thái không đổi\n}\n\n// Integration test với database thật\n@Testcontainers\n@SpringBootTest\nclass OrderRepositoryIT {\n    @Container\n    static PostgreSQLContainer<?> db = new PostgreSQLContainer<>(\"postgres:16\");\n\n    @Test\n    void shouldPersistAndReloadOrder() {\n        Order saved = repo.save(new Order(\"A-1\", items));\n        assertThat(repo.findById(saved.getId())).isPresent();\n    }\n}",
+      "exampleTitle": "Test cài đặt vs test hành vi",
+      "keyPoints": [
+        "Nhiều unit test nhanh ở đáy, ít integration test ở giữa, rất ít E2E ở đỉnh — vì đánh đổi giữa tốc độ và độ tin cậy.",
+        "Assert vào kết quả và trạng thái quan sát được, không assert vào số lần gọi và thứ tự gọi.",
+        "Chỉ mock thứ bạn không kiểm soát hoặc quá đắt để chạy thật; mock hết mọi thứ nghĩa là đang test chính giả định của mình.",
+        "Testcontainers cho database thật trong CI; H2 giấu bug do khác biệt phương ngữ SQL.",
+        "Coverage là chỉ báo chứ không phải mục tiêu; test flaky phải được xử lý như bug nghiêm trọng."
+      ],
+      "trap": "Bộ test 100% xanh nhưng production vẫn hỏng thường là dấu hiệu mock quá tay: mọi collaborator đều trả về đúng thứ test mong đợi, nên test chỉ chứng minh rằng mock đã được cấu hình đúng chứ không chứng minh hệ thống chạy được.",
+      "followUp": [
+        "Khi nào bạn dùng mock và khi nào dùng object thật trong unit test?",
+        "Vì sao verify(...) quá nhiều làm refactor trở nên đắt đỏ?",
+        "H2 và Testcontainers khác nhau ở điểm nào về độ tin cậy?"
+      ]
+    },
+    {
+      "id": "t-20-4",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Thiết kế API: Optional đúng chỗ, tên đúng nghĩa, hàm đủ nhỏ",
+      "summary": "Optional sinh ra cho kiểu trả về chứ không phải cho field hay tham số, và vì sao cách đặt tên quyết định chi phí bảo trì.",
+      "sections": [
+        "<b>Optional giải quyết đúng một vấn đề: kiểu trả về mơ hồ.</b> Trước Java 8, một method trả về <code>User</code> không cho biết <code>null</code> có phải kết quả hợp lệ hay không, và người gọi buộc phải đọc javadoc hoặc đọc code. <code>Optional&lt;User&gt;</code> đưa thông tin đó vào <i>kiểu</i>, khiến compiler nhắc người gọi phải xử lý trường hợp không có giá trị. Đó là toàn bộ ý đồ thiết kế — Brian Goetz nói rõ Optional được thêm vào cho kiểu trả về của method.",
+        "<b>Nơi không nên dùng Optional.</b> <i>Field</i>: <code>Optional</code> không implement <code>Serializable</code>, tốn thêm một lớp object cho mỗi instance, và nhiều framework ánh xạ (JPA, Jackson) xử lý không tự nhiên. <i>Tham số method</i>: bắt người gọi bọc giá trị vào <code>Optional.of(...)</code> chỉ để bạn mở ra ngay — hãy dùng overload hoặc chấp nhận <code>null</code> có tài liệu rõ ràng. <i>Collection rỗng</i>: đừng bao giờ trả <code>Optional&lt;List&lt;T&gt;&gt;</code>, hãy trả list rỗng — một collection rỗng đã tự nó diễn đạt 'không có gì'.",
+        "<b>Dùng Optional sai cách còn tệ hơn không dùng.</b> <code>if (o.isPresent()) { o.get(); }</code> chỉ là <code>if (x != null)</code> viết dài hơn và không hưởng lợi ích nào. Cách dùng đúng là chuỗi hàm: <code>map</code>, <code>filter</code>, <code>flatMap</code>, kết thúc bằng <code>orElse</code>, <code>orElseGet</code> hoặc <code>orElseThrow</code>. Lưu ý một bẫy hiệu năng: <code>orElse(expensive())</code> luôn tính đối số dù giá trị có mặt hay không, còn <code>orElseGet(() -&gt; expensive())</code> chỉ tính khi cần.",
+        "<b>Đặt tên là công cụ giảm chi phí đọc.</b> Code được đọc nhiều lần hơn được viết. Tên nên nói <i>ý định</i> chứ không nói <i>cơ chế</i>: <code>expiredSessions</code> tốt hơn <code>list2</code>; <code>calculateShippingFee</code> tốt hơn <code>process</code>. Method boolean nên đọc được như một mệnh đề (<code>isEligible</code>, <code>hasPendingPayment</code>). Một tên tốt tiết kiệm nhiều thời gian hơn bất kỳ dòng comment nào, và comment giải thích 'code này làm gì' thường là dấu hiệu tên chưa đủ tốt.",
+        "<b>Hàm nhỏ, một mức trừu tượng.</b> Vấn đề của hàm dài không phải số dòng mà là việc trộn nhiều mức trừu tượng: một hàm vừa nói chuyện nghiệp vụ vừa thao tác chỉ số mảng buộc người đọc nhảy qua lại giữa hai tầng tư duy. Tách ra để mỗi hàm chỉ ở một mức làm code tự mô tả. Tuy vậy đừng biến nó thành giáo điều: tách quá nhỏ tạo ra kiểu code phải mở mười file mới hiểu được một luồng, và điều đó cũng tệ tương đương.",
+        "<b>Comment nên trả lời câu hỏi vì sao.</b> Cái <i>gì</i> đã nằm trong code. Cái đáng viết là lý do một quyết định kỳ lạ tồn tại: vì sao phải retry đúng ba lần, vì sao phải sắp xếp trước khi gọi API bên thứ ba, tại sao đoạn tối ưu khó đọc này lại cần thiết (kèm số đo). Comment mô tả lại code sẽ lỗi thời ngay lần refactor đầu tiên và trở thành thông tin sai lệch."
+      ],
+      "example": "// Đúng: Optional cho kiểu trả về\npublic Optional<User> findByEmail(String email) { ... }\n\n// Dùng đúng: chuỗi hàm, không isPresent + get\nString name = findByEmail(email)\n        .map(User::getName)\n        .filter(n -> !n.isBlank())\n        .orElse(\"anonymous\");\n\n// Bẫy hiệu năng: orElse luôn tính đối số\nUser u1 = findByEmail(e).orElse(loadDefaultUser());       // luôn chạy loadDefaultUser()\nUser u2 = findByEmail(e).orElseGet(() -> loadDefaultUser()); // chỉ chạy khi rỗng\n\n// Sai: Optional làm field và làm tham số\npublic class Bad {\n    private Optional<String> nickname;                    // không Serializable\n    public void update(Optional<String> note) { ... }     // ép caller bọc lại\n}\n\n// Sai: Optional cho collection\npublic Optional<List<Item>> getItems();                   // hãy trả List rỗng\npublic List<Item> getItems();                             // đúng",
+      "exampleTitle": "Optional dùng đúng chỗ và các bẫy đi kèm",
+      "keyPoints": [
+        "Optional được thiết kế cho kiểu trả về của method, không phải cho field hay tham số.",
+        "Không trả Optional cho collection — collection rỗng đã diễn đạt đủ ý 'không có gì'.",
+        "isPresent() + get() không hơn gì kiểm tra null; hãy dùng map/filter/orElseGet/orElseThrow.",
+        "orElse luôn tính đối số kể cả khi không cần; dùng orElseGet cho giá trị đắt tiền.",
+        "Tên nói ý định chứ không nói cơ chế; comment nên giải thích vì sao chứ không mô tả lại code."
+      ],
+      "trap": "Dùng Optional làm field của entity JPA hoặc DTO. Nó không Serializable, gây rắc rối với Jackson và Hibernate, và thêm một lớp object cho mỗi instance — đây là lỗi thiết kế mà người phỏng vấn rất hay dùng để kiểm tra xem ứng viên có hiểu ý đồ của Optional hay chỉ đang dùng theo trào lưu.",
+      "followUp": [
+        "Vì sao orElse(expensiveCall()) có thể làm chậm code dù giá trị luôn có mặt?",
+        "Optional có phải là cách thay thế hoàn toàn cho null không?",
+        "Khi nào trả về null vẫn là lựa chọn hợp lý?"
+      ]
+    },
+    {
+      "id": "t-20-5",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Log, xử lý lỗi ở biên, code review và YAGNI",
+      "summary": "Những thói quen quyết định việc bạn có debug được sự cố lúc 2 giờ sáng hay không, và vì sao kiến trúc thừa đắt hơn kiến trúc thiếu.",
+      "sections": [
+        "<b>Log có cấu trúc thay vì log thành câu văn.</b> Trong hệ thống phân tán, log chỉ có giá trị khi <i>truy vấn được</i>. Log dạng JSON với các trường cố định (<code>traceId</code>, <code>userId</code>, <code>orderId</code>, <code>durationMs</code>) cho phép lọc và tổng hợp; câu văn tự do thì chỉ grep được. MDC của SLF4J là cách chuẩn để gắn <code>traceId</code> vào mọi dòng log trong cùng một request — nhớ xoá MDC ở cuối request vì thread pool tái sử dụng thread, đúng vấn đề như ThreadLocal.",
+        "<b>Dùng placeholder, không nối chuỗi.</b> <code>log.debug(\"user={} order={}\", u, o)</code> chỉ định dạng chuỗi khi mức debug đang bật; <code>log.debug(\"user=\" + u)</code> thì phép nối chuỗi (và <code>toString()</code>) luôn chạy dù dòng log bị bỏ qua. Trong đường dẫn nóng, khác biệt này đo được. Với đối số thực sự đắt, hãy dùng dạng lambda của SLF4J 2.x hoặc kiểm tra <code>isDebugEnabled()</code>.",
+        "<b>Không bao giờ log dữ liệu nhạy cảm.</b> Mật khẩu, token, số thẻ, CCCD, thông tin y tế — log thường được gửi tới hệ thống tập trung mà rất nhiều người truy cập được, và giữ hàng tháng. Đừng log nguyên object request; hãy viết <code>toString()</code> có che dữ liệu, và cẩn thận với việc để dữ liệu nhạy cảm lọt vào <i>message của exception</i>, vì message đó sẽ đi vào log cùng stack trace.",
+        "<b>Xử lý lỗi tập trung ở biên.</b> Mỗi hệ thống nên có đúng một nơi biến exception thành phản hồi cho thế giới bên ngoài: <code>@RestControllerAdvice</code> cho HTTP, một wrapper cho message consumer, vòng lặp chính cho batch job. Ở đó bạn ánh xạ exception sang mã lỗi, log đầy đủ kèm stack trace, và trả về một thông điệp <i>không lộ chi tiết nội bộ</i> — tuyệt đối không trả stack trace ra client. Các tầng bên dưới thì để exception bay lên, không try-catch rải rác.",
+        "<b>YAGNI và cái giá của over-engineering.</b> Một tầng trừu tượng thêm vào 'phòng khi sau này đổi database' là code phải đọc, phải test, phải bảo trì ngay hôm nay để đổi lấy một lợi ích có thể không bao giờ tới. Trong thực tế, sự trừu tượng đoán trước thường sai vì bạn chưa biết yêu cầu thật. Trừu tượng tốt nhất được <i>rút ra</i> khi đã có hai hoặc ba trường hợp cụ thể, chứ không được <i>đoán</i> từ trước. Nguyên tắc thực dụng: viết đơn giản nhất có thể chạy đúng, refactor khi yêu cầu thứ hai xuất hiện.",
+        "<b>Code review là công cụ chia sẻ hiểu biết, không phải cổng kiểm duyệt.</b> PR nhỏ (dưới ~400 dòng) được review kỹ hơn hẳn PR khổng lồ vốn chỉ nhận được 'LGTM'. Người review nên tách rõ ý kiến bắt buộc sửa với ý kiến gợi ý (quy ước <i>nit:</i> rất hữu ích), bình luận về code chứ không về người, và luôn nói cả lý do. Mọi thứ máy làm được — format, import thừa, quy tắc đặt tên — hãy để cho formatter và linter trong CI, để con người dành thời gian cho thứ máy không thấy được: tính đúng đắn, các trường hợp biên, và thiết kế."
+      ],
+      "example": "// Log: placeholder + MDC, và dọn MDC vì thread được tái sử dụng\ntry {\n    MDC.put(\"traceId\", traceId);\n    MDC.put(\"orderId\", order.getId());\n    log.info(\"order accepted amount={} currency={}\", order.getAmount(), order.getCurrency());\n} finally {\n    MDC.clear();\n}\n\n// Sai: nối chuỗi luôn chạy, và làm lộ dữ liệu nhạy cảm\n// log.debug(\"login request: \" + request);   // request chứa password\n\n// Đúng: che dữ liệu trong toString\n@Override\npublic String toString() {\n    return \"LoginRequest{user=\" + username + \", password=***}\";\n}\n\n// Xử lý lỗi tập trung ở biên HTTP\n@RestControllerAdvice\nclass ApiExceptionHandler {\n\n    @ExceptionHandler(InsufficientStockException.class)\n    ResponseEntity<ApiError> onStock(InsufficientStockException e) {\n        log.warn(\"insufficient stock sku={}\", e.getSku());          // log đủ để điều tra\n        return ResponseEntity.status(409)\n                .body(new ApiError(\"OUT_OF_STOCK\", \"Sản phẩm không đủ tồn kho\"));\n    }\n\n    @ExceptionHandler(Exception.class)\n    ResponseEntity<ApiError> onUnexpected(Exception e) {\n        log.error(\"unhandled error\", e);                            // stack trace vào log\n        return ResponseEntity.status(500)\n                .body(new ApiError(\"INTERNAL\", \"Đã có lỗi xảy ra\")); // không lộ ra client\n    }\n}",
+      "exampleTitle": "Log an toàn và một điểm xử lý lỗi duy nhất",
+      "keyPoints": [
+        "Log có cấu trúc với traceId/MDC mới truy vấn được; nhớ MDC.clear() vì thread pool tái sử dụng thread.",
+        "Dùng placeholder {} thay vì nối chuỗi để không trả chi phí khi mức log đang tắt.",
+        "Không log mật khẩu, token, dữ liệu cá nhân — kể cả gián tiếp qua message của exception.",
+        "Chuyển exception thành response tại đúng một nơi ở biên; không bao giờ trả stack trace ra client.",
+        "YAGNI: trừu tượng nên được rút ra từ hai ba trường hợp thật, không nên đoán trước."
+      ],
+      "trap": "Bắt Exception ở mọi tầng để 'cho an toàn' rồi log ở từng tầng. Kết quả là một sự cố sinh ra năm dòng ERROR cho cùng một nguyên nhân, cảnh báo bị nhiễu, và không ai biết tầng nào thực sự đã xử lý lỗi. Log ở nơi xử lý, ném lên ở nơi không xử lý được.",
+      "followUp": [
+        "Vì sao cần MDC.clear() ở cuối request khi chạy trên thread pool?",
+        "Trả stack trace về client gây rủi ro bảo mật gì?",
+        "Làm sao phân biệt trừu tượng cần thiết với over-engineering khi review PR?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-6-1",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "static int f() {\n    try {\n        throw new IllegalStateException(\"boom\");\n    } finally {\n        return 2;\n    }\n}\n\npublic static void main(String[] args) {\n    System.out.println(f());\n}",
+      "choices": [
+        "Ném IllegalStateException ra ngoài main",
+        "In 2, exception bị nuốt hoàn toàn",
+        "In 2 rồi ném IllegalStateException",
+        "Compile error vì finally không được có return"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 2 và exception biến mất không dấu vết. Khi khối finally kết thúc bằng return (hoặc break/continue/throw), nó chấm dứt việc lan truyền của exception đang bay lên — method trả về bình thường như thể không có gì xảy ra. Đây là lý do mọi static analyzer đều cấm return trong finally: nó biến một lỗi nghiêm trọng thành sự im lặng, và exception gốc không hề được giữ lại trong getSuppressed().",
+      "whyWrong": [
+        "Exception bị huỷ ngay khi finally thực hiện return, nên không có gì bay ra khỏi f().",
+        "",
+        "Không có chuyện in xong rồi ném — return trong finally kết thúc method dứt điểm, chỉ một trong hai xảy ra.",
+        "Compiler cho phép return trong finally (chỉ cảnh báo ở một số công cụ), đây là code hợp lệ về mặt ngôn ngữ."
+      ]
+    },
+    {
+      "id": "d-6-2",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Trong các exception sau, đâu là checked exception?",
+      "choices": [
+        "NumberFormatException",
+        "IllegalStateException",
+        "InterruptedException",
+        "ArrayIndexOutOfBoundsException"
+      ],
+      "correctAnswer": 2,
+      "explanation": "InterruptedException kế thừa trực tiếp Exception mà không đi qua RuntimeException, nên là checked và compiler ép catch-or-declare. Quy tắc duy nhất cần nhớ là quy tắc kế thừa: mọi thứ dưới RuntimeException hoặc Error là unchecked, phần còn lại dưới Exception là checked — không liên quan gì tới việc lỗi 'xảy ra lúc compile hay lúc chạy'. Riêng InterruptedException còn có quy tắc thực hành quan trọng: nếu bắt mà không xử lý được, phải gọi Thread.currentThread().interrupt() để khôi phục cờ ngắt.",
+      "whyWrong": [
+        "NumberFormatException kế thừa IllegalArgumentException, tức nằm dưới RuntimeException nên là unchecked.",
+        "IllegalStateException nằm trực tiếp dưới RuntimeException, unchecked.",
+        "",
+        "ArrayIndexOutOfBoundsException kế thừa IndexOutOfBoundsException rồi tới RuntimeException, unchecked."
+      ]
+    },
+    {
+      "id": "d-6-3",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra thứ tự nào?",
+      "code": "class Res implements AutoCloseable {\n    private final String name;\n    Res(String name) { this.name = name; }\n    public void close() { System.out.print(\"close\" + name + \" \"); }\n}\n\ntry (Res a = new Res(\"A\"); Res b = new Res(\"B\")) {\n    System.out.print(\"body \");\n} finally {\n    System.out.print(\"finally\");\n}",
+      "choices": [
+        "body closeA closeB finally",
+        "body finally closeB closeA",
+        "body closeB closeA finally",
+        "closeB closeA body finally"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Kết quả là 'body closeB closeA finally'. Hai quy tắc kết hợp: tài nguyên được đóng theo thứ tự ngược với thứ tự khai báo (B khai báo sau nên đóng trước), và toàn bộ việc đóng xảy ra TRƯỚC khi khối catch/finally của cùng câu try chạy. Thứ tự ngược không phải ngẫu nhiên — tài nguyên khai báo sau thường bọc tài nguyên khai báo trước (BufferedWriter bọc FileWriter), nên phải đóng lớp ngoài trước. Hệ quả thực tế: trong catch hoặc finally bạn không được giả định tài nguyên còn mở.",
+      "whyWrong": [
+        "Thứ tự đóng là ngược lại với thứ tự khai báo, không phải cùng chiều.",
+        "finally của câu try chạy sau khi tất cả tài nguyên đã được đóng, không phải trước.",
+        "",
+        "Tài nguyên chỉ được đóng khi thân try kết thúc, không phải trước khi thân try chạy."
+      ]
+    },
+    {
+      "id": "d-6-4",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "class Res implements AutoCloseable {\n    public void close() { throw new IllegalStateException(\"from close\"); }\n}\n\npublic static void main(String[] args) {\n    try (Res r = new Res()) {\n        throw new RuntimeException(\"from body\");\n    } catch (Exception e) {\n        System.out.println(e.getMessage() + \" | \" + e.getSuppressed().length);\n    }\n}",
+      "choices": [
+        "from close | 1",
+        "from body | 1",
+        "from body | 0",
+        "from close | 0"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 'from body | 1'. Exception từ thân try là exception chính, còn exception ném ra từ close() được gắn vào nó qua addSuppressed() và đếm được bằng getSuppressed(). Đây chính là giá trị kỹ thuật của try-with-resources: nguyên nhân gốc của sự cố được giữ nguyên. Nếu viết tay finally { r.close(); } thì kết quả ngược lại hoàn toàn — IllegalStateException từ close() sẽ bay lên và RuntimeException gốc mất sạch, khiến log chỉ tố cáo triệu chứng chứ không chỉ ra nguyên nhân.",
+      "whyWrong": [
+        "Exception từ close() bị suppressed chứ không thay thế exception của thân try — đây mới là kết quả của finally thủ công.",
+        "",
+        "Số suppressed là 1 chứ không phải 0, vì close() thực sự đã ném exception và nó được ghi lại.",
+        "Sai cả hai phần: exception chính là của thân try, và mảng suppressed có đúng một phần tử."
+      ]
+    },
+    {
+      "id": "d-6-5",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau có vấn đề gì?",
+      "code": "try {\n    process();\n} catch (IOException | SQLException e) {\n    e = new IOException(\"wrapped\", e);\n    throw e;\n}",
+      "choices": [
+        "Chạy được nhưng mất stack trace gốc",
+        "Compile error: biến của multi-catch là implicitly final nên không gán lại được",
+        "Compile error: multi-catch không cho phép throw lại exception",
+        "Chạy được, và e sẽ có kiểu tĩnh là IOException"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Compile error. Tham số của multi-catch là implicitly final theo đặc tả ngôn ngữ, nên mọi phép gán lại đều bị từ chối. Lý do không phải tuỳ tiện: kiểu tĩnh của e là tổ tiên chung gần nhất của các kiểu liệt kê (ở đây là Exception), và tính final chính là điều kiện để compiler thực hiện precise rethrow — suy ra chính xác tập kiểu có thể bay lên khi bạn viết throw e. Cách viết đúng là dùng một biến mới: throw new ServiceException(\"wrapped\", e).",
+      "whyWrong": [
+        "Code không compile được nên không có chuyện chạy; ngoài ra ở đây cause vẫn được truyền nên stack trace cũng không mất.",
+        "",
+        "Ném lại exception trong multi-catch hoàn toàn hợp lệ, thậm chí còn được compiler suy luận kiểu chính xác hơn nhờ precise rethrow.",
+        "Kiểu tĩnh của e là tổ tiên chung gần nhất của IOException và SQLException, tức Exception, chứ không phải IOException."
+      ]
+    },
+    {
+      "id": "d-6-6",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau cho kết quả gì khi biên dịch?",
+      "code": "try {\n    Files.readAllBytes(Paths.get(\"a.txt\"));\n} catch (Exception e) {\n    log.error(\"generic\", e);\n} catch (IOException e) {\n    log.error(\"io\", e);\n}",
+      "choices": [
+        "Compile bình thường, khi có IOException thì khối thứ hai chạy",
+        "Compile bình thường, khi có IOException thì khối thứ nhất chạy",
+        "Chỉ là warning về unreachable code",
+        "Compile error vì IOException đã bị bắt bởi khối catch trước đó"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Compile error, thông báo dạng 'exception IOException has already been caught'. JVM chọn khối catch đầu tiên có kiểu tương thích theo thứ tự từ trên xuống, nên khi Exception đứng trước, khối IOException vĩnh viễn không thể đạt tới — và Java coi unreachable catch là lỗi chứ không phải cảnh báo. Quy tắc thực hành: luôn xếp catch từ kiểu hẹp tới kiểu rộng; các exception không có quan hệ kế thừa với nhau thì thứ tự tuỳ ý.",
+      "whyWrong": [
+        "Code không compile được, nên không có runtime behaviour nào để nói tới.",
+        "Đúng là khối rộng sẽ bắt trước nếu hợp lệ, nhưng ở đây compiler chặn ngay từ đầu.",
+        "Java coi đây là lỗi biên dịch chứ không phải warning. Đừng nhầm với trường hợp catch một checked exception không thể được ném ra trong try: cái đó cũng là lỗi biên dịch ('exception IOException is never thrown in body of corresponding try statement'), chứ không phải cảnh báo.",
+        ""
+      ]
+    },
+    {
+      "id": "d-6-7",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Class Child dưới đây có compile được không?",
+      "code": "class Parent {\n    void run() throws IOException { }\n}\n\nclass Child extends Parent {\n    @Override\n    void run() throws Exception { }\n}",
+      "choices": [
+        "Không: method override không được khai báo checked exception rộng hơn của class cha",
+        "Có: class con luôn được phép mở rộng danh sách throws",
+        "Không: method override phải khai báo throws giống hệt class cha",
+        "Có, nhưng chỉ khi Parent là abstract class"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Không compile được. Method override chỉ được ném checked exception hẹp hơn hoặc bằng của bản ở class cha, hoặc bỏ hẳn throws; Exception rộng hơn IOException nên vi phạm. Ràng buộc này bảo vệ nguyên lý Liskov: code đang gọi qua reference kiểu Parent chỉ chuẩn bị xử lý IOException, nếu object thật ném Exception thì compiler đã không thể ép người gọi xử lý. Lưu ý quan trọng: ràng buộc này chỉ áp dụng cho checked exception — class con được tự do ném bất kỳ unchecked exception nào mà không cần khai báo.",
+      "whyWrong": [
+        "",
+        "Ngược lại: chỉ được thu hẹp danh sách checked exception, không được mở rộng.",
+        "Không cần giống hệt — bỏ throws hoàn toàn, hoặc khai báo subclass của IOException, đều hợp lệ.",
+        "Việc Parent là abstract hay không không thay đổi ràng buộc này chút nào."
+      ]
+    },
+    {
+      "id": "d-6-8",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau ném exception nào ra ngoài, và exception còn lại đi đâu?",
+      "code": "public static void main(String[] args) {\n    try {\n        try {\n            throw new IllegalArgumentException(\"primary\");\n        } finally {\n            throw new IllegalStateException(\"from finally\");\n        }\n    } catch (Exception e) {\n        System.out.println(e.getMessage() + \" | \" + e.getSuppressed().length);\n    }\n}",
+      "choices": [
+        "primary | 1",
+        "from finally | 1",
+        "from finally | 0 — IllegalArgumentException bị vứt bỏ hoàn toàn",
+        "primary | 0 — exception trong finally bị bỏ qua"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra 'from finally | 0'. Khi khối finally kết thúc đột ngột bằng throw, exception mới thay thế hoàn toàn exception đang lan truyền; exception gốc bị vứt bỏ và KHÔNG được ghi vào getSuppressed(). Cơ chế suppressed chỉ do try-with-resources sinh ra, không phải hành vi mặc định của finally. Đây chính xác là lý do pattern finally { conn.close(); } thủ công nguy hiểm: close() ném IOException sẽ che mất nguyên nhân thật của sự cố, khiến log chỉ ghi lại triệu chứng.",
+      "whyWrong": [
+        "Exception của finally luôn thắng — primary không thể bay lên khi finally kết thúc bằng throw.",
+        "Số suppressed là 0: finally thủ công không tự động gọi addSuppressed cho ai cả.",
+        "",
+        "Ngược hẳn: exception trong finally không hề bị bỏ qua, chính nó mới là exception bay ra ngoài."
+      ]
+    },
+    {
+      "id": "d-6-9",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Chi phí lớn nhất khi sử dụng exception trong Java nằm ở đâu?",
+      "choices": [
+        "Ở khối try: mỗi lần vào try, JVM phải lưu trạng thái để có thể quay lui",
+        "Ở khối catch: JVM phải dựng lại các stack frame đã bị huỷ",
+        "Ở lệnh throw: JVM phải quét tuyến tính toàn bộ bytecode của method để tìm handler",
+        "Ở lúc tạo object exception: constructor của Throwable gọi fillInStackTrace() và duyệt toàn bộ call stack"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Chi phí chủ yếu nằm ở fillInStackTrace(), được gọi trong constructor của Throwable để chụp lại toàn bộ call stack — stack càng sâu càng đắt, và stack trong ứng dụng Spring thường rất sâu. Khối try khi không có exception thì gần như miễn phí vì thông tin handler nằm trong exception table của method, không sinh lệnh runtime nào. Hệ quả thực tế: đừng dùng exception cho luồng điều khiển bình thường; và nếu thực sự cần một exception dạng signal ở tần suất cao, hãy dùng constructor Throwable(msg, cause, false, false) để bỏ stack trace.",
+      "whyWrong": [
+        "Java không có cơ chế lưu trạng thái để quay lui khi vào try; khối try không sinh lệnh nào lúc chạy.",
+        "Stack frame được pop chứ không được dựng lại — quá trình unwinding có chi phí nhưng nhỏ hơn nhiều so với việc chụp stack trace.",
+        "JVM tra exception table của từng frame, đây là bảng nhỏ tra rất nhanh chứ không phải quét toàn bộ bytecode.",
+        ""
+      ]
+    },
+    {
+      "id": "d-7-1",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "static void change(StringBuilder sb, String s) {\n    sb.append(\" world\");\n    s = s + \" world\";\n}\n\npublic static void main(String[] args) {\n    StringBuilder sb = new StringBuilder(\"hello\");\n    String s = \"hello\";\n    change(sb, s);\n    System.out.println(sb + \" | \" + s);\n}",
+      "choices": [
+        "hello world | hello world",
+        "hello | hello",
+        "hello world | hello",
+        "hello | hello world"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra 'hello world | hello'. Java luôn truyền tham số theo giá trị: với object thì thứ được sao chép là reference. Lệnh sb.append() sửa đúng object trên heap mà cả hai reference cùng trỏ tới nên người gọi thấy thay đổi; còn s = s + \" world\" chỉ gán lại bản sao reference nằm trong frame của method change nên biến s ở main không đổi. Quy tắc rút ra: sửa trạng thái object thì lan ra ngoài, gán lại tham số thì không — và điều này đúng với mọi kiểu object, không riêng String.",
+      "whyWrong": [
+        "Muốn s ở main đổi theo thì Java phải là pass-by-reference, nhưng Java không có cơ chế đó.",
+        "sb.append() thực sự sửa object dùng chung trên heap nên sb chắc chắn đổi.",
+        "",
+        "Ngược hoàn toàn: gán lại tham số không lan ra ngoài, còn sửa trạng thái object thì có."
+      ]
+    },
+    {
+      "id": "d-7-2",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Garbage collector mặc định của Java 8 và của Java 17 (trên máy được JVM xếp loại server-class) lần lượt là gì?",
+      "choices": [
+        "Java 8: CMS, Java 17: G1",
+        "Java 8: G1, Java 17: ZGC",
+        "Java 8: Parallel GC, Java 17: G1",
+        "Java 8: Parallel GC, Java 17: ZGC"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Java 8 mặc định dùng Parallel GC (tối ưu throughput, stop-the-world toàn phần), còn từ Java 9 trở đi G1 là mặc định và điều đó vẫn đúng ở Java 11, 17 và 21. Đây là một trong những khác biệt hành vi lớn nhất khi migrate từ Java 8: cùng một ứng dụng sẽ thấy pause ngắn hơn nhưng throughput có thể giảm nhẹ, và các cờ tuning cũ của Parallel GC phần lớn không còn ý nghĩa. Cần thêm sắc thái: đây là kết quả của JVM ergonomics — trên container ít CPU hoặc RAM nhỏ, JVM có thể tự chọn Serial GC thay vì G1.",
+      "whyWrong": [
+        "CMS chưa bao giờ là mặc định của Java 8; nó bị deprecate ở Java 9 và gỡ bỏ hoàn toàn ở Java 14.",
+        "G1 tồn tại trong Java 8 nhưng phải bật thủ công bằng -XX:+UseG1GC, và ZGC không phải mặc định ở bất kỳ bản LTS nào tới Java 21.",
+        "",
+        "ZGC production-ready từ Java 15 nhưng vẫn phải bật tường minh bằng -XX:+UseZGC, không phải mặc định."
+      ]
+    },
+    {
+      "id": "d-7-3",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Trong method dưới đây, x, p và object Point nằm ở đâu trong bộ nhớ JVM?",
+      "code": "void m() {\n    int x = 5;\n    Point p = new Point(1, 2);\n}",
+      "choices": [
+        "Cả x, p và object Point đều nằm trên heap vì chúng thuộc về một method",
+        "x và biến p (reference) nằm trong stack frame của thread; object Point nằm trên heap",
+        "x nằm trên stack; p và object Point đều nằm trên metaspace",
+        "Cả ba đều nằm trên stack vì chúng là biến local"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Biến local x và biến p đều nằm trong stack frame của thread đang chạy method — p chỉ chứa một reference (địa chỉ), còn object Point thực sự nằm trên heap dùng chung. Đây cũng là lý do biến local mặc nhiên thread-safe: mỗi thread có stack riêng nên không ai chia sẻ chúng. Cần một sắc thái ở cấp senior: phát biểu 'mọi object đều nằm trên heap' đúng ở mức đặc tả, nhưng JIT của HotSpot có thể dùng escape analysis để thay object không thoát khỏi method bằng các biến vô hướng trong thanh ghi/stack (scalar replacement).",
+      "whyWrong": [
+        "Biến local không bao giờ nằm trên heap; chỉ object mà chúng trỏ tới mới nằm ở đó.",
+        "",
+        "Metaspace chỉ chứa metadata của class (cấu trúc class, method, constant pool), không chứa biến local hay instance.",
+        "Object tạo bằng new nằm trên heap; stack chỉ giữ reference tới nó."
+      ]
+    },
+    {
+      "id": "d-7-4",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau chạy trong một web application dùng thread pool. Vấn đề là gì?",
+      "code": "private static final ThreadLocal<UserContext> CTX = new ThreadLocal<>();\n\npublic void handleRequest(Request r) {\n    CTX.set(new UserContext(r.getUser(), r.getPermissions()));\n    service.process();\n}",
+      "choices": [
+        "Không có vấn đề: ThreadLocal tự dọn value khi method kết thúc",
+        "Không có vấn đề: key trong ThreadLocalMap là weak reference nên GC tự thu hồi value",
+        "ThreadLocal không thread-safe nên hai request có thể ghi đè nhau",
+        "Rò rỉ bộ nhớ và rò rỉ dữ liệu: thread trong pool không chết nên UserContext sống mãi và request sau có thể đọc được context của request trước"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Đây là mẫu leak kinh điển với thread pool. Trong ThreadLocalMap, key là weak reference tới object ThreadLocal nhưng value là strong reference; vì CTX được khai báo static final nên key không bao giờ bị thu hồi, và value sống theo tuổi thọ của thread — mà thread trong Tomcat hay ExecutorService sống hàng tháng. Ngoài rò rỉ bộ nhớ, đây còn là lỗ hổng bảo mật: request kế tiếp chạy trên cùng thread sẽ đọc được UserContext của người dùng trước nếu quên set. Cách sửa bắt buộc là bọc bằng try/finally và gọi CTX.remove().",
+      "whyWrong": [
+        "ThreadLocal không có bất kỳ liên hệ nào với phạm vi method; value gắn với thread cho tới khi bị remove hoặc thread chết.",
+        "Đúng là key weak, nhưng value là strong reference; hơn nữa key static final không bao giờ mất reference nên entry không bao giờ được dọn.",
+        "ThreadLocal vốn được thiết kế để mỗi thread có bản riêng nên không có tranh chấp giữa các thread — vấn đề nằm ở việc tái sử dụng thread.",
+        ""
+      ]
+    },
+    {
+      "id": "d-7-5",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Phát biểu nào đúng về sự khác nhau giữa SoftReference và WeakReference?",
+      "choices": [
+        "Soft reference chỉ bị clear khi bộ nhớ khan hiếm và chắc chắn bị clear hết trước khi JVM ném OutOfMemoryError; weak reference bị clear ngay ở kỳ GC tiếp theo khi object chỉ còn weakly reachable",
+        "Cả hai bị clear cùng lúc, chỉ khác nhau ở việc soft reference có ReferenceQueue còn weak thì không",
+        "Weak reference chỉ bị clear khi bộ nhớ khan hiếm, còn soft reference bị clear ngay ở kỳ GC kế tiếp",
+        "Soft reference ngăn object bị thu hồi vĩnh viễn, còn weak reference thì không ảnh hưởng gì tới GC"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Soft reference được GC giữ lại theo ý mình khi bộ nhớ còn dư, nhưng đặc tả đảm bảo mọi soft reference sẽ bị clear trước khi JVM ném OutOfMemoryError — nên nó hợp với cache 'có thì tốt, mất cũng không sao'. Weak reference thì bị clear ngay ở kỳ GC kế tiếp khi object chỉ còn weakly reachable, đúng cơ chế đứng sau WeakHashMap. Thực tế nhiều đội tránh SoftReference vì chính sách clear phụ thuộc cài đặt JVM và khó dự đoán; một cache có maximumSize và TTL rõ ràng (Caffeine) cho hành vi ổn định hơn nhiều.",
+      "whyWrong": [
+        "",
+        "Cả SoftReference lẫn WeakReference đều nhận được ReferenceQueue trong constructor, và thời điểm bị clear của chúng khác nhau rõ rệt.",
+        "Đổi vai trò của hai loại; đây chính là nhầm lẫn phổ biến nhất về chủ đề này.",
+        "Không loại reference nào ngăn thu hồi vĩnh viễn — chỉ strong reference mới làm được điều đó."
+      ]
+    },
+    {
+      "id": "d-7-6",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Vì sao đoạn code sau gây memory leak dù Java có garbage collector?",
+      "code": "public class ImageCache {\n    private static final Map<String, byte[]> CACHE = new HashMap<>();\n\n    public static byte[] get(String key) {\n        return CACHE.computeIfAbsent(key, ImageCache::loadFromDisk);\n    }\n}",
+      "choices": [
+        "Vì HashMap không thread-safe nên entry bị hỏng và GC không đọc được",
+        "Vì byte[] là mảng nguyên thuỷ nên không được GC quản lý",
+        "Vì biến static là GC root sống suốt vòng đời class loader, nên mọi byte[] trong map luôn strongly reachable và không bao giờ bị thu hồi",
+        "Vì computeIfAbsent giữ một reference nội bộ tới hàm loadFromDisk"
+      ],
+      "correctAnswer": 2,
+      "explanation": "GC chỉ thu hồi những object không còn reachable từ GC roots, và field static chính là một GC root sống suốt vòng đời của class loader nạp class đó. Map này không có giới hạn kích thước lẫn chính sách hết hạn, nên mỗi key mới là một byte[] bị giữ vĩnh viễn — heap tăng đơn điệu cho tới OutOfMemoryError. Đây là định nghĩa leak trong ngôn ngữ có GC: object không còn cần dùng nhưng vẫn còn người giữ tham chiếu. Cách sửa là dùng cache có maximumSize và expireAfterWrite (Caffeine), hoặc chí ít là LinkedHashMap với removeEldestEntry.",
+      "whyWrong": [
+        "Thiếu thread-safety gây hỏng dữ liệu hoặc vòng lặp vô hạn, nhưng không phải nguyên nhân của leak ở đây.",
+        "Mảng cũng là object trên heap và được GC quản lý hoàn toàn bình thường.",
+        "",
+        "computeIfAbsent không giữ reference nào ngoài entry được thêm vào map; method reference là hằng, không liên quan tới việc heap tăng."
+      ]
+    },
+    {
+      "id": "d-7-7",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Sau khi migrate từ Java 7 lên Java 8, ứng dụng chạy với -XX:MaxPermSize=256m và một thời gian sau chết vì OutOfMemoryError: Metaspace. Điều gì đã xảy ra?",
+      "choices": [
+        "PermGen bị gỡ bỏ ở Java 8 nên -XX:MaxPermSize bị bỏ qua kèm cảnh báo; metadata class nay nằm ở metaspace trong native memory, giới hạn bằng -XX:MaxMetaspaceSize",
+        "Java 8 đổi tên cờ nhưng giữ nguyên cơ chế, chỉ cần thay bằng -XX:MaxMetaspaceSize=256m là giải quyết triệt để",
+        "Metaspace là một phần của heap nên phải tăng -Xmx thay vì chỉnh cờ perm",
+        "OutOfMemoryError: Metaspace luôn có nghĩa là heap đầy và cần tăng -Xmx"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Java 8 (JEP 122) xoá bỏ PermGen; -XX:MaxPermSize và -XX:PermSize trở thành cờ bị bỏ qua, JVM chỉ in cảnh báo rồi chạy tiếp. Metadata class chuyển sang metaspace nằm trong native memory và mặc định không có trần trên — nên OutOfMemoryError: Metaspace thường tố cáo một vấn đề thật, phổ biến nhất là class loader leak hoặc sinh class động không kiểm soát (proxy, bytecode generation, script engine). Đặt -XX:MaxMetaspaceSize giúp phát hiện sớm và tránh làm chết cả máy, nhưng chỉ là hàng rào chứ không phải cách sửa: phải tìm cho ra lý do số lượng class được nạp tăng không ngừng.",
+      "whyWrong": [
+        "",
+        "Đặt MaxMetaspaceSize chỉ đặt lại trần chứ không sửa nguyên nhân; nếu số class nạp vào tăng vô hạn thì lỗi vẫn quay lại.",
+        "Metaspace nằm ở native memory chứ không nằm trong heap, nên tăng -Xmx hoàn toàn không tác động tới nó.",
+        "Thông điệp Metaspace chỉ đích danh vùng metadata class; heap đầy sẽ báo là Java heap space."
+      ]
+    },
+    {
+      "id": "d-7-8",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Trong vòng lặp nóng dưới đây, HotSpot có thể làm gì với object Point sau khi JIT biên dịch method?",
+      "code": "static double dist(double x, double y) {\n    Point p = new Point(x, y);\n    return Math.sqrt(p.x * p.x + p.y * p.y);\n}\n\nfor (int i = 0; i < 100_000_000; i++) {\n    sum += dist(i, i + 1);\n}",
+      "choices": [
+        "Không làm được gì: mọi object tạo bằng new luôn phải được cấp phát trên heap",
+        "Đưa Point vào một object pool nội bộ để tái sử dụng giữa các lần gọi",
+        "Cấp phát Point trực tiếp lên old generation để tránh minor GC",
+        "Escape analysis nhận ra p không thoát khỏi method, nên có thể thực hiện scalar replacement: tách p thành hai biến vô hướng nằm trong thanh ghi/stack và bỏ hẳn việc cấp phát trên heap"
+      ],
+      "correctAnswer": 3,
+      "explanation": "JIT C2 chạy escape analysis (-XX:+DoEscapeAnalysis, bật mặc định) để xác định object có thoát khỏi phạm vi method hay không. Khi object không thoát, tối ưu áp dụng là scalar replacement: các field được tách thành biến vô hướng riêng lẻ nằm trong thanh ghi hoặc stack slot, và lệnh cấp phát biến mất hoàn toàn — kèm theo đó là loại bỏ luôn lock nếu có (lock elision). Hai sắc thái quan trọng khi trả lời: tối ưu này chỉ xảy ra trong mã đã được JIT biên dịch, không có ở interpreter, và cách nói chính xác là 'scalar replacement' chứ không phải 'object được cấp phát trên stack' — HotSpot không cấp phát nguyên object lên stack.",
+      "whyWrong": [
+        "Đúng ở mức đặc tả ngôn ngữ nhưng sai ở mức cài đặt: JIT được phép loại bỏ cấp phát miễn là hành vi quan sát được không đổi.",
+        "JVM không tự tạo object pool; pooling là kỹ thuật ở tầng ứng dụng và thường phản tác dụng với object ngắn hạn.",
+        "Cấp phát thẳng vào old gen chỉ áp dụng cho object rất lớn (humongous), và nó làm GC tệ hơn chứ không tốt hơn.",
+        ""
+      ]
+    },
+    {
+      "id": "d-7-9",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Một service chạy ổn định vài giờ rồi bắt đầu full GC liên tục. Trong GC log, mức old gen ĐO NGAY SAU mỗi full GC tăng đều đặn: 400MB, 900MB, 1.4GB, 1.9GB... Kết luận đúng nhất là gì?",
+      "choices": [
+        "GC đang hoạt động bình thường, chỉ cần đổi sang ZGC để giảm pause",
+        "Có memory leak: tập object còn sống sau khi GC đã dọn hết mọi thứ có thể vẫn tăng đơn điệu, nên cần heap dump và phân tích dominator tree",
+        "Young generation quá nhỏ gây premature promotion, chỉ cần tăng -Xmn là hết",
+        "Heap bị phân mảnh, chỉ cần bật -XX:+UseG1GC để có compaction"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Chỉ số chẩn đoán quan trọng nhất không phải mức heap dao động lên xuống (điều hoàn toàn bình thường) mà là mức old gen NGAY SAU full GC — đó chính là live set, tập object thực sự còn reachable. Live set tăng đơn điệu nghĩa là có object không còn cần dùng nhưng vẫn bị ai đó giữ tham chiếu, tức memory leak theo đúng định nghĩa trong ngôn ngữ có GC. Bước tiếp theo là lấy heap dump (-XX:+HeapDumpOnOutOfMemoryError hoặc jcmd <pid> GC.heap_dump) rồi dùng Eclipse MAT xem Leak Suspects và dominator tree để tìm đường tham chiếu giữ object sống. Đổi collector hay tăng -Xmx chỉ làm sự cố đến muộn hơn.",
+      "whyWrong": [
+        "Full GC dồn dập kèm live set tăng đều là dấu hiệu bệnh lý; đổi collector không loại bỏ được object đang bị giữ tham chiếu.",
+        "",
+        "Premature promotion làm old gen đầy nhanh nhưng mức sau full GC vẫn trở về mức ổn định, không tăng đơn điệu qua từng chu kỳ.",
+        "Phân mảnh gây concurrent mode failure ở CMS chứ không làm live set sau full GC tăng lên; ngoài ra full GC vốn đã có bước compact."
+      ]
+    },
+    {
+      "id": "d-20-1",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Vòng lặp sau có độ phức tạp thời gian thế nào, và Java 9+ có làm nó nhanh lên không?",
+      "code": "String s = \"\";\nfor (int i = 0; i < n; i++) {\n    s += i + \",\";\n}",
+      "choices": [
+        "O(n) — từ Java 9, invokedynamic của StringConcatFactory làm phép nối chuỗi trở thành hằng số thời gian",
+        "O(n^2) — mỗi lần lặp tạo một chuỗi mới và phải sao chép lại toàn bộ nội dung cũ; tối ưu của Java 9 chỉ áp dụng trong một biểu thức, không gộp được các lần lặp",
+        "O(n log n) vì compiler tự chuyển sang StringBuilder có tăng trưởng theo cấp số nhân",
+        "O(n) ở mọi phiên bản vì javac luôn tự động thay thế vòng lặp bằng StringBuilder"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Độ phức tạp là O(n^2). String bất biến nên mỗi phép += tạo một object String mới và sao chép toàn bộ nội dung cũ sang, tổng chi phí là 1+2+...+n. Javac có tối ưu phép nối chuỗi, nhưng chỉ trong phạm vi MỘT biểu thức — mỗi lần lặp là một biểu thức riêng nên nó tạo rồi vứt một bộ máy nối chuỗi mới ở mỗi vòng. Java 9 thay việc sinh StringBuilder bằng invokedynamic tới StringConcatFactory (JEP 280), cho hằng số nhân tốt hơn nhưng không thay đổi độ phức tạp. Cách sửa là dùng một StringBuilder duy nhất bên ngoài vòng lặp, hoặc String.join / Collectors.joining.",
+      "whyWrong": [
+        "StringConcatFactory tối ưu từng biểu thức nối chuỗi, nó không thể nhìn xuyên qua vòng lặp để tái sử dụng bộ đệm.",
+        "",
+        "Không có phiên bản Java nào cho ra O(n log n) ở đây; chi phí sao chép là tuyến tính ở mỗi vòng nên tổng là bậc hai.",
+        "Javac chỉ tối ưu trong phạm vi một biểu thức, chưa bao giờ tự nâng StringBuilder ra ngoài vòng lặp."
+      ]
+    },
+    {
+      "id": "d-20-2",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Cách dùng Optional nào dưới đây đúng với ý đồ thiết kế của nó?",
+      "choices": [
+        "Dùng làm kiểu field của entity để tránh null trong database",
+        "Dùng làm kiểu tham số của method để người gọi biết giá trị có thể vắng mặt",
+        "Dùng làm kiểu trả về của method tra cứu có thể không tìm thấy kết quả",
+        "Dùng bọc collection để phân biệt list rỗng với list chưa được nạp"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Optional được thêm vào Java 8 cho đúng một mục đích: làm rõ trong CHỮ KÝ method rằng kết quả có thể vắng mặt, để compiler nhắc người gọi xử lý. Ba lựa chọn còn lại đều là những cách dùng sai phổ biến. Optional không implement Serializable nên làm field gây rắc rối với JPA/Jackson và tốn thêm một lớp object mỗi instance; làm tham số thì ép người gọi bọc giá trị chỉ để bạn mở ra ngay, dùng overload sẽ sạch hơn; còn collection rỗng vốn đã diễn đạt đủ ý 'không có gì' nên bọc thêm Optional chỉ làm người gọi phải kiểm tra hai lần.",
+      "whyWrong": [
+        "Optional không Serializable, gây vấn đề với JPA và Jackson, và tốn thêm một object cho mỗi instance.",
+        "Làm tham số buộc người gọi viết Optional.of(...) chỉ để bạn unwrap ngay — dùng overload hoặc null có tài liệu rõ ràng thì tốt hơn.",
+        "",
+        "Trả Optional cho collection buộc người gọi kiểm tra cả 'có Optional không' lẫn 'list có rỗng không'; hãy trả list rỗng."
+      ]
+    },
+    {
+      "id": "d-20-3",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Ứng dụng chạy production ở mức log INFO. Hai dòng dưới đây khác nhau thế nào?",
+      "code": "log.debug(\"processing order \" + order + \" for user \" + user);\nlog.debug(\"processing order {} for user {}\", order, user);",
+      "choices": [
+        "Không khác gì: SLF4J tối ưu cả hai dạng như nhau",
+        "Dòng đầu vẫn thực hiện nối chuỗi và gọi toString() của order/user dù mức debug đang tắt; dòng sau chỉ định dạng khi debug thực sự bật",
+        "Dòng sau chậm hơn vì phải phân tích placeholder lúc chạy",
+        "Dòng đầu an toàn hơn vì tránh được lỗi khi số placeholder không khớp số đối số"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Với dạng nối chuỗi, phép nối và các lời gọi toString() được thực hiện TRƯỚC khi vào method log.debug, nên chi phí phát sinh dù mức debug đang tắt — trong đường dẫn nóng, một toString() nặng của entity có thể trở thành hotspot thật sự. Dạng placeholder truyền tham chiếu vào, và SLF4J chỉ định dạng chuỗi khi mức log đang bật. Với đối số cực đắt, hãy dùng thêm isDebugEnabled() hoặc dạng lambda của SLF4J 2.x. Quy tắc rút ra: luôn dùng placeholder, và đừng để dữ liệu nhạy cảm lọt vào toString().",
+      "whyWrong": [
+        "SLF4J không thể can thiệp vào phép nối chuỗi vì nó đã hoàn tất trước khi method log được gọi.",
+        "",
+        "Chi phí phân tích placeholder là không đáng kể và chỉ phát sinh khi dòng log thực sự được ghi ra.",
+        "SLF4J xử lý lệch số lượng placeholder một cách an toàn; đây không phải lý do để chọn nối chuỗi."
+      ]
+    },
+    {
+      "id": "d-20-4",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Benchmark JMH sau đo ra thời gian gần bằng 0. Vì sao?",
+      "code": "@State(Scope.Benchmark)\npublic class Bench {\n    private final double x = 42.0;\n\n    @Benchmark\n    public void measure() {\n        Math.log(x);\n    }\n}",
+      "choices": [
+        "Vì Math.log là intrinsic nên JIT thay bằng một lệnh CPU duy nhất, đó là kết quả thật",
+        "Vì @State(Scope.Benchmark) làm JMH chỉ chạy method đúng một lần",
+        "Vì JMH tự bỏ qua các method có kiểu trả về void",
+        "Vì kết quả không được dùng nên JIT loại bỏ phép tính (dead code elimination); ngoài ra x là final nên còn bị constant folding"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Hai lỗi cùng lúc. Kết quả của Math.log không được dùng ở đâu, nên C2 hoàn toàn có quyền xoá lời gọi đó — bạn đang đo một method rỗng. Thêm nữa, x là final và được gán hằng số, nên JIT có thể tính sẵn Math.log(42.0) lúc biên dịch (constant folding) và không còn phép tính nào lúc chạy. Cách sửa: trả về giá trị từ method @Benchmark (JMH tự nuốt qua Blackhole) hoặc gọi bh.consume(...), và khởi tạo đầu vào trong @Setup bằng giá trị không phải hằng. Nguyên tắc chung: con số nhanh bất thường là dấu hiệu benchmark hỏng chứ không phải tối ưu thành công.",
+      "whyWrong": [
+        "Math.log đúng là có intrinsic nhưng vẫn tốn hàng chục nanosecond; kết quả gần 0 không thể là số đo thật.",
+        "Scope.Benchmark chỉ nói rằng state được chia sẻ giữa các thread, không liên quan gì tới số lần chạy.",
+        "JMH chạy bình thường method trả về void; chính vì thế mà dead code elimination mới trở thành cái bẫy.",
+        ""
+      ]
+    },
+    {
+      "id": "d-20-5",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Một đội có 5000 unit test luôn xanh nhưng production vẫn liên tục lỗi khi lưu dữ liệu. Mọi repository trong test đều được mock. Nguyên nhân gốc rễ có khả năng nhất là gì?",
+      "choices": [
+        "Coverage chưa đạt 100% nên còn nhánh chưa được test",
+        "Số lượng unit test quá nhiều làm chúng che khuất nhau",
+        "Cần chuyển toàn bộ sang end-to-end test để mô phỏng đúng người dùng",
+        "Mock repository làm test chỉ kiểm chứng giả định của chính đội về database; những lỗi thật như SQL sai, sai kiểu cột, vi phạm ràng buộc hay transaction không commit đều nằm ngoài tầm với của unit test"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Khi mọi collaborator đều bị mock, thứ được kiểm chứng là giả định của bạn về collaborator chứ không phải hành vi thật. Mock repository luôn trả đúng thứ test mong đợi, nên nó không bao giờ phát hiện được lỗi cú pháp SQL, sai ánh xạ kiểu cột, vi phạm khoá ngoại, lazy loading ngoài transaction hay transaction không commit. Cách sửa không phải là thêm E2E test mà là bổ sung một tầng integration test chạy trên database thật bằng Testcontainers — đủ nhanh để nằm trong CI mà vẫn bắt được đúng nhóm lỗi này. Nguyên tắc: chỉ mock thứ bạn không kiểm soát hoặc quá đắt để chạy thật.",
+      "whyWrong": [
+        "Coverage cao không giúp gì khi mọi phụ thuộc đều là mock; bạn chỉ phủ nhiều hơn phần code đã bị cô lập khỏi thực tế.",
+        "Số lượng test không phải nguyên nhân; vấn đề nằm ở chất lượng của thứ được test.",
+        "Chuyển hết sang E2E tạo bộ test chậm và flaky (mô hình ice-cream cone); tầng cần bổ sung là integration test.",
+        ""
+      ]
+    },
+    {
+      "id": "d-20-6",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Class dưới đây có thật sự bất biến không?",
+      "code": "public final class Order {\n    private final String id;\n    private final List<Item> items;\n\n    public Order(String id, List<Item> items) {\n        this.id = id;\n        this.items = items;\n    }\n\n    public List<Item> getItems() { return items; }\n}",
+      "choices": [
+        "Không: final chỉ khoá reference, nên người gọi vừa có thể sửa list đã truyền vào constructor, vừa có thể gọi getItems().add(...) để sửa trạng thái bên trong",
+        "Có: mọi field đều final và class cũng final nên object không thể thay đổi",
+        "Có, miễn là Item là class bất biến",
+        "Chỉ cần đổi getItems() thành Collections.unmodifiableList(items) là đủ để class này bất biến"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Đây là bất biến giả. Từ khoá final chỉ đảm bảo biến items không được trỏ sang list khác, hoàn toàn không ràng buộc gì về NỘI DUNG của list. Có hai lỗ hổng: người gọi vẫn giữ reference tới list đã truyền vào constructor và sửa nó bất cứ lúc nào, và getItems() trả thẳng list nội bộ nên bất kỳ ai cũng gọi được add/remove. Muốn bất biến thật phải defensive copy ở CẢ HAI đầu — cách gọn nhất là this.items = List.copyOf(items) trong constructor, vì List.copyOf vừa sao chép vừa trả về list không thể sửa — lưu ý List.copyOf chỉ có từ Java 10, trên Java 8 phải viết Collections.unmodifiableList(new ArrayList<>(items)). Một hệ quả cần nói cho chính xác: Order ở trên KHÔNG override equals/hashCode nên nó dùng identity hash, sửa list không làm hỏng việc tra HashMap. Nhưng ngay khi bạn cho class này một equals/hashCode theo giá trị (record, Lombok @Data, hay tự viết dựa trên items) thì mutable state trở thành lỗ hổng thật: hashCode đổi sau khi put và get() trả về null.",
+      "whyWrong": [
+        "",
+        "final trên field chỉ khoá reference chứ không khoá nội dung object mà nó trỏ tới.",
+        "Item bất biến không cứu được gì: bản thân List vẫn cho phép thêm và xoá phần tử.",
+        "Chỉ bọc ở getter là bịt một lỗ và bỏ quên lỗ còn lại — reference truyền vào constructor vẫn nằm trong tay người gọi."
+      ]
+    },
+    {
+      "id": "d-20-7",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Vì sao nên gọi Objects.requireNonNull ngay trong constructor thay vì để NullPointerException tự xảy ra khi dùng?",
+      "code": "public class ShippingService {\n    private final RateProvider rates;\n\n    public ShippingService(RateProvider rates) {\n        this.rates = Objects.requireNonNull(rates, \"rates\");\n    }\n}",
+      "choices": [
+        "Vì Objects.requireNonNull nhanh hơn phép so sánh rates == null",
+        "Vì nó biến NullPointerException thành checked exception nên compiler ép xử lý",
+        "Vì nó ngăn không cho NullPointerException xảy ra trong toàn bộ vòng đời của object",
+        "Vì fail fast: lỗi nổ ngay tại nơi giá trị sai được đưa vào, kèm stack trace chỉ thẳng vào người gọi sai, thay vì nổ sau đó rất lâu ở một tầng khác và một thread khác"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Giá trị nằm ở khoảng cách giữa nguyên nhân và triệu chứng. Nếu để null lọt vào field, NPE sẽ nổ ở một lời gọi bất kỳ sau này — có thể sau nhiều tầng, trong một thread khác, hàng giờ sau — và stack trace lúc đó chỉ vào nơi SỬ DỤNG chứ không chỉ ra ai đã truyền null. Kiểm tra tại constructor biến nó thành lỗi ngay tại điểm khởi tạo, kèm thông điệp nêu rõ tên tham số. Chi phí gần bằng 0. Nói thêm về sắc thái phiên bản: từ Java 15, helpful NullPointerException (JEP 358) bật mặc định giúp message chỉ rõ biến nào null, nhưng nó chỉ cải thiện việc chẩn đoán chứ không rút ngắn khoảng cách giữa nguyên nhân và triệu chứng.",
+      "whyWrong": [
+        "Hiệu năng không phải lý do; requireNonNull về bản chất chính là một phép so sánh null, chỉ gọn hơn về cú pháp.",
+        "requireNonNull ném NullPointerException, vốn là unchecked — không có chuyện compiler ép xử lý.",
+        "Nó không ngăn NPE ở nơi khác, chỉ đảm bảo riêng field này không bao giờ null.",
+        ""
+      ]
+    },
+    {
+      "id": "d-20-8",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Phép đo dưới đây kết luận thuật toán A nhanh gấp 8 lần thuật toán B. Vì sao kết luận này không đáng tin?",
+      "code": "long t0 = System.currentTimeMillis();\nfor (int i = 0; i < 10_000; i++) resultA = algoA(data);\nlong tA = System.currentTimeMillis() - t0;\n\nlong t1 = System.currentTimeMillis();\nfor (int i = 0; i < 10_000; i++) resultB = algoB(data);\nlong tB = System.currentTimeMillis() - t1;",
+      "choices": [
+        "Vì currentTimeMillis không đủ chính xác, chỉ cần đổi sang nanoTime là phép đo trở nên đáng tin",
+        "Vì thiếu warm-up: algoA gánh phần lớn thời gian chạy ở chế độ thông dịch và chi phí JIT, còn algoB được hưởng lợi từ JVM đã ấm; ngoài ra một lần chạy không kiểm soát được GC, profile pollution và biến động của hệ điều hành",
+        "Vì hai vòng lặp phải chạy trong hai thread khác nhau mới so sánh được",
+        "Vì JIT luôn tối ưu vòng lặp thứ hai kém hơn vòng lặp thứ nhất"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Nguồn sai lớn nhất là thiếu warm-up. HotSpot chạy thông dịch trước rồi mới biên dịch method nóng, nên vòng lặp đầu tiên gánh cả thời gian thông dịch lẫn thời gian biên dịch, còn vòng lặp thứ hai chạy trên một JVM đã ấm — chỉ riêng thứ tự đo đã đủ tạo ra chênh lệch nhiều lần. Còn nhiều nguồn nhiễu khác: một chu kỳ GC rơi vào một trong hai vòng lặp, profile pollution (nếu cả hai gọi chung một method thì call site trở thành megamorphic và JIT tối ưu kém đi), dao động tần số CPU và scheduling của OS. Cách làm đúng là dùng JMH với warm-up iteration, nhiều fork, nhiều iteration đo và báo cáo kèm khoảng tin cậy — đổi sang nanoTime chỉ sửa được sai số nhỏ nhất trong danh sách.",
+      "whyWrong": [
+        "nanoTime có độ phân giải tốt hơn nhưng với thang đo hàng nghìn vòng lặp thì độ phân giải không phải vấn đề chính.",
+        "",
+        "Chạy đa luồng làm phép đo nhiễu hơn hẳn chứ không giúp gì cho tính đúng đắn.",
+        "JIT không hề ưu tiên vòng lặp theo thứ tự; thực tế vòng lặp chạy sau thường được lợi vì JVM đã ấm."
+      ]
+    },
+    {
+      "id": "d-20-9",
+      "topicId": 20,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Một đội thay ArrayList bằng LinkedList vì 'chèn/xoá ở giữa là O(1)'. Kết quả đo lại cho thấy chậm hơn. Giải thích đúng nhất là gì?",
+      "choices": [
+        "LinkedList chỉ nhanh khi danh sách có dưới 100 phần tử",
+        "Vì LinkedList không implement RandomAccess nên các thuật toán trong Collections tự động từ chối tối ưu",
+        "Vì phép chèn của LinkedList thực chất là O(n) trong mọi trường hợp",
+        "Vì để chèn ở giữa vẫn phải duyệt tới vị trí đó (O(n)); thêm vào đó mỗi phần tử là một node riêng nằm rải rác trên heap nên cache miss rất nhiều, còn ArrayList lưu liên tục nên duyệt cực thân thiện với CPU cache và System.arraycopy dịch chuyển phần tử rất nhanh"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Con số O(1) của LinkedList chỉ đúng khi bạn ĐÃ có sẵn tham chiếu tới node, ví dụ khi chèn qua ListIterator. Nếu chèn theo chỉ số thì vẫn phải duyệt O(n) để tới nơi, nên tổng chi phí không tốt hơn ArrayList. Yếu tố quyết định trong thực tế là locality: ArrayList lưu phần tử liên tục nên duyệt gần như không có cache miss và việc dịch phần tử dùng System.arraycopy — một thao tác intrinsic rất nhanh trên khối bộ nhớ liền kề. LinkedList tạo một node object cho mỗi phần tử, nằm rải rác trên heap, mỗi bước duyệt là một lần có thể miss cache và tốn thêm bộ nhớ cho hai con trỏ. Bài học tổng quát: độ phức tạp tiệm cận bỏ qua hằng số, mà hằng số ở đây bị chi phối bởi phần cứng — nên phải đo trên dữ liệu thật.",
+      "whyWrong": [
+        "Danh sách càng nhỏ thì khác biệt càng không đáng kể; ưu thế của ArrayList thậm chí còn rõ hơn khi dữ liệu lớn nhờ locality.",
+        "Đúng là LinkedList không implement RandomAccess và một số thuật toán chuyển sang duyệt bằng iterator, nhưng đó là hệ quả chứ không phải nguyên nhân chính của chênh lệch hiệu năng.",
+        "Chèn của LinkedList là O(1) khi đã có node (qua ListIterator); phần O(n) nằm ở việc đi tới vị trí đó.",
+        ""
+      ]
+    }
+  ]
+}

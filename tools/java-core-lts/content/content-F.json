@@ -1,0 +1,1156 @@
+{
+ "tutorials": [
+  {
+   "id": "t-14-1",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Record: compiler sinh ra chính xác những gì?",
+   "summary": "Một dòng khai báo record thay thế cả trăm dòng boilerplate — nhưng trả lời phỏng vấn được hay không nằm ở chỗ bạn biết compiler sinh ra cái gì và KHÔNG sinh ra cái gì.",
+   "sections": [
+    "<b>Khai báo record là một header, không phải thân class.</b> Với <code>record Point(int x, int y) {}</code>, phần trong ngoặc gọi là <i>record components</i> và nó là <b>nguồn sự thật duy nhất</b> về state của kiểu này. Từ header đó compiler sinh ra: một <code>private final</code> field cho mỗi component, một <i>canonical constructor</i> nhận đúng các component theo thứ tự, một accessor cho mỗi component, cùng ba method <code>equals</code>, <code>hashCode</code>, <code>toString</code>. Record trở thành tính năng chuẩn (standard) ở <b>Java 16</b> sau khi preview ở 14 và 15, nên trong các bản LTS nó có từ Java 17 trở đi.",
+    "<b>Accessor không có tiền tố <code>get</code>.</b> Compiler sinh <code>x()</code> chứ không phải <code>getX()</code>. Đây không phải chuyện thẩm mỹ mà là điểm gãy thực tế: mọi thư viện dựa vào quy ước JavaBeans thuần tuý (một số expression language cũ, BeanUtils, vài bộ mapper phản chiếu theo tên getter) sẽ không nhìn thấy dữ liệu. Jackson chỉ hỗ trợ record từ phiên bản 2.12 trở lên; nếu bạn thấy lỗi kiểu &quot;Cannot construct instance ... no Creators, like default constructor, exist&quot; khi deserialize một record thì gần như chắc chắn là phiên bản Jackson quá cũ. Riêng với record thì cờ <code>-parameters</code> không liên quan: từ 2.12 Jackson lấy tên component qua <code>Class#getRecordComponents()</code>, đọc từ thuộc tính <code>Record</code> mà javac luôn ghi vào class file; cờ đó chỉ cần cho constructor của class thường.",
+    "<b><code>equals</code> và <code>hashCode</code> được sinh nhưng thuật toán không được đặc tả.</b> javac không nhét sẵn code so sánh vào từng class; nó phát ra một lệnh <code>invokedynamic</code> trỏ tới <code>java.lang.runtime.ObjectMethods</code>, và bootstrap đó dựng method handle lúc chạy. Về ngữ nghĩa: component kiểu tham chiếu so bằng <code>Objects.equals</code>, component kiểu nguyên thuỷ so theo phương thức <code>compare</code> của lớp bao tương ứng. Giá trị cụ thể của <code>hashCode</code> <b>không</b> được cam kết giữa các phiên bản JVM, nên đừng bao giờ đem nó đi băm phân mảnh (sharding), làm khoá cache ngoài tiến trình hay ghi xuống database.",
+    "<b>Record là <code>final</code> và ngầm kế thừa <code>java.lang.Record</code>.</b> Vì slot class cha đã bị chiếm, record <b>không</b> <code>extends</code> được class nào khác, nhưng <code>implements</code> bao nhiêu interface cũng được — đây là câu hỏi vặn rất hay gặp. Record cũng không được khai báo <code>abstract</code>, không có khối khởi tạo instance, và record lồng bên trong class khác thì ngầm <code>static</code> (giống enum và interface lồng).",
+    "<b>Field instance ngoài header bị cấm, field static thì được.</b> Lý do là ngôn ngữ muốn giữ một bất biến gọi là <i>copy invariant</i>: dựng lại object bằng cách đưa kết quả các accessor vào canonical constructor phải cho ra một object &quot;bằng&quot; object gốc. Nếu record được phép mang thêm state ẩn thì bất biến đó vỡ, và toàn bộ <code>equals</code>/serialization/pattern matching xây trên nó cũng vỡ theo. Static field, static method, instance method thường và cả static factory thì hoàn toàn hợp lệ.",
+    "<b>Bạn được phép override các method sinh sẵn.</b> Override accessor để trả bản sao phòng vệ, override <code>toString</code> để che dữ liệu nhạy cảm (một record chứa password mà dùng <code>toString</code> mặc định là lỗ hổng log rất thật). Nhưng nếu override <code>equals</code> thì phải override <code>hashCode</code> cùng lúc và phải giữ đúng copy invariant, nếu không bạn tự phá hợp đồng mà cả <code>HashMap</code> lẫn record pattern đều dựa vào."
+   ],
+   "example": "public record Point(int x, int y) implements Comparable<Point> {\n    // compiler tự sinh:\n    //   private final int x; private final int y;\n    //   public Point(int x, int y) { this.x = x; this.y = y; }\n    //   public int x(); public int y();\n    //   equals / hashCode / toString\n\n    static final Point ORIGIN = new Point(0, 0); // static field: OK\n    // private int cache;                        // instance field: LỖI BIÊN DỊCH\n\n    public static Point of(int x, int y) { return new Point(x, y); }\n\n    @Override public int compareTo(Point o) {\n        return Integer.compare(x * x + y * y, o.x * o.x + o.y * o.y);\n    }\n}\n\nPoint p = new Point(1, 2);\nSystem.out.println(p.x());      // 1  -- KHÔNG phải getX()\nSystem.out.println(p);          // Point[x=1, y=2]",
+   "exampleTitle": "Record và những gì compiler thêm vào",
+   "keyPoints": [
+    "Record là tính năng chuẩn từ Java 16 (preview ở 14/15), nên có sẵn trong LTS 17 và 21",
+    "Accessor tên trùng component: x(), không phải getX()",
+    "Record ngầm final, ngầm extends java.lang.Record, không extends class khác nhưng implements được nhiều interface",
+    "Không được thêm field instance ngoài header; static field thì được",
+    "equals/hashCode sinh qua invokedynamic tới ObjectMethods; giá trị hashCode không được đặc tả, không dùng để lưu trữ lâu dài"
+   ],
+   "trap": "Nhiều người nghĩ record chỉ là cú pháp gọn cho POJO nên vẫn gọi getX(); thực tế accessor không có tiền tố get, và mọi thư viện phản chiếu theo quy ước JavaBeans cũ sẽ không đọc được record.",
+   "followUp": [
+    "Record có implements interface được không, có extends class được không, vì sao?",
+    "Vì sao record không cho khai báo thêm field instance?",
+    "hashCode của record có ổn định giữa các lần chạy JVM khác nhau không?"
+   ]
+  },
+  {
+   "id": "t-14-2",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Canonical constructor và compact constructor",
+   "summary": "Chỗ duy nhất để validate và chuẩn hoá dữ liệu của record — và cũng là chỗ nhiều người viết sai vì tưởng nó giống constructor thường.",
+   "sections": [
+    "<b>Canonical constructor là constructor nhận đúng tất cả component theo đúng thứ tự.</b> Nếu bạn không viết, compiler sinh giúp với cùng access modifier của record. Nếu bạn viết tường minh thì access modifier <b>không được hẹp hơn</b> access của record — không thể để record <code>public</code> mà canonical constructor <code>private</code> nhằm ép dùng static factory; muốn giấu constructor thì phải giấu cả record.",
+    "<b>Compact constructor là dạng rút gọn: không có danh sách tham số.</b> Viết <code>Money { ... }</code> nghĩa là &quot;chạy đoạn này trước, rồi tự động gán tất cả tham số vào field&quot;. Phần gán <code>this.x = x</code> được compiler chèn ngầm ở <b>cuối</b> thân hàm, nên bạn không cần viết và cũng không nhìn thấy nó.",
+    "<b>Trong compact constructor bạn gán lại <i>tham số</i>, không gán vào field.</b> Viết <code>currency = currency.toUpperCase()</code> là đúng: giá trị đã chuẩn hoá sẽ được chèn vào field ở cuối. Viết <code>this.currency = ...</code> là <b>lỗi biên dịch</b>, vì field là <code>final</code> và sẽ được gán bởi đoạn ngầm định phía sau. Đây chính là điểm hay bị hỏi vặn: &quot;chuẩn hoá tham số&quot; và &quot;gán field&quot; là hai việc khác nhau ở đây.",
+    "<b>Validate là mục đích chính.</b> Ném <code>IllegalArgumentException</code> (hoặc <code>NullPointerException</code> qua <code>Objects.requireNonNull</code>) ngay trong compact constructor giúp record không bao giờ tồn tại ở trạng thái vô nghĩa — đúng tinh thần đóng gói, dù mọi component đều lộ ra ngoài qua accessor. Vì record bất biến nên kiểm tra một lần lúc dựng là đủ cho toàn bộ vòng đời.",
+    "<b>Constructor thay thế phải uỷ quyền về canonical.</b> Mọi constructor khác bắt buộc bắt đầu bằng <code>this(...)</code> dẫn về canonical constructor, nên không có đường nào tạo record mà né được validation. Điều này khác hẳn class thường, nơi mỗi constructor có thể tự gán field theo cách riêng và dễ bỏ sót kiểm tra.",
+    "<b>Hệ quả rất giá trị khi deserialize.</b> Với class thường, cơ chế deserialization của Java dựng object mà <b>bỏ qua</b> constructor, nên mọi kiểm tra hợp lệ bị vô hiệu — đây là nguồn lỗ hổng kinh điển. Record thì bắt buộc đi qua canonical constructor khi deserialize, nên validation vẫn chạy. Đó là một trong những lý do kỹ thuật thật sự để chọn record cho dữ liệu đến từ bên ngoài."
+   ],
+   "example": "public record Money(String currency, long amount) {\n    // compact constructor: KHÔNG có danh sách tham số\n    public Money {\n        Objects.requireNonNull(currency, \"currency\");\n        if (amount < 0) throw new IllegalArgumentException(\"amount < 0\");\n        currency = currency.toUpperCase(); // chuẩn hoá THAM SỐ\n        // this.currency = currency;  <-- LỖI BIÊN DỊCH\n        // compiler chèn ngầm: this.currency = currency; this.amount = amount;\n    }\n\n    // constructor thay thế: bắt buộc uỷ quyền về canonical\n    public Money(String currency) {\n        this(currency, 0L);\n    }\n}\n\nnew Money(\"usd\", 10);   // Money[currency=USD, amount=10]\nnew Money(\"usd\", -1);   // IllegalArgumentException",
+   "exampleTitle": "Compact constructor: validate + normalize",
+   "keyPoints": [
+    "Canonical constructor không được hẹp quyền truy cập hơn chính record",
+    "Compact constructor gán lại tham số; gán this.field là lỗi biên dịch",
+    "Phép gán field được compiler chèn ở cuối thân compact constructor",
+    "Mọi constructor phụ phải gọi this(...) về canonical nên không né được validation",
+    "Deserialization của record đi qua canonical constructor, khác class thường vốn bỏ qua constructor"
+   ],
+   "trap": "Viết this.amount = amount trong compact constructor để tưởng là gán field — compiler báo lỗi vì field final đã có sẵn phép gán ngầm phía sau. Chỉ được gán lại biến tham số.",
+   "followUp": [
+    "Vì sao record chống được kiểu tấn công tạo object không hợp lệ qua deserialization?",
+    "Có thể để canonical constructor private và chỉ mở static factory không?",
+    "Khác nhau giữa compact constructor và canonical constructor viết đầy đủ là gì?"
+   ]
+  },
+  {
+   "id": "t-14-3",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Record chỉ bất biến nông (shallow immutable)",
+   "summary": "Đây là hiểu nhầm phổ biến nhất về record và là câu hỏi vặn gần như chắc chắn xuất hiện khi bạn nói 'record là immutable'.",
+   "sections": [
+    "<b><code>final</code> chỉ khoá tham chiếu, không khoá nội dung.</b> Field sinh ra cho component là <code>private final</code>, nghĩa là bạn không thể trỏ nó sang object khác. Nhưng nếu component là <code>List</code>, <code>Map</code>, mảng hay bất kỳ object có thể sửa nào thì <b>nội dung vẫn sửa được bình thường</b>. Record cho bạn bất biến <i>nông</i>, còn bất biến <i>sâu</i> là trách nhiệm của bạn.",
+    "<b>Có hai đường rò rỉ, phải bịt cả hai.</b> Đường vào: người gọi giữ lại tham chiếu đã truyền vào constructor và sửa nó về sau. Đường ra: accessor trả thẳng tham chiếu nội bộ nên người nhận sửa được. Bịt đường vào bằng copy trong compact constructor; bịt đường ra bằng cách override accessor để trả bản sao hoặc view chỉ đọc. Nếu đã copy sang <code>List.copyOf</code> ở constructor thì đường ra tự an toàn vì list đó không sửa được.",
+    "<b><code>List.copyOf</code> là công cụ gọn nhất nhưng có hai điểm cần biết.</b> Nó trả về một list <b>không sửa được</b>, và nó <b>ném <code>NullPointerException</code></b> nếu có phần tử null — điều này thường tốt (phát hiện dữ liệu bẩn sớm) nhưng sẽ bất ngờ nếu miền dữ liệu của bạn cho phép null. Nó cũng có thể trả về chính đối tượng cũ nếu đối tượng đó vốn đã là list bất biến do <code>List.of</code>/<code>copyOf</code> tạo ra, nên chi phí không phải lúc nào cũng là một lần sao chép thật.",
+    "<b>Component kiểu mảng là trường hợp tệ nhất.</b> Ngoài chuyện sửa được, <code>equals</code> sinh sẵn dùng <code>Objects.equals</code> nên với mảng nó so <b>identity</b>: hai record có nội dung mảng y hệt nhau vẫn <code>false</code>. <code>hashCode</code> cũng theo identity và <code>toString</code> in ra dạng <code>[B@1b6d3586</code>. Nếu bắt buộc phải mang mảng, hãy override cả ba method bằng <code>Arrays.equals</code>/<code>Arrays.hashCode</code>/<code>Arrays.toString</code>, hoặc tốt hơn là đổi sang <code>List</code>.",
+    "<b>Đánh đổi hiệu năng cần nói rõ khi phỏng vấn.</b> Copy phòng vệ tốn một lần cấp phát và sao chép cho mỗi lần dựng record; với DTO nằm trên đường đi của hàng chục nghìn request mỗi giây thì chi phí đó là thật, dù thường vẫn nhỏ so với chi phí serialize JSON hay I/O. Cách cân bằng thực dụng: copy ở biên hệ thống (nơi dữ liệu đến từ bên ngoài) và bỏ qua copy ở các record nội bộ chỉ đi qua code bạn kiểm soát — nhưng phải ghi rõ quyết định đó, đừng để nó là tai nạn.",
+    "<b>Record không có sẵn cơ chế &quot;sửa một trường&quot;.</b> Không có wither, không có builder sinh tự động. Với record ít component thì viết tay <code>withAmount(...)</code> trả về instance mới là đủ; với record nhiều component thì nên cân nhắc builder thủ công hoặc <code>@Builder</code> của Lombok đặt trên record."
+   ],
+   "example": "// SAI: bất biến nông, cả hai đường đều rò\nrecord Team(String name, List<String> members) {}\n\nList<String> src = new ArrayList<>(List.of(\"An\"));\nTeam t = new Team(\"A\", src);\nsrc.add(\"Binh\");                 // đường vào\nt.members().add(\"Chi\");          // đường ra\nSystem.out.println(t.members()); // [An, Binh, Chi]  -- không hề immutable\n\n// ĐÚNG: copy phòng vệ ở constructor\nrecord SafeTeam(String name, List<String> members) {\n    SafeTeam {\n        members = List.copyOf(members); // bản sao không sửa được; NPE nếu có phần tử null\n    }\n}\n\n// Component kiểu mảng: equals theo identity\nrecord Buf(byte[] data) {}\nSystem.out.println(new Buf(new byte[]{1,2}).equals(new Buf(new byte[]{1,2}))); // false",
+   "exampleTitle": "Hai đường rò rỉ và cách bịt",
+   "keyPoints": [
+    "Record bất biến nông: final khoá tham chiếu, không khoá nội dung của collection hay mảng",
+    "Phải bịt cả đường vào (copy ở compact constructor) lẫn đường ra (accessor trả bản sao)",
+    "List.copyOf trả về list không sửa được và ném NPE nếu có phần tử null",
+    "Component kiểu mảng làm equals/hashCode/toString sinh sẵn trở nên vô dụng vì so theo identity",
+    "Copy phòng vệ có chi phí thật; nên áp dụng ở biên hệ thống và ghi rõ quyết định"
+   ],
+   "trap": "Nói 'record là immutable' rồi bị hỏi ngược: cho record có component List, người phỏng vấn sửa list từ bên ngoài và hỏi accessor trả về gì. Câu trả lời đúng là list đã đổi — record chỉ bất biến nông.",
+   "followUp": [
+    "Vì sao record có component là mảng thì equals gần như luôn trả về false?",
+    "List.copyOf khác Collections.unmodifiableList chỗ nào?",
+    "Copy phòng vệ ở đâu là đủ: constructor, accessor, hay cả hai?"
+   ]
+  },
+  {
+   "id": "t-14-4",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Record ở tầng dữ liệu: DTO, JPA, JSON và serialization",
+   "summary": "Record hợp với DTO đến mức nhiều người đem nó làm luôn entity — và đó là chỗ hỏng.",
+   "sections": [
+    "<b>Chỗ record toả sáng: value object và DTO.</b> Request/response của API, kết quả truy vấn chỉ đọc, khoá tổng hợp trong <code>Map</code>, sự kiện gửi lên message broker, cấu hình đã nạp xong — tất cả đều là dữ liệu &quot;bằng nhau khi các trường bằng nhau&quot;, tức là <i>value semantics</i>, đúng thứ record được thiết kế cho.",
+    "<b>Record không làm được JPA entity, và có ba lý do độc lập.</b> Thứ nhất, JPA yêu cầu một constructor không tham số (mức public hoặc protected) để provider dựng instance rồi mới nạp dữ liệu — record không thể có. Thứ hai, provider cần sửa field sau khi dựng, còn dirty checking cần so sánh trạng thái thay đổi — record thì final. Thứ ba, lazy loading của Hibernate dựng proxy bằng cách kế thừa entity class, mà record ngầm <code>final</code> nên không kế thừa được. Đây gần như luôn là câu hỏi tiếp theo sau khi bạn khoe đang dùng record.",
+    "<b>Nhưng record là công cụ projection tuyệt vời.</b> JPQL có constructor expression: <code>select new com.app.UserDto(u.id, u.name) from User u</code> gọi thẳng canonical constructor, vừa tránh nạp cả entity vừa cho ra kiểu bất biến. Spring Data JPA cũng nhận record làm class-based projection cho derived query và cho <code>@Query</code> gốc khi tên cột khớp thứ tự tham số. Nói cách khác: entity là <i>entity semantics</i> (có định danh, có vòng đời), record là <i>value semantics</i> — đừng trộn hai thứ.",
+    "<b>Về ORM và embeddable, hãy trả lời theo phiên bản chứ đừng khẳng định chung.</b> Việc dùng record ở vai trò <code>@Embeddable</code> phụ thuộc hẳn vào provider và phiên bản; cách an toàn khi phỏng vấn là nói rõ &quot;entity thì chắc chắn không, còn embeddable thì tuỳ phiên bản Hibernate và tôi sẽ kiểm tra tài liệu&quot; thay vì đoán.",
+    "<b>Jackson và ánh xạ JSON.</b> Jackson hỗ trợ record từ 2.12; nó dùng canonical constructor để dựng object nên validation trong compact constructor vẫn chạy khi parse JSON — một lợi ích an toàn rất thực tế. Với các thư viện binding khác (hoặc Jackson cũ), thiếu thông tin tên tham số có thể khiến việc ánh xạ hỏng; khi đó biên dịch với cờ <code>-parameters</code> hoặc thêm <code>@JsonProperty</code> lên component sẽ giải quyết.",
+    "<b>Java serialization của record khác class thường.</b> Nếu record <code>implements Serializable</code>, quá trình deserialize đi qua canonical constructor thay vì dựng object rỗng bằng cơ chế nội bộ, nên không thể tạo ra record ở trạng thái không hợp lệ. Hệ quả kèm theo: <code>writeObject</code>/<code>readObject</code>/<code>readObjectNoData</code> khai báo trong record bị <b>bỏ qua</b>, còn <code>writeReplace</code>/<code>readResolve</code> thì vẫn có tác dụng; <code>serialVersionUID</code> ngầm định của record là <code>0L</code>."
+   ],
+   "example": "// KHÔNG dùng record làm entity\n@Entity\nclass User {                       // class thường: có no-arg ctor, field mutable, không final\n    @Id Long id;\n    String name;\n    protected User() {}\n}\n\n// Record làm DTO / projection: đúng chỗ\npublic record UserDto(Long id, String name) {}\n\n@Query(\"select new com.app.UserDto(u.id, u.name) from User u where u.active = true\")\nList<UserDto> findActive();\n\n// Deserialize JSON vẫn chạy validation\npublic record Email(String value) implements Serializable {\n    public Email {\n        if (value == null || !value.contains(\"@\"))\n            throw new IllegalArgumentException(\"bad email\");\n    }\n}\n// objectMapper.readValue(\"{\\\"value\\\":\\\"abc\\\"}\", Email.class) -> ném lỗi, không tạo được object bẩn",
+   "exampleTitle": "Entity vs DTO",
+   "keyPoints": [
+    "Record hợp với value semantics: DTO, event, khoá tổng hợp, cấu hình",
+    "Không làm JPA entity được: thiếu no-arg constructor, field final, class final nên không proxy lazy được",
+    "Rất hợp làm projection qua JPQL constructor expression hoặc Spring Data class-based projection",
+    "Jackson hỗ trợ record từ 2.12 và dựng qua canonical constructor nên validation vẫn chạy",
+    "Deserialization Java của record đi qua canonical constructor; readObject/writeObject bị bỏ qua, readResolve/writeReplace vẫn dùng"
+   ],
+   "trap": "Đặt @Entity lên record. Nó có thể compile nhưng provider sẽ lỗi lúc khởi tạo hoặc lúc chạy vì thiếu no-arg constructor và không proxy được — và người phỏng vấn hỏi 'vì sao' chứ không hỏi 'được không'.",
+   "followUp": [
+    "Kể ba lý do kỹ thuật độc lập khiến record không làm entity được",
+    "Vì sao deserialize một record an toàn hơn deserialize một class thường?",
+    "Làm sao ánh xạ JSON vào record khi tên field JSON khác tên component?"
+   ]
+  },
+  {
+   "id": "t-14-5",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Record so với Lombok, local record, và khi nào KHÔNG dùng record",
+   "summary": "Record không phải bản thay thế của mọi POJO; biết ranh giới mới là dấu hiệu của người đã dùng nó thật.",
+   "sections": [
+    "<b>Record là <i>kiểu ngôn ngữ</i>, Lombok là <i>sinh mã</i>.</b> <code>@Value</code> của Lombok sinh ra một class final với getter, <code>equals</code>, <code>hashCode</code>, <code>toString</code> — nhìn thì giống, nhưng trình biên dịch, JVM và các tính năng mới của ngôn ngữ <b>không biết</b> class đó là dữ liệu. Record thì được ngôn ngữ hiểu, và đó là lý do Java 21 có thể tháo rời (deconstruct) nó bằng record pattern còn class Lombok thì không.",
+    "<b>Sự khác biệt lớn nhất nằm ở chỗ record ghép với sealed.</b> <code>sealed interface</code> cộng với các record cài đặt nó tạo thành <i>algebraic data type</i>: compiler biết trọn vẹn tập biến thể và kiểm tra được tính đầy đủ (exhaustiveness) của <code>switch</code>. Không có tổ hợp Lombok nào mang lại được sự kiểm tra ấy.",
+    "<b>Đổi lại, record thiếu vài tiện ích Lombok có sẵn.</b> Không có builder tự sinh (record nhiều component sẽ khó gọi và dễ đảo nhầm hai tham số cùng kiểu), không có wither, không có <code>@Slf4j</code> hay các annotation tiện dụng khác. Với record 6-8 component cùng kiểu <code>String</code>, một builder viết tay hoặc <code>@Builder</code> đặt lên record là lựa chọn hợp lý — hai công cụ này không loại trừ nhau.",
+    "<b>Local record (Java 16 trở lên) rất hữu ích mà ít người dùng.</b> Bạn khai báo record ngay trong thân method để nhóm dữ liệu tạm — điển hình là trong một stream pipeline cần mang theo giá trị khoá đã tính sẵn qua nhiều bước, thay vì lạm dụng <code>Map.Entry</code> hoặc <code>Object[]</code>. Local interface và local enum cũng được cho phép từ cùng phiên bản đó.",
+    "<b>Đừng dùng record khi đối tượng có <i>định danh</i> chứ không phải <i>giá trị</i>.</b> Entity trong database, đối tượng có vòng đời và trạng thái thay đổi, service, class cần kế thừa để chia sẻ cài đặt — tất cả đều nên là class thường. Một dấu hiệu nhận biết nhanh: nếu hai đối tượng có mọi trường giống nhau mà bạn <b>vẫn muốn</b> coi là hai thứ khác nhau, thì đó không phải record.",
+    "<b>Cẩn thận với record làm khoá <code>HashMap</code>.</b> Record cho <code>equals</code>/<code>hashCode</code> miễn phí nên rất tiện làm khoá tổng hợp, nhưng nếu component là collection có thể sửa thì bạn rơi lại đúng bẫy kinh điển: sửa nội dung sau khi đã put khiến <code>hashCode</code> đổi, phần tử nằm sai bucket và <code>get</code> trả về null. Record chỉ an toàn làm khoá khi mọi component của nó thực sự bất biến."
+   ],
+   "example": "// Local record trong stream pipeline (Java 16+)\nList<String> topByScore(List<String> words) {\n    record Scored(String word, int score) {}   // record cục bộ trong method\n    return words.stream()\n        .map(w -> new Scored(w, expensiveScore(w)))  // tính điểm đúng một lần\n        .sorted(Comparator.comparingInt(Scored::score).reversed())\n        .limit(10)\n        .map(Scored::word)\n        .toList();\n}\n\n// Wither viết tay vì record không có sẵn\nrecord Money(String currency, long amount) {\n    Money withAmount(long newAmount) { return new Money(currency, newAmount); }\n}",
+   "exampleTitle": "Local record và wither thủ công",
+   "keyPoints": [
+    "Record là kiểu ngôn ngữ nên pattern matching và sealed hiểu được; Lombok chỉ sinh mã nên không có lợi thế đó",
+    "Record không có builder/wither tự sinh; vẫn có thể kết hợp @Builder khi nhiều component",
+    "Local record, local interface, local enum có từ Java 16",
+    "Dùng record cho value semantics, dùng class cho đối tượng có định danh và vòng đời",
+    "Record chỉ an toàn làm khoá HashMap khi mọi component đều thực sự bất biến"
+   ],
+   "trap": "Coi record là 'POJO ngắn gọn' rồi thay hết class dữ liệu bằng record, kể cả entity và các object cần thay đổi trạng thái. Ranh giới đúng là value semantics vs entity semantics chứ không phải số dòng code.",
+   "followUp": [
+    "Record khác Lombok @Value ở điểm nào mà Lombok không bù được?",
+    "Khi nào bạn vẫn chọn class thường thay vì record?",
+    "Local record giải quyết vấn đề gì trong stream pipeline?"
+   ]
+  },
+  {
+   "id": "t-15-1",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "sealed và permits: ba lựa chọn bắt buộc cho class con",
+   "summary": "Sealed cho phép bạn nói 'kiểu này chỉ có đúng những biến thể này' — và compiler ép cả bạn lẫn người dùng phải khai báo rõ ý định.",
+   "sections": [
+    "<b>Cú pháp và phạm vi.</b> Đánh dấu <code>sealed</code> lên class hoặc interface rồi liệt kê các kiểu con <b>trực tiếp</b> trong mệnh đề <code>permits</code>. Tính năng này preview ở Java 15 và 16, trở thành <b>chuẩn ở Java 17</b>, nên trong các bản LTS nó có từ 17. Một kiểu không nằm trong <code>permits</code> mà cố kế thừa sẽ bị từ chối ngay lúc biên dịch.",
+    "<b>Mỗi kiểu con bắt buộc chọn một trong ba từ khoá.</b> <code>final</code> nghĩa là nhánh này đóng hẳn; <code>sealed</code> nghĩa là nhánh này lại tiếp tục mở ra một tập con đóng khác; <code>non-sealed</code> nghĩa là nhánh này mở tự do cho bất kỳ ai kế thừa. Quên khai báo là lỗi biên dịch — ngôn ngữ cố tình không cho bạn im lặng bỏ qua quyết định này. <code>non-sealed</code> cũng là từ khoá duy nhất trong Java có dấu gạch ngang.",
+    "<b>Record hợp với sealed đến mức không cần thêm gì.</b> Record ngầm <code>final</code> nên khi cài đặt một sealed interface, bạn không phải viết thêm modifier nào. Đây là lý do cặp <code>sealed interface</code> + các <code>record</code> trở thành cách mô hình hoá dữ liệu chuẩn mực trong Java hiện đại.",
+    "<b><code>permits</code> có thể bỏ nếu tất cả kiểu con nằm cùng file nguồn.</b> Khi đó compiler tự suy ra danh sách. Cách viết này rất gọn cho các mô hình nhỏ và cũng khiến toàn bộ tập biến thể đọc được trong một màn hình. Ngược lại, nếu các kiểu con nằm ở file khác thì <code>permits</code> là bắt buộc.",
+    "<b>Vài ràng buộc dễ quên.</b> Kiểu con trong <code>permits</code> phải kế thừa <b>trực tiếp</b> kiểu sealed, không được là cháu. Interface không có <code>final</code> nên interface con của một sealed interface chỉ có thể là <code>sealed</code> hoặc <code>non-sealed</code>. Class ẩn danh (anonymous class) và local class không thể làm kiểu con được cho phép, và vì thế một sealed interface <b>không dùng được làm target type của lambda</b> — lambda tạo ra một cài đặt không nằm trong danh sách <code>permits</code>.",
+    "<b>Sealed class vẫn có thể <code>abstract</code> hoặc cụ thể.</b> Trong thực tế người ta hay dùng <code>sealed interface</code> vì nó không áp đặt state lên các biến thể, còn <code>sealed abstract class</code> dùng khi mọi biến thể thật sự chia sẻ một phần dữ liệu và logic chung."
+   ],
+   "example": "public sealed interface Shape permits Circle, Rectangle, Triangle {}\n\npublic record Circle(double radius) implements Shape {}          // record: ngầm final, OK\npublic record Rectangle(double w, double h) implements Shape {}\n\npublic non-sealed class Triangle implements Shape {               // mở lại nhánh này\n    // ai cũng extends Triangle được\n}\n\n// class SecretShape implements Shape {}  // LỖI: không nằm trong permits\n\n// Bỏ permits khi mọi kiểu con nằm cùng file nguồn:\nsealed interface Result {\n    record Ok(String value) implements Result {}\n    record Err(int code, String message) implements Result {}\n}",
+   "exampleTitle": "Ba lựa chọn: final, sealed, non-sealed",
+   "keyPoints": [
+    "Sealed classes preview ở Java 15/16, thành chuẩn ở Java 17",
+    "Mỗi kiểu con phải khai báo final, sealed hoặc non-sealed — không khai báo là lỗi biên dịch",
+    "Record ngầm final nên cài đặt sealed interface mà không cần thêm modifier",
+    "permits bỏ được nếu mọi kiểu con nằm cùng file nguồn; kiểu con phải kế thừa trực tiếp",
+    "Anonymous class, local class và lambda không thể làm kiểu con của sealed type"
+   ],
+   "trap": "Viết class con của một sealed type mà quên final/sealed/non-sealed rồi tưởng mặc định là non-sealed. Java không có mặc định ở đây — không viết là lỗi biên dịch.",
+   "followUp": [
+    "Vì sao interface con của sealed interface không thể là final?",
+    "Vì sao không dùng được lambda cho một sealed functional interface?",
+    "Khi nào bỏ được mệnh đề permits?"
+   ]
+  },
+  {
+   "id": "t-15-2",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Ràng buộc vị trí: cùng module hoặc cùng package, và vì sao",
+   "summary": "Sealed không chỉ là quy tắc của compiler — JVM cũng kiểm tra lại lúc nạp class, và điều đó quyết định nơi bạn được phép đặt các biến thể.",
+   "sections": [
+    "<b>Quy tắc vị trí.</b> Nếu kiểu sealed nằm trong một <i>named module</i>, mọi kiểu con được cho phép phải nằm trong <b>cùng module</b> (có thể khác package). Nếu nó nằm trong <i>unnamed module</i> — tức là chạy trên classpath như phần lớn ứng dụng hiện nay — thì mọi kiểu con phải nằm trong <b>cùng package</b>. Đây là ràng buộc hay bị quên khi chia project thành nhiều module Maven mà không dùng JPMS.",
+    "<b>Lý do là tính kiểm chứng được.</b> Cam kết &quot;tập biến thể là đóng&quot; chỉ có giá trị nếu không ai chèn được một class lạ vào giữa lúc chạy. Bằng cách giới hạn kiểu con trong phạm vi mà compiler và JVM cùng nhìn thấy và kiểm soát được, ngôn ngữ bảo đảm rằng danh sách <code>permits</code> đúng cả lúc biên dịch lẫn lúc chạy.",
+    "<b>Điều này được ghi vào class file.</b> Class file của một sealed type mang thuộc tính <code>PermittedSubclasses</code>, và JVM kiểm tra lại lúc nạp class: một class tự nhận là con nhưng không có trong danh sách sẽ bị từ chối. Nói cách khác, sealed không phải mẹo cú pháp mà là ràng buộc đi tới tận runtime — khác hẳn các mẹo cũ như để constructor package-private.",
+    "<b>Phản chiếu (reflection) có API tương ứng từ Java 17.</b> <code>Class.isSealed()</code> và <code>Class.getPermittedSubclasses()</code> cho phép framework duyệt trọn tập biến thể — rất hữu ích cho serialization, sinh schema, hay tự động đăng ký handler cho từng biến thể.",
+    "<b>Hệ quả thiết kế cần nói rõ khi phỏng vấn.</b> Vì kiểu con không thể nằm ở module khác, sealed <b>không phải công cụ cho cơ chế plugin hay SPI</b>. Nó dành cho mô hình miền nội bộ mà bạn sở hữu trọn vẹn. Nếu bạn muốn bên thứ ba mở rộng, hãy dùng interface thường (hoặc để một nhánh <code>non-sealed</code> làm điểm mở rộng có kiểm soát)."
+   ],
+   "example": "// Trên classpath (unnamed module): mọi kiểu con phải cùng package\npackage com.app.domain;\n\npublic sealed interface Event permits OrderCreated, OrderPaid {}\nfinal class OrderCreated implements Event {}   // cùng package: OK\nfinal class OrderPaid implements Event {}\n\n// package com.app.other;\n// final class OrderShipped implements Event {}  // LỖI khi chạy trên classpath\n\n// Duyệt tập biến thể bằng reflection (Java 17+)\nfor (Class<?> c : Event.class.getPermittedSubclasses()) {\n    System.out.println(c.getSimpleName());\n}",
+   "exampleTitle": "Vị trí hợp lệ của kiểu con",
+   "keyPoints": [
+    "Named module: kiểu con cùng module. Classpath (unnamed module): kiểu con cùng package",
+    "Ràng buộc được ghi vào thuộc tính PermittedSubclasses và JVM kiểm tra lại lúc nạp class",
+    "Class.isSealed() và Class.getPermittedSubclasses() có từ Java 17",
+    "Sealed là ràng buộc đi tới runtime, không phải mẹo cú pháp",
+    "Vì giới hạn phạm vi nên sealed không dùng làm cơ chế plugin hay SPI"
+   ],
+   "trap": "Tách sealed interface và các implementation ra hai package khác nhau trong một project chạy trên classpath. Code trông hợp lý nhưng compiler từ chối, vì trên unnamed module mọi kiểu con phải cùng package.",
+   "followUp": [
+    "Vì sao ngôn ngữ phải giới hạn kiểu con trong cùng module hoặc cùng package?",
+    "JVM kiểm tra danh sách permits ở thời điểm nào?",
+    "Sealed có dùng được cho kiến trúc plugin không, vì sao?"
+   ]
+  },
+  {
+   "id": "t-15-3",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "sealed + record = algebraic data type và tính đầy đủ của switch",
+   "summary": "Giá trị lớn nhất của sealed không nằm ở chỗ 'chặn kế thừa' mà ở chỗ compiler biết đủ tập biến thể để kiểm tra hộ bạn.",
+   "sections": [
+    "<b>Hai mảnh ghép.</b> <code>record</code> là <i>product type</i>: một giá trị mang đồng thời nhiều thành phần. <code>sealed</code> là <i>sum type</i>: một giá trị là <b>một trong</b> tập biến thể đã biết. Ghép lại ta có <i>algebraic data type</i> — cách mô hình hoá dữ liệu đã quen thuộc trong các ngôn ngữ hàm, giờ có trong Java với đầy đủ sự hỗ trợ của compiler.",
+    "<b>Phần thưởng là exhaustiveness.</b> Từ <b>Java 21</b>, khi <code>switch</code> trên một kiểu sealed và liệt kê đủ mọi biến thể, bạn <b>không cần</b> nhánh <code>default</code>. Compiler tự xác nhận rằng mọi trường hợp đã được xử lý. Ngày mai ai đó thêm một biến thể mới vào <code>permits</code>, mọi <code>switch</code> trong codebase lập tức <b>không biên dịch được</b> và chỉ đúng những chỗ cần sửa mới báo lỗi. Đây là giá trị thực sự lớn nhất của sealed.",
+    "<b>Viết <code>default</code> là tự vứt bỏ phần thưởng đó.</b> Một nhánh <code>default</code> khiến switch luôn đầy đủ về mặt hình thức, nên compiler không còn gì để cảnh báo khi bạn quên xử lý biến thể mới — lỗi lặng lẽ trôi ra production. Với kiểu sealed, hãy liệt kê hết và bỏ hẳn <code>default</code>; nếu thực sự cần hành vi mặc định thì tách nó ra thành một nhánh có tên rõ ràng.",
+    "<b>Nhánh <code>non-sealed</code> không phá exhaustiveness.</b> Một <code>case</code> cho kiểu <code>non-sealed</code> bao trọn mọi kiểu con của nó, nên compiler vẫn coi switch là đầy đủ. Đây là điểm cân bằng đẹp: bạn mở một nhánh cho mở rộng mà không mất khả năng kiểm tra ở các nhánh còn lại.",
+    "<b>Chuyện gì xảy ra nếu compile lệch nhau.</b> Nếu bạn biên dịch lại thư viện chứa sealed type (thêm biến thể mới) nhưng <b>không</b> biên dịch lại code client, thì switch đã biên dịch có thể gặp một giá trị không khớp nhánh nào. Java 21 xử lý bằng cách để javac chèn một nhánh mặc định ngầm ném <code>MatchException</code>. Nó không im lặng cho ra kết quả sai — nhưng cũng nhắc rằng exhaustiveness là bảo đảm lúc biên dịch, không phải phép màu lúc chạy.",
+    "<b>Trước Java 21 thì lợi ích còn hạn chế.</b> Ở Java 17 bạn có <code>sealed</code> nhưng pattern matching cho <code>switch</code> chưa có ở dạng chuẩn — JEP 406 mới chỉ là <i>preview</i> (preview suốt 17 đến 20, chuẩn hoá ở 21), nên nếu không bật <code>--enable-preview</code> thì vẫn phải viết chuỗi <code>if (x instanceof ...)</code> và tự lo trường hợp thiếu. Nói được mốc này cho thấy bạn hiểu vì sao cả hai tính năng được thiết kế cùng nhau."
+   ],
+   "example": "// Java 21: sealed + record + pattern switch\nsealed interface Shape permits Circle, Rect, Tri {}\nrecord Circle(double r) implements Shape {}\nrecord Rect(double w, double h) implements Shape {}\nrecord Tri(double b, double h) implements Shape {}\n\nstatic double area(Shape s) {\n    return switch (s) {                 // KHÔNG có default\n        case Circle c -> Math.PI * c.r() * c.r();\n        case Rect r   -> r.w() * r.h();\n        case Tri t    -> t.b() * t.h() / 2;\n    };\n}\n// Thêm 'record Square(double a) implements Shape' vào permits\n// -> area() lập tức LỖI BIÊN DỊCH: \"the switch expression does not cover all possible input values\"",
+   "exampleTitle": "Exhaustiveness: compiler làm checklist cho bạn",
+   "keyPoints": [
+    "record là product type, sealed là sum type; ghép lại thành algebraic data type",
+    "Từ Java 21, switch trên sealed type liệt kê đủ biến thể thì không cần default",
+    "Thêm default sẽ vô hiệu hoá kiểm tra exhaustiveness — đừng viết default với sealed type",
+    "case cho kiểu non-sealed bao trọn con cháu nên vẫn giữ được exhaustiveness",
+    "Nếu compile lệch phiên bản, switch đã biên dịch ném MatchException thay vì cho kết quả sai"
+   ],
+   "trap": "Thêm 'default -> throw new IllegalStateException()' cho chắc ăn. Nó biến kiểm tra lúc biên dịch thành lỗi lúc chạy, đúng ngược với lý do bạn dùng sealed.",
+   "followUp": [
+    "Vì sao viết default lại làm mất giá trị của sealed?",
+    "Thêm một biến thể mới vào permits thì code client bị ảnh hưởng thế nào?",
+    "Java 17 có sealed nhưng vì sao lợi ích chỉ trọn vẹn từ Java 21?"
+   ]
+  },
+  {
+   "id": "t-15-4",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "sealed khác gì final, enum và mẹo constructor package-private",
+   "summary": "Trước Java 17 người ta vẫn 'đóng' hệ thống kiểu bằng mẹo — hiểu vì sao mẹo đó không đủ mới thấy sealed giải quyết cái gì.",
+   "sections": [
+    "<b><code>final</code> là đóng tuyệt đối, không mô hình hoá được biến thể.</b> <code>final</code> nói &quot;không ai kế thừa&quot;, còn sealed nói &quot;chỉ những kiểu này được kế thừa&quot;. Hai mục tiêu khác nhau: <code>final</code> bảo vệ một cài đặt cụ thể (như <code>String</code> bảo vệ tính bất biến của nó), còn sealed mô tả một tập biến thể đóng của một khái niệm.",
+    "<b>Mẹo cũ: constructor package-private.</b> Trước Java 17, cách phổ biến để &quot;đóng&quot; một abstract class là để constructor của nó ở mức package-private, khiến class ngoài package không gọi được <code>super()</code> nên không kế thừa được. Mẹo này hoạt động nhưng thiếu ba thứ quan trọng.",
+    "<b>Ba thứ mẹo đó thiếu.</b> Thứ nhất, <b>compiler không biết tập biến thể</b>, nên không có kiểm tra exhaustiveness nào cả. Thứ hai, <b>ý định không hiện trong API</b>: người đọc javadoc hay class file không thấy được danh sách biến thể, phải tự suy luận. Thứ ba, nó <b>ép mọi biến thể nằm cùng package</b>, kể cả khi bạn dùng module và muốn tách package cho gọn. Sealed giải quyết cả ba và còn được JVM kiểm chứng lúc nạp class.",
+    "<b>So với <code>enum</code>: enum đóng tập <i>instance</i>, sealed đóng tập <i>kiểu</i>.</b> Mỗi hằng enum là một giá trị duy nhất và các hằng chia sẻ chung một hình dạng dữ liệu. Sealed cho phép mỗi biến thể mang cấu trúc dữ liệu <b>riêng</b>: <code>Circle</code> có bán kính, <code>Rect</code> có hai cạnh, và mỗi biến thể lại sinh ra vô số giá trị. Cách nói ngắn gọn khi phỏng vấn: sealed là &quot;enum ở cấp độ kiểu&quot;.",
+    "<b>So với interface thường: khác nhau ở lời hứa cho người dùng.</b> Interface thường là lời mời mở rộng; sealed là tuyên bố rằng tập biến thể sẽ không đổi tự do. Chọn sai hướng khiến API hoặc quá cứng (khách hàng không mở rộng được thứ họ cần) hoặc quá lỏng (bạn không bao giờ dám <code>switch</code> mà không có <code>default</code>).",
+    "<b>Sealed vẫn cho mở rộng có kiểm soát.</b> Nhánh <code>non-sealed</code> chính là van xả: bạn khoá phần lõi và chừa đúng một điểm cho người khác cắm vào. Đây là điểm mà <code>final</code> và mẹo constructor không làm được."
+   ],
+   "example": "// Mẹo cũ (trước Java 17): compiler không biết tập biến thể\npublic abstract class OldShape {\n    OldShape() {}                 // package-private: chặn kế thừa ngoài package\n}\n// -> switch trên OldShape vẫn phải có default, không có kiểm tra thiếu nhánh\n\n// Sealed: tập biến thể là một phần của khai báo kiểu\npublic sealed class NewShape permits Circle, Rect {}\n\n// enum: đóng tập INSTANCE, mọi hằng cùng hình dạng dữ liệu\nenum Status { NEW, PAID, SHIPPED }\n\n// sealed: đóng tập KIỂU, mỗi biến thể mang dữ liệu riêng\nsealed interface OrderState {}\nrecord New(Instant at) implements OrderState {}\nrecord Paid(Instant at, String txId) implements OrderState {}\nrecord Shipped(Instant at, String tracking, String carrier) implements OrderState {}",
+   "exampleTitle": "Sealed so với các cách đóng khác",
+   "keyPoints": [
+    "final đóng tuyệt đối; sealed đóng theo một danh sách biết trước",
+    "Mẹo constructor package-private không cho compiler biết tập biến thể nên không có exhaustiveness",
+    "Sealed thể hiện ý định ngay trong khai báo kiểu và được JVM kiểm chứng lúc nạp class",
+    "enum đóng tập instance với chung hình dạng dữ liệu; sealed đóng tập kiểu, mỗi kiểu mang dữ liệu riêng",
+    "non-sealed là van xả cho mở rộng có kiểm soát, thứ final không có"
+   ],
+   "trap": "Trả lời 'sealed giống final nhưng cho phép vài class con'. Đó mới là mô tả cú pháp; điều người phỏng vấn muốn nghe là compiler biết trọn tập biến thể nên kiểm tra được tính đầy đủ của switch.",
+   "followUp": [
+    "Vì sao mẹo constructor package-private không thay thế được sealed?",
+    "Khi nào bạn chọn enum, khi nào chọn sealed interface với các record?",
+    "non-sealed phục vụ mục đích gì mà final không làm được?"
+   ]
+  },
+  {
+   "id": "t-15-5",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "Khi nào nên dùng sealed và cái giá của nó với API công khai",
+   "summary": "Sealed là một cam kết lâu dài với người dùng thư viện của bạn — dùng đúng chỗ thì cực mạnh, dùng sai chỗ thì tự khoá tay mình.",
+   "sections": [
+    "<b>Dùng khi tập biến thể đóng theo <i>bản chất của miền</i>.</b> Ví dụ điển hình: <code>Result</code> chỉ có <code>Ok</code> và <code>Err</code>; node của một cây cú pháp; trạng thái đơn hàng; các loại sự kiện domain; các dạng biểu thức trong một DSL nhỏ. Điểm chung là danh sách biến thể được quyết định bởi bài toán chứ không phải bởi tiện lợi nhất thời.",
+    "<b>Không dùng khi bạn <i>muốn</i> người khác mở rộng.</b> Cơ chế plugin, SPI, contract cho các adapter do bên thứ ba viết — tất cả cần interface thường. Thêm nữa, ràng buộc &quot;cùng module hoặc cùng package&quot; khiến sealed về mặt kỹ thuật cũng không phục vụ được các trường hợp này.",
+    "<b>Cái giá: thêm một biến thể là một thay đổi phá vỡ.</b> Client đang <code>switch</code> đầy đủ không <code>default</code> sẽ <b>không biên dịch lại được</b> sau khi bạn thêm biến thể — đó chính là mục đích, nhưng với thư viện công khai thì đó là breaking change thật và phải đi kèm tăng phiên bản major. Nếu client không biên dịch lại, switch cũ có thể ném <code>MatchException</code> lúc chạy. Hãy cân nhắc kỹ trước khi <code>sealed</code> một kiểu thuộc API public.",
+    "<b>Đây chính là expression problem, và sealed chọn một phía.</b> Với hệ thống kiểu mở (interface thường), <b>thêm biến thể dễ</b> — chỉ cần viết class mới — nhưng <b>thêm thao tác khó</b> vì phải sửa mọi implementation. Với sealed + <code>switch</code>, ngược lại: <b>thêm thao tác dễ</b> — viết một method mới với một switch — nhưng <b>thêm biến thể khó</b> vì phải rà lại mọi switch. Chọn theo chiều nào thay đổi nhiều hơn trong hệ thống của bạn.",
+    "<b>So với visitor pattern.</b> Visitor cũng cho khả năng &quot;compiler nhắc khi thêm biến thể&quot; (thêm một method vào interface visitor là buộc mọi visitor phải cài đặt), nhưng đổi lại là rất nhiều boilerplate, khó đọc, và mọi kiểu phải mang method <code>accept</code>. Sealed cộng pattern switch đạt cùng lợi ích với một phần nhỏ chi phí — trên thực tế nó khiến visitor gần như không còn lý do tồn tại trong code Java mới.",
+    "<b>Chi phí runtime gần như bằng không.</b> <code>sealed</code> chủ yếu là ràng buộc lúc biên dịch cộng một lần kiểm tra lúc nạp class; nó không thêm chi phí cho mỗi lần gọi method, không ảnh hưởng cách JIT tối ưu. Ngược lại, việc biết tập kiểu con là đóng còn có thể giúp JVM suy luận tốt hơn về đa hình — đừng lo về hiệu năng khi cân nhắc sealed, hãy lo về khả năng tiến hoá của API."
+   ],
+   "example": "// Mô hình Result: tập biến thể đóng theo bản chất bài toán\npublic sealed interface Result<T> permits Ok, Err {}\npublic record Ok<T>(T value) implements Result<T> {}\npublic record Err<T>(String code, String message) implements Result<T> {}\n\nstatic String render(Result<User> r) {\n    return switch (r) {\n        case Ok<User> ok   -> \"Xin chao \" + ok.value().name();\n        case Err<User> err -> \"Loi \" + err.code() + \": \" + err.message();\n    };\n}\n\n// KHÔNG sealed: điểm mở rộng cho bên thứ ba\npublic interface PaymentGateway {   // ai cũng cài đặt được\n    Result<Receipt> pay(Money amount);\n}",
+   "exampleTitle": "Đóng cái nên đóng, mở cái nên mở",
+   "keyPoints": [
+    "Dùng sealed khi tập biến thể do miền nghiệp vụ quyết định: Result, trạng thái, node AST, event",
+    "Không dùng cho plugin/SPI — cả về thiết kế lẫn về ràng buộc module",
+    "Thêm biến thể vào API public là breaking change: client phải sửa switch hoặc gặp MatchException",
+    "Expression problem: sealed làm thêm thao tác dễ, thêm biến thể khó; interface mở thì ngược lại",
+    "Sealed gần như không có chi phí runtime; cái giá thật nằm ở khả năng tiến hoá API"
+   ],
+   "trap": "Đánh dấu sealed cho một interface trong API công khai chỉ vì 'hiện tại chỉ có ba implementation'. Sau này thêm biến thể thứ tư là bạn phá code của mọi người dùng thư viện.",
+   "followUp": [
+    "Expression problem là gì và sealed đứng ở phía nào?",
+    "Sealed có làm visitor pattern trở nên thừa không?",
+    "Thêm một permitted subtype có phải breaking change không, ở mức source hay binary?"
+   ]
+  },
+  {
+   "id": "t-16-1",
+   "topicId": 16,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "instanceof với biến pattern và quy tắc flow scoping",
+   "summary": "Bỏ được phép ép kiểu thủ công chỉ là bề nổi; điều người phỏng vấn thật sự hỏi là phạm vi của biến pattern được xác định thế nào.",
+   "sections": [
+    "<b>Mẫu ba dòng kinh điển bị rút còn một.</b> Trước đây bạn phải viết <code>if (o instanceof String)</code>, rồi khai báo biến, rồi ép kiểu — ba lần nhắc tên kiểu <code>String</code> cho một ý tưởng duy nhất. Với pattern matching cho <code>instanceof</code>, chuẩn hoá ở <b>Java 16</b> (nên có sẵn ở LTS 17 và 21), bạn viết <code>if (o instanceof String s)</code> và <code>s</code> đã sẵn sàng dùng. Giá trị không chỉ là gõ ít hơn: phép ép kiểu thủ công là chỗ có thể sai (ép nhầm kiểu khác) còn biến pattern thì không thể sai.",
+    "<b>Phạm vi của biến pattern không theo cặp ngoặc mà theo <i>luồng logic</i>.</b> Quy tắc gọi là <i>flow scoping</i>: biến pattern có mặt ở đúng những nơi mà compiler chứng minh được phép so khớp chắc chắn đã thành công. Đây là kiểu phạm vi khác hẳn mọi biến khác trong Java, và chính nó là nội dung thật của câu hỏi.",
+    "<b>Hệ quả bất ngờ nhất: mẫu &quot;guard clause&quot; vẫn hoạt động.</b> Với <code>if (!(o instanceof String s)) return;</code> thì sau câu lệnh <code>if</code>, biến <code>s</code> <b>vẫn dùng được</b> ở phần còn lại của method. Lý do: nếu chương trình đi qua được dòng đó nghĩa là điều kiện phủ định sai, tức là phép so khớp đã thành công. Nhiều người bất ngờ với điều này, và nó khiến pattern matching hoà rất tốt với phong cách viết early-return.",
+    "<b><code>&amp;&amp;</code> hoạt động, <code>||</code> thì không.</b> Trong <code>o instanceof String s &amp;&amp; s.length() &gt; 2</code>, vế phải chỉ được chạy khi vế trái đúng nên <code>s</code> nằm trong phạm vi. Đổi sang <code>||</code> thì vế phải chỉ chạy khi vế trái <b>sai</b>, tức là khi so khớp thất bại, nên <code>s</code> không tồn tại — compiler báo <code>cannot find symbol</code>. Đây là một câu hỏi vặn rất gọn mà lọc được người thật sự hiểu flow scoping.",
+    "<b>Đừng quên: <code>instanceof</code> luôn cho <code>false</code> với <code>null</code>.</b> Điều này đúng cả với dạng cũ lẫn dạng có biến pattern, nên nhánh <code>if</code> đã ngầm bảo vệ bạn khỏi <code>null</code> mà không cần kiểm tra riêng. Cùng lúc đó nghĩa là <code>null</code> sẽ rơi xuống nhánh <code>else</code>, và bạn phải chủ ý xử lý nó ở đó.",
+    "<b>Ứng dụng rõ nhất là <code>equals</code>.</b> Một cài đặt <code>equals</code> viết theo lối cũ mất bốn dòng chuẩn bị; với biến pattern nó gọn còn một biểu thức và không còn phép ép kiểu nào để viết sai. Đây cũng là ví dụ nên đưa ra khi được hỏi &quot;tính năng này giúp gì trong code thật&quot;."
+   ],
+   "example": "// Trước Java 16\nif (o instanceof String) {\n    String s = (String) o;\n    if (s.length() > 2) { ... }\n}\n\n// Từ Java 16\nif (o instanceof String s && s.length() > 2) { ... }\n\n// Guard clause: s VẪN dùng được sau khối if\nvoid handle(Object o) {\n    if (!(o instanceof String s)) return;\n    System.out.println(s.length());   // hợp lệ\n}\n\n// || KHÔNG hoạt động: s không nằm trong phạm vi ở vế phải\n// return o instanceof String s || s.isEmpty();   // error: cannot find symbol\n\n// equals gọn hơn hẳn\n@Override public boolean equals(Object o) {\n    return o instanceof Point p && p.x == x && p.y == y;\n}",
+   "exampleTitle": "Flow scoping trong thực tế",
+   "keyPoints": [
+    "Pattern matching cho instanceof là tính năng chuẩn từ Java 16, có ở LTS 17 và 21",
+    "Phạm vi biến pattern theo flow scoping: nơi nào compiler chứng minh được so khớp đã thành công",
+    "if (!(o instanceof String s)) return; -- s vẫn dùng được ở phần còn lại của method",
+    "&& giữ được biến pattern ở vế phải, || thì không vì vế phải chỉ chạy khi so khớp thất bại",
+    "instanceof luôn false với null, kể cả dạng có biến pattern"
+   ],
+   "trap": "Tưởng biến pattern chỉ sống trong cặp ngoặc của khối if. Thực tế phạm vi được suy ra theo luồng logic, nên dạng phủ định kết hợp early-return vẫn dùng được biến đó ở ngoài.",
+   "followUp": [
+    "Vì sao && dùng được biến pattern ở vế phải mà || thì không?",
+    "Sau if (!(o instanceof String s)) return; thì s còn dùng được không, vì sao?",
+    "instanceof với null trả về gì và điều đó ảnh hưởng thế nào tới cách viết equals?"
+   ]
+  },
+  {
+   "id": "t-16-2",
+   "topicId": 16,
+   "versions": [
+    17,
+    21
+   ],
+   "title": "switch expression: mũi tên, yield và tính đầy đủ",
+   "summary": "switch cũ là câu lệnh gây tác dụng phụ và dễ quên break; switch expression là biểu thức trả về giá trị, và các quy tắc của nó khác hẳn.",
+   "sections": [
+    "<b>Hai trục biến đổi độc lập nhau, rất hay bị trộn lẫn.</b> Trục thứ nhất là <i>cú pháp nhãn</i>: dấu hai chấm (cũ) hay mũi tên (mới). Trục thứ hai là <i>vai trò</i>: câu lệnh (statement) hay biểu thức (expression) trả về giá trị. Bốn tổ hợp đều hợp lệ. switch expression trở thành tính năng chuẩn ở <b>Java 14</b>, nên có sẵn từ LTS 17.",
+    "<b>Dạng mũi tên xoá bỏ fall-through.</b> Mỗi nhãn chỉ chạy đúng nhánh của nó rồi thoát, không cần <code>break</code> và cũng không thể quên. Với dạng hai chấm cũ, quên <code>break</code> là lỗi kinh điển đã gây ra vô số bug thật; dạng mũi tên loại bỏ hẳn cả một lớp lỗi. Nhãn mũi tên cũng gộp được nhiều giá trị: <code>case 1, 2, 3 -&gt;</code>.",
+    "<b><code>yield</code> để trả giá trị từ một khối lệnh.</b> Khi nhánh mũi tên cần nhiều dòng, bạn dùng khối <code>{ ... yield value; }</code>. Điểm mấu chốt: <code>return</code> bên trong switch expression là <b>lỗi biên dịch</b> (&quot;attempt to return out of a switch expression&quot;) vì một biểu thức không được phép nhảy ra khỏi method đang chứa nó. <code>yield</code> cũng dùng được với dạng hai chấm để biến nó thành biểu thức.",
+    "<b>switch expression bắt buộc đầy đủ.</b> Vì nó phải cho ra một giá trị trên mọi đường đi, compiler yêu cầu mọi giá trị đầu vào đều được phủ. Với <code>enum</code>, liệt kê hết các hằng là đủ và không cần <code>default</code> — và đó là cách để compiler nhắc bạn khi có hằng mới được thêm vào. Với <code>int</code> hay <code>String</code> thì miền giá trị quá lớn nên luôn cần <code>default</code>.",
+    "<b>switch <i>statement</i> kiểu cũ thì không bắt buộc đầy đủ.</b> Một <code>switch</code> câu lệnh trên <code>int</code> không có <code>default</code> vẫn biên dịch được và đơn giản là không làm gì khi không khớp. Phân biệt được hai luật này là điểm hay bị hỏi. Lưu ý riêng: từ Java 21, switch <b>statement</b> có dùng pattern thì lại <b>bắt buộc</b> đầy đủ.",
+    "<b>Một chi tiết vận hành ít người biết.</b> Với switch expression trên enum không có <code>default</code>, javac vẫn sinh một nhánh mặc định ngầm ném lỗi. Nếu bạn thêm hằng enum mới rồi triển khai mà không biên dịch lại code gọi, chỗ đó sẽ ném ngoại lệ thay vì im lặng cho kết quả sai — nhắc lại rằng exhaustiveness là bảo đảm lúc biên dịch."
+   ],
+   "example": "// Cũ: dạng hai chấm, có fall-through\nint r = 0;\nswitch (x) {\n    case 1: r += 1;      // KHÔNG có break -> rơi xuống case 2\n    case 2: r += 2; break;\n    default: r += 10;\n}\n// x = 1  ->  r = 3\n\n// Mới: dạng mũi tên, không fall-through\nint r2 = 0;\nswitch (x) {\n    case 1 -> r2 += 1;\n    case 2 -> r2 += 2;\n    default -> r2 += 10;\n}\n// x = 1  ->  r2 = 1\n\n// switch expression + yield\nint days = switch (month) {\n    case JAN, MAR, MAY, JUL, AUG, OCT, DEC -> 31;\n    case APR, JUN, SEP, NOV -> 30;\n    case FEB -> {\n        int base = 28;\n        yield isLeap(year) ? base + 1 : base;   // return ở đây là LỖI BIÊN DỊCH\n    }\n};  // enum liệt kê đủ -> không cần default",
+   "exampleTitle": "Bốn tổ hợp của switch",
+   "keyPoints": [
+    "switch expression là tính năng chuẩn từ Java 14, có sẵn ở LTS 17 và 21",
+    "Dạng mũi tên không fall-through và gộp được nhiều nhãn: case 1, 2, 3 ->",
+    "yield trả giá trị từ khối lệnh; return bên trong switch expression là lỗi biên dịch",
+    "switch expression bắt buộc đầy đủ; switch statement kiểu cũ thì không",
+    "Với enum liệt kê đủ hằng thì không cần default, nhờ đó compiler nhắc bạn khi thêm hằng mới"
+   ],
+   "trap": "Nhầm 'mũi tên' với 'biểu thức'. Đó là hai trục khác nhau: bạn có thể dùng mũi tên cho câu lệnh, và dùng dấu hai chấm cùng yield cho biểu thức.",
+   "followUp": [
+    "Vì sao switch expression bắt buộc đầy đủ còn switch statement kiểu cũ thì không?",
+    "Vì sao không được viết return bên trong switch expression?",
+    "Thêm một hằng enum mới thì switch expression không có default bị ảnh hưởng ra sao?"
+   ]
+  },
+  {
+   "id": "t-16-3",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "title": "Pattern matching cho switch (Java 21): type pattern, when, và null",
+   "summary": "Java 21 cho phép nhãn case là một pattern chứ không chỉ một hằng — đây là thay đổi lớn nhất về cách viết logic phân nhánh theo kiểu.",
+   "sections": [
+    "<b>Nhãn <code>case</code> giờ có thể là một type pattern.</b> Từ <b>Java 21</b> (chuẩn, sau nhiều vòng preview), <code>case Integer i -&gt;</code> vừa kiểm tra kiểu vừa khai báo biến đã ép kiểu sẵn. Kèm theo đó, selector của <code>switch</code> được mở rộng ra mọi kiểu tham chiếu, thay vì chỉ <code>int</code> và họ hàng, <code>String</code>, <code>enum</code>, kiểu bao như trước.",
+    "<b>Guarded pattern với <code>when</code>.</b> Viết <code>case Integer i when i &gt; 100 -&gt;</code> để thêm điều kiện lên một nhánh. <code>when</code> là <i>contextual keyword</i>, nên biến tên <code>when</code> trong code cũ của bạn vẫn hợp lệ. Điều quan trọng phải nhớ: <b>nhánh có <code>when</code> không được tính vào exhaustiveness</b>, vì compiler không thể chứng minh điều kiện luôn đúng. Nếu bạn chỉ có <code>case A a</code> và <code>case B b when ...</code> cho một sealed type hai biến thể, switch sẽ <b>không</b> biên dịch được.",
+    "<b>Thứ tự nhãn có ý nghĩa, và compiler ép bạn xếp đúng.</b> Nếu một nhãn phía trước &quot;bao trùm&quot; nhãn phía sau thì nhãn sau không bao giờ chạy được — compiler báo lỗi <code>this case label is dominated by a preceding case label</code>. Ví dụ đặt <code>case Object o</code> trước <code>case String s</code> là lỗi ngay. Quy tắc thực hành: xếp từ cụ thể tới tổng quát, và các nhánh có <code>when</code> đặt trước nhánh không có <code>when</code> cùng kiểu.",
+    "<b>Xử lý <code>null</code> là điểm bẫy lớn nhất.</b> Theo mặc định, <code>switch</code> ném <code>NullPointerException</code> khi selector là <code>null</code> — và điều này <b>vẫn đúng</b> ngay cả khi bạn có nhánh <code>default</code>. Đây là quyết định giữ tương thích với hành vi quen thuộc của <code>switch</code> trên <code>String</code>/<code>enum</code>. Muốn xử lý <code>null</code> thì phải nói ra: <code>case null -&gt;</code> riêng, hoặc <code>case null, default -&gt;</code> gộp chung. Kết quả là ta không còn phải bọc <code>switch</code> trong một lệnh kiểm tra null nữa, nhưng phải chủ động.",
+    "<b>Nhãn <code>case null, default</code> phải nằm ở cuối.</b> Vì <code>default</code> bao trùm mọi thứ, đặt nó ở giữa sẽ khiến các nhãn sau bị dominated — lại đúng luật ở trên.",
+    "<b>Điều thật sự đáng giá là ghép với sealed.</b> Bản thân pattern switch chỉ là cú pháp gọn hơn chuỗi <code>if-else instanceof</code>. Nhưng khi selector là một kiểu <code>sealed</code>, compiler biết đủ tập biến thể và cho phép bỏ hẳn <code>default</code>, biến mỗi lần thêm biến thể mới thành một lỗi biên dịch có địa chỉ rõ ràng. Hai tính năng này được thiết kế để đi cùng nhau."
+   ],
+   "example": "static String describe(Object o) {\n    return switch (o) {\n        case null                    -> \"khong co gi\";     // không có dòng này -> NPE khi o == null\n        case Integer i when i > 100  -> \"so lon: \" + i;    // guarded: phải đứng trước case Integer i\n        case Integer i               -> \"so: \" + i;\n        case String s                -> \"chuoi dai \" + s.length();\n        case int[] arr               -> \"mang \" + arr.length + \" phan tu\";\n        default                      -> \"kieu khac\";\n    };\n}\n\ndescribe(null);   // \"khong co gi\"\ndescribe(500);    // \"so lon: 500\"\ndescribe(5);      // \"so: 5\"\n\n// LỖI: nhãn sau bị bao trùm\n// switch (o) { case Object x -> \"o\"; case String s -> \"s\"; }\n// error: this case label is dominated by a preceding case label",
+   "exampleTitle": "Pattern switch đầy đủ các dạng nhãn",
+   "keyPoints": [
+    "Pattern matching cho switch là tính năng chuẩn từ Java 21; selector mở rộng ra mọi kiểu tham chiếu",
+    "when tạo guarded pattern nhưng nhánh có when KHÔNG được tính vào exhaustiveness",
+    "Nhãn bị bao trùm bởi nhãn trước sẽ gây lỗi biên dịch: xếp từ cụ thể tới tổng quát",
+    "Mặc định switch ném NPE với selector null, kể cả khi đã có default; phải viết case null",
+    "case null, default phải đứng cuối vì default bao trùm mọi nhãn phía sau"
+   ],
+   "trap": "Tin rằng nhánh default sẽ hứng cả null. Không — switch vẫn ném NullPointerException trừ khi có nhãn case null tường minh.",
+   "followUp": [
+    "Vì sao nhánh có when không được tính vào exhaustiveness?",
+    "Vì sao default không bắt được null trong pattern switch?",
+    "Quy tắc dominance yêu cầu bạn sắp xếp các case theo thứ tự nào?"
+   ]
+  },
+  {
+   "id": "t-16-4",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "title": "Record pattern: tháo rời dữ liệu ngay tại nhãn case",
+   "summary": "Type pattern trả lời 'nó là kiểu gì'; record pattern đi thêm một bước và trả lời 'bên trong nó có gì', kể cả lồng nhiều tầng.",
+   "sections": [
+    "<b>Record pattern là phép tháo rời (deconstruction).</b> Chuẩn hoá ở <b>Java 21</b>, cú pháp <code>case Point(int x, int y)</code> vừa kiểm tra kiểu vừa rút các component ra thành biến. Nó chỉ áp dụng cho <code>record</code>, vì record là kiểu duy nhất mà ngôn ngữ biết chắc danh sách component và biết chắc accessor tương ứng — đây là lý do record và pattern matching được thiết kế cùng nhau, và cũng là điều class Lombok không bao giờ có được.",
+    "<b>Lồng nhau là chỗ nó thắng đậm.</b> Với dữ liệu nhiều tầng, <code>case Line(Point(var x1, var y1), Point(var x2, var y2))</code> thay thế cả một chuỗi kiểm tra kiểu, ép kiểu và gọi accessor. Từ khoá <code>var</code> dùng được cho mọi component để khỏi lặp lại tên kiểu.",
+    "<b>Quy tắc null cần nhớ chính xác vì rất hay bị hỏi.</b> Một record pattern <b>không bao giờ</b> khớp <code>null</code> — kể cả khi nó là pattern lồng bên trong. Nhưng một <i>type pattern</i> lồng bên trong thì <b>có</b> khớp <code>null</code> nếu kiểu của nó bao trùm kiểu của component. Cụ thể với <code>record Pair(Object x, Object y)</code>: <code>Pair(String s, String t)</code> không khớp <code>new Pair(null, null)</code>, còn <code>Pair(Object a, Object b)</code> thì khớp và cho <code>a = b = null</code>.",
+    "<b>Component kiểu nguyên thuỷ phải khớp đúng kiểu.</b> Ở Java 21, với <code>record Pair(int a, int b)</code> bạn chỉ được viết <code>Pair(int a, int b)</code> hoặc dùng <code>var</code>; không có phép mở rộng kiểu, nên <code>Pair(long a, int b)</code> là lỗi biên dịch. Pattern trên kiểu nguyên thuỷ theo nghĩa rộng hơn là một tính năng preview ở các phiên bản sau 21 — khi phỏng vấn hãy nói rõ nó chưa phải chuẩn.",
+    "<b>Record pattern <i>có</i> làm switch đầy đủ, nhưng nó không bao giờ là pattern vô điều kiện.</b> Đây là hai khái niệm khác nhau mà rất nhiều người gộp làm một. Thứ nhất là <i>covers</i> (phủ) — thứ quyết định tính đầy đủ (exhaustiveness): theo JLS 21, <code>case Circle(double r)</code> <b>phủ trọn</b> kiểu <code>Circle</code> khi mọi pattern component phủ kiểu component tương ứng, kể cả khi lồng nhiều tầng. Vì vậy một <code>switch</code> trên sealed type mà mọi nhánh đều là record pattern vẫn biên dịch được <b>không cần <code>default</code></b>; do record pattern không khớp <code>null</code>, javac chèn ngầm một nhánh ném <code>MatchException</code> để bọc các giá trị lọt lưới lúc chạy. Thứ hai là <i>unconditional</i> (vô điều kiện) — thứ quyết định dominance: record pattern <b>không bao giờ</b> vô điều kiện, nên bạn vẫn viết được <code>case Line l</code> ngay sau <code>case Line(Point(...), ...)</code> mà không bị lỗi dominance — một mẫu rất hữu ích để bắt các trường hợp có dữ liệu con là null.",
+    "<b>Ghép ba tính năng lại là cách viết Java hiện đại.</b> <code>sealed</code> khoá tập biến thể, <code>record</code> mô tả từng biến thể, <code>switch</code> với record pattern xử lý toàn bộ trong một khối đọc như một bảng quyết định — và compiler kiểm tra hộ bạn rằng không thiếu trường hợp nào."
+   ],
+   "example": "sealed interface Shape permits Circle, Rect {}\nrecord Point(int x, int y) {}\nrecord Circle(Point center, double r) implements Shape {}\nrecord Rect(Point topLeft, Point bottomRight) implements Shape {}\n\nstatic String describe(Shape s) {\n    return switch (s) {\n        case Circle(Point(var x, var y), double r) when r > 100\n                -> \"hinh tron lon tai (\" + x + \",\" + y + \")\";\n        case Circle(Point p, double r)\n                -> \"hinh tron ban kinh \" + r;\n        case Rect(Point(var x1, var y1), Point(var x2, var y2))\n                -> \"chu nhat \" + (x2 - x1) + \"x\" + (y2 - y1);\n        case Rect r\n                -> \"chu nhat co diem null\";   // record pattern ở trên không khớp null\n    };\n}\n\n// Quy tắc null\nrecord Pair(Object x, Object y) {}\n// case Pair(String s, String t) -> KHÔNG khớp new Pair(null, null)\n// case Pair(Object a, Object b) -> KHỚP, a = b = null",
+   "exampleTitle": "Deconstruction lồng nhiều tầng",
+   "keyPoints": [
+    "Record pattern là tính năng chuẩn từ Java 21 và chỉ áp dụng cho record",
+    "Lồng nhau tuỳ ý, dùng var cho component để khỏi lặp tên kiểu",
+    "Record pattern không bao giờ khớp null; type pattern lồng bên trong thì khớp null nếu bao trùm kiểu component",
+    "Component nguyên thuỷ phải khớp đúng kiểu, không có phép mở rộng ở Java 21",
+    "Record pattern là pattern có điều kiện nên vẫn viết được case Type t phía sau nó"
+   ],
+   "trap": "Nghĩ rằng case Line(Point(var x1, var y1), Point(var x2, var y2)) sẽ khớp mọi Line. Pattern lồng bên trong cũng là record pattern nên không khớp null: nếu một component bên trong là null thì nhánh đó bị bỏ qua, dữ liệu rơi xuống nhánh sau mà không có cảnh báo nào. Ngược lại, case Line(Point p1, Point p2) với type pattern phẳng thì khớp mọi Line khác null, kể cả khi p1 hoặc p2 là null.",
+   "followUp": [
+    "Vì sao record pattern chỉ áp dụng cho record mà không cho class thường?",
+    "Pattern lồng nhau xử lý null thế nào?",
+    "case Circle(double r) đã làm switch trên sealed type trở nên đầy đủ, vậy vì sao vẫn viết được case Circle c ngay phía sau nó mà không bị lỗi dominance?"
+   ]
+  },
+  {
+   "id": "t-16-5",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "title": "Chọn giữa if-else instanceof, visitor và pattern switch — kèm chi phí thực thi",
+   "summary": "Ba cách giải cùng một bài toán 'xử lý theo kiểu'; biết chúng khác nhau ở đâu quan trọng hơn biết cú pháp của cái mới nhất.",
+   "sections": [
+    "<b>Chuỗi <code>if-else instanceof</code>: dễ viết, khó bảo trì.</b> Không ai kiểm tra hộ bạn rằng đã phủ hết các kiểu; thêm một biến thể mới thì code cũ vẫn biên dịch và vẫn chạy, chỉ là im lặng rơi vào nhánh cuối. Thứ tự các nhánh cũng dễ sai — đặt kiểu tổng quát lên trước sẽ khiến các nhánh sau chết mà <b>không</b> có cảnh báo nào, trong khi pattern switch bắt ngay lỗi dominance.",
+    "<b>Visitor pattern: đúng nhưng nặng nề.</b> Visitor cũng cho được sự nhắc nhở của compiler (thêm method vào interface visitor là mọi visitor phải cài đặt), nhưng cái giá là mỗi kiểu dữ liệu phải mang method <code>accept</code>, mỗi thao tác thành một class riêng, và luồng gọi hai chặng rất khó đọc khi debug. Nó cũng ép mọi kiểu dữ liệu phải biết đến interface visitor — một sự phụ thuộc ngược chiều.",
+    "<b>Pattern switch trên sealed type: cùng bảo đảm, ít chi phí hơn nhiều.</b> Bạn nhận được kiểm tra exhaustiveness lúc biên dịch, logic của một thao tác nằm gọn ở một chỗ, và kiểu dữ liệu không cần biết gì về các thao tác. Trên thực tế, tổ hợp này khiến visitor gần như không còn lý do tồn tại trong code Java mới.",
+    "<b>Đánh đổi vẫn còn, đó là expression problem.</b> Pattern switch làm <b>thêm thao tác dễ</b> (viết một method mới) nhưng <b>thêm biến thể khó</b> (phải rà mọi switch). Đa hình truyền thống thì ngược lại: thêm biến thể dễ, thêm thao tác khó. Chọn theo chiều nào thay đổi thường xuyên hơn. Và nếu một hành vi thật sự thuộc về bản chất của từng biến thể thì method đa hình vẫn là câu trả lời đúng — pattern switch không thay thế đa hình, nó bổ sung cho những thao tác không thuộc về kiểu dữ liệu (định dạng hiển thị, ánh xạ sang DTO, sinh SQL).",
+    "<b>Chi phí thực thi: pattern switch không phải chuỗi <code>instanceof</code> ở tầng bytecode.</b> javac biên dịch nhãn pattern thành một lệnh <code>invokedynamic</code> gọi bootstrap <code>java.lang.runtime.SwitchBootstraps.typeSwitch</code>; lời gọi này trả về <b>chỉ số</b> của nhánh khớp, rồi phần còn lại là một bảng nhảy thông thường. Nhờ vậy phần lớn công việc chọn nhánh được tách ra khỏi bytecode của method và có thể được JIT tối ưu, thay vì rải hàng loạt lệnh <code>instanceof</code> tuần tự.",
+    "<b>Nhưng đừng phát biểu quá mạnh về hiệu năng.</b> Đặc tả không cam kết độ phức tạp của việc chọn nhánh, và cách cài đặt của bootstrap có thể khác nhau giữa các phiên bản JDK. Câu trả lời an toàn và chính xác khi phỏng vấn: chọn pattern switch vì tính đúng đắn được compiler bảo đảm và vì code đọc được, chứ không phải vì kỳ vọng một con số hiệu năng cụ thể; nếu hiệu năng thật sự là vấn đề thì phải đo trên chính JDK bạn dùng."
+   ],
+   "example": "// 1) if-else instanceof: không ai kiểm tra hộ bạn\nstatic double areaOld(Shape s) {\n    if (s instanceof Circle c) return Math.PI * c.r() * c.r();\n    else if (s instanceof Rect r) return r.w() * r.h();\n    else throw new IllegalStateException(\"quen mot bien the?\"); // lỗi lúc CHẠY\n}\n\n// 2) pattern switch trên sealed: lỗi lúc BIÊN DỊCH nếu thiếu nhánh\nstatic double area(Shape s) {\n    return switch (s) {\n        case Circle c -> Math.PI * c.r() * c.r();\n        case Rect r   -> r.w() * r.h();\n    };\n}\n\n// Bytecode của nhánh pattern (javap -c):\n//   invokedynamic #7,0  // InvokeDynamic #0:typeSwitch:(Ljava/lang/Object;I)I\n//   tableswitch { ... }",
+   "exampleTitle": "Cùng một bài toán, ba mức bảo đảm khác nhau",
+   "keyPoints": [
+    "Chuỗi if-else instanceof không có kiểm tra thiếu nhánh và không cảnh báo khi nhánh bị che",
+    "Visitor cho cùng bảo đảm nhưng tốn rất nhiều boilerplate và tạo phụ thuộc ngược chiều",
+    "Pattern switch trên sealed type cho exhaustiveness lúc biên dịch với chi phí thấp nhất",
+    "Expression problem: pattern switch làm thêm thao tác dễ, thêm biến thể khó; đa hình thì ngược lại",
+    "javac biên dịch nhãn pattern thành invokedynamic tới SwitchBootstraps.typeSwitch trả về chỉ số nhánh, nhưng đặc tả không cam kết độ phức tạp"
+   ],
+   "trap": "Khẳng định 'pattern switch luôn nhanh hơn chuỗi instanceof, độ phức tạp O(1)'. Cơ chế invokedynamic là có thật nhưng đặc tả không cam kết độ phức tạp và cài đặt có thể đổi theo phiên bản JDK — hãy nói về tính đúng đắn trước, hiệu năng thì phải đo.",
+   "followUp": [
+    "Pattern switch có làm visitor pattern trở nên thừa không?",
+    "Khi nào bạn vẫn chọn method đa hình thay vì pattern switch?",
+    "javac sinh bytecode gì cho một nhãn case là type pattern?"
+   ]
+  }
+ ],
+ "drills": [
+  {
+   "id": "d-14-1",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "record User(String name, int age) {}\n\npublic static void main(String[] args) {\n    User u = new User(\"An\", 30);\n    System.out.println(u.getName());\n}",
+   "choices": [
+    "In ra An",
+    "Lỗi biên dịch vì record không sinh method getName()",
+    "In ra null vì getName() được sinh nhưng chưa gán",
+    "Lỗi lúc chạy: NoSuchMethodError"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Record sinh accessor trùng tên component, tức là name() chứ không phải getName(), nên gọi getName() là lỗi biên dịch ngay. Đây là lựa chọn có chủ đích: record mô tả dữ liệu chứ không tuân theo quy ước JavaBeans. Hệ quả thực tế là mọi thư viện phản chiếu theo quy ước getter cũ (một số expression language, BeanUtils, mapper cũ) sẽ không đọc được record.",
+   "whyWrong": [
+    "Method getName() không hề tồn tại nên không có gì để in",
+    "",
+    "Không có method nào tên getName() được sinh ra; lỗi xảy ra ở bước biên dịch chứ không phải giá trị null",
+    "Lỗi bị bắt ngay lúc biên dịch, chương trình không bao giờ chạy tới lúc ném NoSuchMethodError"
+   ]
+  },
+  {
+   "id": "d-14-2",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Phát biểu nào ĐÚNG về khả năng kế thừa của record?",
+   "choices": [
+    "Record extends được một class khác nhưng không implements được interface",
+    "Record vừa extends class vừa implements interface được, giống class thường",
+    "Record chỉ extends được class abstract, không extends được class thường",
+    "Record không extends được class nào nhưng implements được nhiều interface"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Mọi record ngầm kế thừa java.lang.Record nên slot class cha đã bị chiếm, vì vậy không thể extends class nào khác. Ngược lại, record implements bao nhiêu interface tuỳ ý — rất hay dùng với Comparable hoặc với một sealed interface trong mô hình dữ liệu. Record cũng ngầm final nên bản thân nó không thể bị kế thừa.",
+   "whyWrong": [
+    "Ngược hoàn toàn: không extends được class, nhưng implements interface thì thoải mái",
+    "Record không extends được class nào vì đã ngầm extends java.lang.Record",
+    "Tính abstract hay không của class cha không liên quan; record không extends được bất kỳ class nào",
+    ""
+   ]
+  },
+  {
+   "id": "d-14-3",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Khai báo nào bên trong thân một record sẽ gây LỖI BIÊN DỊCH?",
+   "code": "record Point(int x, int y) {\n    static final Point ORIGIN = new Point(0, 0);   // (A)\n    private int cachedHash;                        // (B)\n    static Point of(int a, int b) { return new Point(a, b); }  // (C)\n    double length() { return Math.sqrt(x * x + y * y); }       // (D)\n}",
+   "choices": [
+    "(A) — record không được có static field",
+    "(B) — record không được khai báo field instance ngoài các component",
+    "(C) — record không được có static method",
+    "(D) — record không được có instance method ngoài accessor"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Record cấm khai báo thêm field instance vì toàn bộ state phải nằm ở header; đây là điều kiện để giữ bất biến 'dựng lại từ các accessor thì bằng object gốc', thứ mà equals, serialization và record pattern đều dựa vào. Static field, static method và instance method thường đều hoàn toàn hợp lệ. Hệ quả thực tế: không thể cache hashCode trong một field như cách String làm.",
+   "whyWrong": [
+    "Static field được phép vì nó thuộc về class chứ không phải state của từng instance",
+    "",
+    "Static method hoàn toàn hợp lệ, static factory là mẫu rất hay dùng với record",
+    "Record được phép có instance method tuỳ ý, chỉ bị cấm thêm field instance"
+   ]
+  },
+  {
+   "id": "d-14-4",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "record Money(String currency, long amount) {\n    Money {\n        if (amount < 0) throw new IllegalArgumentException(\"negative\");\n        currency = currency.toUpperCase();\n    }\n}\n\npublic static void main(String[] args) {\n    System.out.println(new Money(\"usd\", 10));\n}",
+   "choices": [
+    "Money[currency=USD, amount=10]",
+    "Money[currency=usd, amount=10]",
+    "Lỗi biên dịch vì compact constructor không được gán lại tham số",
+    "Lỗi biên dịch vì compact constructor thiếu phép gán this.currency và this.amount"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Trong compact constructor, currency là biến tham số; compiler chèn phép gán this.currency = currency vào CUỐI thân hàm, nên giá trị đã chuẩn hoá mới là giá trị được lưu. Đó chính là cơ chế để vừa validate vừa normalize ở một chỗ duy nhất. Ngược lại, nếu bạn viết this.currency = ... trong compact constructor thì mới là lỗi biên dịch, vì field final đó đã có phép gán ngầm phía sau.",
+   "whyWrong": [
+    "",
+    "Giá trị lưu vào field là giá trị của tham số tại thời điểm cuối thân hàm, tức là đã được toUpperCase()",
+    "Gán lại tham số chính là cách dùng đúng của compact constructor; điều bị cấm là gán vào this.field",
+    "Phép gán field do compiler tự chèn, viết tay mới gây lỗi"
+   ]
+  },
+  {
+   "id": "d-14-5",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "record Team(String name, List<String> members) {}\n\npublic static void main(String[] args) {\n    List<String> src = new ArrayList<>(List.of(\"An\"));\n    Team t = new Team(\"A\", src);\n    src.add(\"Binh\");\n    System.out.println(t.members().size());\n}",
+   "choices": [
+    "1 — record sao chép collection khi dựng",
+    "Ném UnsupportedOperationException vì list trong record là bất biến",
+    "Lỗi biên dịch vì component của record phải là kiểu bất biến",
+    "2 — record chỉ giữ tham chiếu, nội dung list vẫn sửa được từ bên ngoài"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Kết quả là 2: record chỉ bất biến nông, field final khoá tham chiếu chứ không khoá nội dung của đối tượng được trỏ tới. Người gọi vẫn giữ tham chiếu src nên mọi thay đổi trên đó phản chiếu vào record. Muốn bất biến thật thì phải copy phòng vệ trong compact constructor, ví dụ members = List.copyOf(members), và nhớ rằng List.copyOf ném NullPointerException nếu list chứa phần tử null.",
+   "whyWrong": [
+    "Record không tự sao chép bất cứ thứ gì; canonical constructor chỉ gán tham chiếu",
+    "Không có ngoại lệ nào được ném; src là ArrayList bình thường và add thành công",
+    "Component của record được phép là bất kỳ kiểu nào, kể cả kiểu có thể thay đổi",
+    ""
+   ]
+  },
+  {
+   "id": "d-14-6",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "record Buf(byte[] data) {}\n\npublic static void main(String[] args) {\n    Buf a = new Buf(new byte[]{1, 2});\n    Buf b = new Buf(new byte[]{1, 2});\n    System.out.println(a.equals(b));\n}",
+   "choices": [
+    "true — equals sinh sẵn so sánh nội dung của mọi component",
+    "false — với component kiểu tham chiếu, equals dùng Objects.equals, mà mảng so theo identity",
+    "Lỗi biên dịch vì record không nhận component kiểu mảng",
+    "true vì hai mảng có cùng độ dài và cùng phần tử nên hashCode trùng nhau"
+   ],
+   "correctAnswer": 1,
+   "explanation": "equals sinh sẵn của record so component kiểu tham chiếu bằng Objects.equals, và Object.equals của mảng chính là so sánh identity, nên hai mảng khác instance luôn cho false. hashCode cũng theo identity và toString in ra dạng [B@1b6d3586. Quy tắc thực tế: tránh mảng làm component; nếu buộc phải dùng thì override cả equals, hashCode, toString bằng Arrays.equals/hashCode/toString, hoặc đổi sang List.",
+   "whyWrong": [
+    "equals sinh sẵn không có xử lý đặc biệt nào cho mảng, nó chỉ gọi Objects.equals",
+    "",
+    "Component kiểu mảng hoàn toàn hợp lệ về cú pháp, vấn đề nằm ở ngữ nghĩa equals",
+    "hashCode của mảng cũng theo identity nên hai mảng nội dung giống nhau vẫn cho giá trị khác nhau"
+   ]
+  },
+  {
+   "id": "d-14-7",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Vì sao không thể dùng record làm JPA entity?",
+   "choices": [
+    "Vì record không được phép mang annotation nên không đặt @Entity lên nó được",
+    "Vì record không implements Serializable nên không lưu xuống database được",
+    "Vì JPA cần constructor không tham số, cần sửa field sau khi dựng, và cần kế thừa entity class để tạo proxy lazy — record không đáp ứng cả ba",
+    "Vì record không có getter theo quy ước JavaBeans nên Hibernate không đọc được dữ liệu"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Có ba rào cản độc lập: record không thể có constructor không tham số, field của nó là final nên provider không nạp và không dirty-check được, và record ngầm final nên Hibernate không dựng được proxy kế thừa cho lazy loading. Ngược lại record rất hợp làm projection: JPQL constructor expression select new com.app.UserDto(u.id, u.name) gọi thẳng canonical constructor. Cách nhớ: entity có định danh và vòng đời, record mang giá trị.",
+   "whyWrong": [
+    "Record và các component của nó đều nhận annotation bình thường; vấn đề không nằm ở annotation",
+    "Serializable không phải điều kiện của JPA entity, và record vẫn implements Serializable được nếu muốn",
+    "",
+    "Hibernate truy cập được qua field access; đây không phải rào cản chính, ba lý do ở trên mới là nguyên nhân thật"
+   ]
+  },
+  {
+   "id": "d-14-8",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "record P(double v) {}\n\npublic static void main(String[] args) {\n    System.out.println(new P(Double.NaN).equals(new P(Double.NaN)));\n    System.out.println(new P(0.0).equals(new P(-0.0)));\n}",
+   "choices": [
+    "false rồi true — giống hệt kết quả của toán tử == trên double",
+    "false rồi false",
+    "true rồi false",
+    "true rồi true"
+   ],
+   "correctAnswer": 2,
+   "explanation": "equals sinh sẵn của record so component kiểu nguyên thuỷ theo phương thức so sánh của lớp bao tương ứng, tức Double.compare cho double, chứ không theo toán tử ==. Double.compare(NaN, NaN) trả 0 nên hai record NaN bằng nhau; Double.compare(0.0, -0.0) khác 0 nên hai record đó không bằng nhau. Quy ước này bắt buộc để giữ bất biến 'dựng lại record từ các accessor thì bằng object gốc' và để equals nhất quán với hashCode.",
+   "whyWrong": [
+    "Đó là kết quả của toán tử ==, nhưng record không dùng == cho double",
+    "Vế thứ nhất sai: NaN so với NaN qua Double.compare cho kết quả bằng nhau",
+    "",
+    "Vế thứ hai sai: +0.0 và -0.0 phân biệt được bằng Double.compare nên hai record đó không bằng nhau"
+   ]
+  },
+  {
+   "id": "d-14-9",
+   "topicId": 14,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Về Java serialization của một record implements Serializable, phát biểu nào ĐÚNG?",
+   "choices": [
+    "Deserialization dựng record mà bỏ qua constructor, giống hệt class thường, nên validation trong compact constructor không chạy",
+    "Record không serialize được vì không có constructor không tham số",
+    "Record bắt buộc phải khai báo serialVersionUID, nếu không sẽ ném InvalidClassException",
+    "Deserialization đi qua canonical constructor nên validation vẫn chạy; writeObject/readObject khai báo trong record bị bỏ qua"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Đây là khác biệt quan trọng nhất: với class thường, cơ chế deserialization dựng object mà không gọi constructor nên mọi kiểm tra hợp lệ bị vô hiệu — nguồn của nhiều lỗ hổng kinh điển. Record thì bắt buộc đi qua canonical constructor, nên dữ liệu bẩn bị chặn ngay. Đổi lại, các hook cũ writeObject/readObject/readObjectNoData không còn tác dụng với record, còn writeReplace/readResolve thì vẫn dùng được; serialVersionUID ngầm định của record là 0L.",
+   "whyWrong": [
+    "Ngược lại: chính việc đi qua canonical constructor là điểm khác biệt lớn nhất của record",
+    "Record serialize được bình thường miễn là implements Serializable; cơ chế dựng lại dùng canonical constructor",
+    "serialVersionUID ngầm định của record là 0L, không bắt buộc khai báo",
+    ""
+   ]
+  },
+  {
+   "id": "d-15-1",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Một class kế thừa trực tiếp từ sealed class BẮT BUỘC phải khai báo thế nào?",
+   "choices": [
+    "Không cần gì, mặc định nó được coi là final",
+    "Bắt buộc là final, vì mục đích của sealed là chặn kế thừa",
+    "Bắt buộc chọn một trong ba: final, sealed hoặc non-sealed",
+    "Bắt buộc là public để nằm được trong mệnh đề permits"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Ngôn ngữ ép mỗi kiểu con phải tuyên bố rõ nhánh của mình sẽ đóng hẳn (final), tiếp tục đóng theo một danh sách khác (sealed), hay mở tự do (non-sealed); không khai báo là lỗi biên dịch chứ không có mặc định. Đây là điều kiện để compiler suy ra trọn vẹn tập biến thể và kiểm tra exhaustiveness của switch. Record ngầm final nên không cần viết thêm modifier; enum cũng vậy — enum ngầm final, hoặc ngầm sealed nếu có constant mang thân class, nên cả hai đều hợp lệ khi implements một sealed interface mà không khai báo gì thêm.",
+   "whyWrong": [
+    "Java không đặt mặc định ở đây; thiếu modifier là lỗi biên dịch",
+    "final chỉ là một trong ba lựa chọn; sealed và non-sealed cũng hợp lệ",
+    "",
+    "Mức truy cập không liên quan; kiểu con package-private vẫn nằm trong permits được"
+   ]
+  },
+  {
+   "id": "d-15-2",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Vì sao một record cài đặt sealed interface KHÔNG cần khai báo thêm final, sealed hay non-sealed?",
+   "choices": [
+    "Vì record được miễn trừ khỏi mọi quy tắc của sealed",
+    "Vì record đã ngầm final nên yêu cầu 'phải chọn một trong ba' đã được thoả mãn sẵn",
+    "Vì record ngầm là non-sealed",
+    "Vì sealed interface không áp đặt ràng buộc nào lên kiểu con, chỉ sealed class mới áp đặt"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Record luôn ngầm final, nên nó đã tự động thoả mãn yêu cầu mỗi kiểu con phải là final, sealed hoặc non-sealed. Chính sự khớp nhau tự nhiên này khiến cặp sealed interface cộng các record trở thành cách mô hình hoá algebraic data type chuẩn mực trong Java hiện đại. Ngược lại, một class thường mà quên khai báo sẽ bị compiler báo lỗi 'sealed, non-sealed or final modifiers expected'.",
+   "whyWrong": [
+    "Record vẫn tuân thủ đầy đủ quy tắc của sealed, chỉ là nó thoả mãn sẵn một trong số đó",
+    "",
+    "Record ngầm final chứ không phải non-sealed; non-sealed nghĩa là mở cho kế thừa, ngược hẳn",
+    "Sealed interface áp đặt ràng buộc lên kiểu con y hệt sealed class"
+   ]
+  },
+  {
+   "id": "d-15-3",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Ứng dụng chạy trên classpath (unnamed module). Các kiểu con được permits phải nằm ở đâu?",
+   "choices": [
+    "Ở bất kỳ đâu, miễn là có tên trong mệnh đề permits",
+    "Trong cùng package với kiểu sealed",
+    "Trong cùng file nguồn với kiểu sealed",
+    "Trong cùng JAR với kiểu sealed"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Trên unnamed module (tức chạy classpath như phần lớn ứng dụng Spring Boot hiện nay), mọi kiểu con được cho phép phải nằm cùng package với kiểu sealed; nếu kiểu sealed nằm trong một named module thì phạm vi nới ra thành cùng module. Lý do là cam kết 'tập biến thể đóng' chỉ có giá trị khi compiler và JVM cùng kiểm chứng được, và ràng buộc này được ghi vào thuộc tính PermittedSubclasses của class file. Đặt sealed interface và các implementation ở hai package khác nhau trên classpath sẽ không biên dịch được.",
+   "whyWrong": [
+    "Có tên trong permits là điều kiện cần chứ chưa đủ; vẫn phải thoả ràng buộc phạm vi",
+    "",
+    "Cùng file nguồn là điều kiện để được BỎ mệnh đề permits, không phải yêu cầu bắt buộc về vị trí",
+    "Ranh giới được kiểm tra là package hoặc module, không phải JAR"
+   ]
+  },
+  {
+   "id": "d-15-4",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau có vấn đề gì?",
+   "code": "public sealed interface Shape permits Circle, Box {}\n\npublic record Circle(double r) implements Shape {}\n\npublic class Box implements Shape {\n    double w, h;\n}",
+   "choices": [
+    "Không có vấn đề gì, code biên dịch bình thường",
+    "Lỗi biên dịch: sealed interface chỉ được permits các record",
+    "Lỗi biên dịch: Box nằm trong permits nên phải khai báo final, sealed hoặc non-sealed",
+    "Lỗi lúc chạy khi nạp class Box vì thiếu thuộc tính PermittedSubclasses"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Box là kiểu con trực tiếp của một sealed interface nên bắt buộc phải tuyên bố nhánh của nó: final nếu đóng hẳn, sealed nếu tiếp tục đóng theo danh sách khác, non-sealed nếu mở tự do. Không khai báo gì là lỗi biên dịch chứ không có mặc định. Circle thì hợp lệ vì record đã ngầm final. Lý do sâu xa: compiler chỉ suy ra được trọn tập biến thể khi mọi nhánh đều tuyên bố rõ nó có đóng hay không.",
+   "whyWrong": [
+    "Code không biên dịch được vì Box thiếu modifier bắt buộc",
+    "Sealed interface permits được cả class thường lẫn interface, miễn là kiểu con khai báo đúng modifier",
+    "",
+    "Lỗi bị bắt ngay lúc biên dịch, không bao giờ đi tới bước nạp class"
+   ]
+  },
+  {
+   "id": "d-15-5",
+   "topicId": 15,
+   "versions": [
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Với hệ thống kiểu sau, switch trong area() có biên dịch được không (Java 21)?",
+   "code": "sealed interface Shape permits Circle, Poly {}\nrecord Circle(double r) implements Shape {}\nnon-sealed class Poly implements Shape {}\nclass Hexagon extends Poly {}          // hợp lệ vì Poly là non-sealed\n\nstatic String area(Shape s) {\n    return switch (s) {\n        case Circle c -> \"circle\";\n        case Poly p   -> \"poly\";\n    };\n}",
+   "choices": [
+    "Không — vì Poly là non-sealed nên tập kiểu con là mở, switch buộc phải có default",
+    "Có — case Poly bao trọn mọi kiểu con của Poly nên switch vẫn đầy đủ",
+    "Không — switch trên interface luôn bắt buộc có default",
+    "Có, nhưng sẽ ném MatchException lúc chạy nếu truyền vào một Hexagon"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Một case với type pattern bao trọn kiểu đó và mọi kiểu con của nó, nên case Poly p đã phủ cả Hexagon lẫn mọi lớp con tương lai; kết hợp với case Circle thì switch phủ hết tập biến thể trực tiếp của Shape và compiler chấp nhận không cần default. Đây chính là điểm cân bằng của non-sealed: bạn mở một nhánh cho mở rộng mà không đánh mất kiểm tra exhaustiveness ở các nhánh còn lại. Truyền Hexagon vào sẽ rơi vào case Poly và trả về 'poly'.",
+   "whyWrong": [
+    "Exhaustiveness xét theo tập kiểu con TRỰC TIẾP; case Poly đã phủ toàn bộ nhánh đó",
+    "",
+    "Từ Java 21, switch trên kiểu sealed liệt kê đủ biến thể thì không cần default",
+    "Hexagon khớp case Poly nên không có giá trị nào lọt lưới, không có MatchException"
+   ]
+  },
+  {
+   "id": "d-15-6",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Trước Java 17, người ta đóng một abstract class bằng cách để constructor ở mức package-private. So với sealed, mẹo đó THIẾU điều gì quan trọng nhất?",
+   "choices": [
+    "Nó không cho compiler biết tập biến thể nên không có kiểm tra exhaustiveness của switch",
+    "Nó không chặn được kế thừa từ package khác",
+    "Nó làm chậm chương trình vì phải kiểm tra quyền truy cập lúc chạy",
+    "Nó không tương thích với reflection nên framework không dùng được"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Mẹo constructor package-private thực sự chặn được kế thừa từ ngoài package, nhưng compiler không hề biết danh sách biến thể là gì, nên mọi switch vẫn phải có default và không ai nhắc bạn khi quên xử lý một biến thể mới. Sealed đưa danh sách đó vào chính khai báo kiểu, ghi vào thuộc tính PermittedSubclasses của class file và được JVM kiểm chứng lúc nạp class. Hai điểm yếu còn lại của mẹo cũ: ý định không hiện ra trong API, và mọi biến thể bị ép nằm cùng package.",
+   "whyWrong": [
+    "",
+    "Mẹo này chặn được thật, vì class ngoài package không gọi được super(); đó không phải điểm thiếu",
+    "Kiểm tra quyền truy cập xảy ra lúc biên dịch và lúc liên kết, không tạo chi phí đáng kể lúc chạy",
+    "Reflection vẫn hoạt động bình thường; vấn đề là không có API nào cho biết tập biến thể"
+   ]
+  },
+  {
+   "id": "d-15-7",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau (một file nguồn duy nhất) có biên dịch được không?",
+   "code": "sealed interface Result {\n    record Ok(String value) implements Result {}\n    record Err(int code) implements Result {}\n}",
+   "choices": [
+    "Không — sealed bắt buộc phải có mệnh đề permits",
+    "Không — record không được khai báo lồng bên trong interface",
+    "Có, nhưng chỉ khi thêm modifier final cho Ok và Err",
+    "Có — khi mọi kiểu con nằm cùng file nguồn, compiler tự suy ra danh sách permits"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Mệnh đề permits có thể bỏ khi mọi kiểu con được khai báo trong cùng file nguồn với kiểu sealed; khi đó compiler tự thu thập danh sách và ghi vào thuộc tính PermittedSubclasses. Cách viết này rất gọn cho các mô hình nhỏ vì toàn bộ tập biến thể đọc được trong một màn hình. Ok và Err là record nên đã ngầm final, không cần thêm modifier; record lồng trong interface cũng ngầm static và hoàn toàn hợp lệ.",
+   "whyWrong": [
+    "permits là tuỳ chọn khi các kiểu con nằm cùng file nguồn",
+    "Record lồng bên trong interface hoàn toàn hợp lệ và ngầm static",
+    "Record đã ngầm final nên yêu cầu về modifier đã được thoả mãn sẵn, không cần thêm gì",
+    ""
+   ]
+  },
+  {
+   "id": "d-15-8",
+   "topicId": 15,
+   "versions": [
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Thư viện có sealed interface Shape permits Circle, Rect. Ứng dụng của bạn switch đầy đủ hai nhánh, không có default. Thư viện nâng cấp thêm biến thể Tri, nhưng bạn CHỈ thay JAR mà không biên dịch lại code. Điều gì xảy ra khi truyền vào một Tri?",
+   "choices": [
+    "Switch trả về null vì không nhánh nào khớp",
+    "Ném MatchException, vì javac đã chèn sẵn một nhánh mặc định ngầm cho tình huống này",
+    "Vẫn chạy đúng vì JVM tự chọn nhánh gần nhất theo cây kế thừa",
+    "Ném ClassCastException tại nhánh case đầu tiên"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Exhaustiveness là bảo đảm lúc biên dịch, không phải phép màu lúc chạy: khi biên dịch một switch đầy đủ trên kiểu sealed, javac vẫn chèn một nhánh mặc định ngầm ném MatchException để phòng đúng tình huống compile lệch phiên bản này. Nhờ vậy hệ thống thất bại rõ ràng thay vì âm thầm cho kết quả sai. Bài học vận hành: thêm permitted subtype vào một API công khai là breaking change, phải đi kèm tăng phiên bản major và buộc client biên dịch lại.",
+   "whyWrong": [
+    "Switch expression không có đường trả về null ngầm định; nó ném ngoại lệ",
+    "",
+    "JVM không có cơ chế chọn nhánh gần nhất; các case được so khớp chính xác theo kiểu",
+    "Không có phép ép kiểu nào thất bại ở đây; giá trị đơn giản là không khớp nhánh nào"
+   ]
+  },
+  {
+   "id": "d-15-9",
+   "topicId": 15,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Trường hợp nào KHÔNG nên dùng sealed?",
+   "choices": [
+    "Mô hình Result chỉ gồm Ok và Err trong package nội bộ của ứng dụng",
+    "Các node của một cây cú pháp trong một DSL bạn tự viết",
+    "Interface cho các adapter thanh toán mà bên thứ ba sẽ tự cài đặt và đóng gói ở artifact riêng",
+    "Các trạng thái đơn hàng, mỗi trạng thái mang dữ liệu khác nhau"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Sealed dành cho tập biến thể đóng do bản chất bài toán quyết định; điểm mở rộng cho bên thứ ba thì cần interface thường. Ở đây còn có rào cản kỹ thuật cứng: kiểu con phải nằm cùng module (hoặc cùng package nếu chạy classpath), nên một adapter đóng gói ở artifact riêng đơn giản là không kế thừa được. Ba trường hợp còn lại đều có tập biến thể do miền nghiệp vụ quyết định và nằm trong phạm vi bạn sở hữu, đúng chỗ để khai thác exhaustiveness.",
+   "whyWrong": [
+    "Result là ví dụ kinh điển của sum type, tập biến thể đóng theo bản chất",
+    "Node của AST là tập biến thể đóng và rất hưởng lợi từ pattern switch không cần default",
+    "",
+    "Trạng thái đơn hàng có tập hữu hạn và mỗi trạng thái mang dữ liệu riêng, đúng chỗ dùng sealed thay vì enum"
+   ]
+  },
+  {
+   "id": "d-16-1",
+   "topicId": 16,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau có biên dịch được không?",
+   "code": "static void handle(Object o) {\n    if (!(o instanceof String s)) return;\n    System.out.println(s.length());\n}",
+   "choices": [
+    "Có — biến pattern s vẫn nằm trong phạm vi sau khối if nhờ flow scoping",
+    "Không — biến pattern chỉ sống trong cặp ngoặc của khối if",
+    "Không — biến pattern không dùng được với toán tử phủ định",
+    "Có, nhưng s có thể là null nên phải kiểm tra null trước khi gọi length()"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Phạm vi của biến pattern được xác định theo luồng logic (flow scoping) chứ không theo cặp ngoặc: nếu chương trình đi qua được câu lệnh if thì điều kiện phủ định đã sai, nghĩa là phép so khớp chắc chắn thành công, nên s hợp lệ ở phần còn lại của method. Đây là điều khiến pattern matching hoà rất tốt với phong cách guard clause và early return. Thêm nữa, instanceof luôn trả false với null nên s không bao giờ là null ở đây.",
+   "whyWrong": [
+    "",
+    "Phạm vi biến pattern không dựa trên cặp ngoặc mà dựa trên nơi compiler chứng minh được so khớp đã thành công",
+    "Toán tử phủ định hoàn toàn dùng được; chính nó tạo ra mẫu guard clause phổ biến này",
+    "instanceof trả về false với null nên nhánh đi tiếp bảo đảm s khác null, không cần kiểm tra"
+   ]
+  },
+  {
+   "id": "d-16-2",
+   "topicId": 16,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Đoạn code sau in ra gì?",
+   "code": "static int oldStyle(int x) {\n    int r = 0;\n    switch (x) {\n        case 1: r += 1;\n        case 2: r += 2; break;\n        default: r += 10;\n    }\n    return r;\n}\n\nstatic int arrow(int x) {\n    int r = 0;\n    switch (x) {\n        case 1 -> r += 1;\n        case 2 -> r += 2;\n        default -> r += 10;\n    }\n    return r;\n}\n\npublic static void main(String[] a) {\n    System.out.println(oldStyle(1) + \" \" + arrow(1));\n}",
+   "choices": [
+    "1 1",
+    "3 3",
+    "3 1",
+    "1 3"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Ở dạng hai chấm, case 1 không có break nên chương trình rơi xuống (fall-through) case 2 và cộng thêm 2, cho 3. Ở dạng mũi tên, mỗi nhánh chỉ chạy đúng phần của nó rồi thoát, không có fall-through và cũng không cần break, nên kết quả là 1. Đây chính là lý do dạng mũi tên loại bỏ hẳn một lớp bug kinh điển: quên break.",
+   "whyWrong": [
+    "oldStyle rơi xuống case 2 vì thiếu break nên không thể ra 1",
+    "arrow không có fall-through nên không cộng thêm 2",
+    "",
+    "Đảo ngược hoàn toàn: dạng cũ mới là dạng có fall-through"
+   ]
+  },
+  {
+   "id": "d-16-3",
+   "topicId": 16,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "beginner",
+   "question": "Trong một switch expression, nhánh mũi tên cần nhiều dòng và phải trả về giá trị. Cách nào ĐÚNG?",
+   "code": "int n = switch (x) {\n    case 1, 2 -> 10;\n    default -> {\n        int t = compute(x);\n        ???   // trả giá trị cho biểu thức switch\n    }\n};",
+   "choices": [
+    "Dùng yield t;",
+    "Dùng return t;",
+    "Dùng break t;",
+    "Chỉ cần viết t; vì giá trị của biểu thức cuối được lấy tự động"
+   ],
+   "correctAnswer": 0,
+   "explanation": "yield là câu lệnh dành riêng để trả giá trị ra khỏi một khối trong switch expression. return bị cấm ở đây và cho lỗi biên dịch 'attempt to return out of a switch expression', vì một biểu thức không được phép nhảy ra khỏi method đang chứa nó. Dạng break kèm giá trị từng xuất hiện trong giai đoạn preview nhưng đã bị loại bỏ trước khi switch expression thành chuẩn ở Java 14.",
+   "whyWrong": [
+    "",
+    "return trong switch expression là lỗi biên dịch vì nó sẽ thoát khỏi cả method chứ không chỉ khỏi biểu thức",
+    "break kèm giá trị chỉ tồn tại ở bản preview cũ và không còn hợp lệ",
+    "Java không có quy tắc lấy giá trị của biểu thức cuối khối; phải yield tường minh"
+   ]
+  },
+  {
+   "id": "d-16-4",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau (Java 21) có vấn đề gì?",
+   "code": "static String f(Object o) {\n    return switch (o) {\n        case Object x -> \"object\";\n        case String s -> \"string\";\n    };\n}",
+   "choices": [
+    "Không có vấn đề gì; case String sẽ được ưu tiên vì cụ thể hơn",
+    "Lỗi biên dịch: nhãn case String bị bao trùm bởi nhãn case Object đứng trước",
+    "Lỗi biên dịch: switch expression bắt buộc phải có nhánh default",
+    "Biên dịch được nhưng luôn trả về object với mọi đầu vào"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Trong pattern switch, các nhãn được xét theo thứ tự viết ra chứ không theo độ cụ thể, nên case Object x đã bao trùm case String s và nhánh sau không bao giờ chạy được; compiler báo lỗi 'this case label is dominated by a preceding case label'. Quy tắc thực hành là xếp từ cụ thể tới tổng quát, và đặt nhánh có when trước nhánh cùng kiểu không có when. Đây là ưu điểm rõ rệt so với chuỗi if-else instanceof, nơi cùng lỗi này trôi qua im lặng.",
+   "whyWrong": [
+    "Java không sắp xếp lại các nhãn theo độ cụ thể; thứ tự viết ra là thứ tự xét",
+    "",
+    "case Object x đã phủ mọi giá trị khác null nên switch vốn đã đầy đủ; lỗi nằm ở dominance",
+    "Code không biên dịch được nên không có hành vi lúc chạy để bàn"
+   ]
+  },
+  {
+   "id": "d-16-5",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau (Java 21) in ra gì?",
+   "code": "static String f(Object o) {\n    return switch (o) {\n        case Integer i -> \"int\";\n        case String s -> \"str\";\n        default -> \"other\";\n    };\n}\n\npublic static void main(String[] a) {\n    System.out.println(f(null));\n}",
+   "choices": [
+    "other — nhánh default hứng cả null",
+    "null — switch trả về null khi selector là null",
+    "str — null khớp case String vì null là giá trị hợp lệ của String",
+    "Ném NullPointerException"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Theo mặc định switch ném NullPointerException khi selector là null, và nhánh default KHÔNG bắt được null — đây là quyết định giữ tương thích với hành vi vốn có của switch trên String và enum. Muốn xử lý null thì phải nói ra tường minh bằng case null hoặc case null, default (và nhãn gộp đó phải nằm cuối vì default bao trùm mọi nhãn sau nó). Lợi ích là bạn không còn phải bọc switch trong một lệnh kiểm tra null, nhưng phải chủ động khai báo.",
+   "whyWrong": [
+    "default chỉ áp dụng sau khi selector đã vượt qua bước kiểm tra null; nó không hứng null",
+    "Switch expression không có đường trả null ngầm định",
+    "Type pattern không khớp null; case String s chỉ khớp giá trị khác null có kiểu String",
+    ""
+   ]
+  },
+  {
+   "id": "d-16-6",
+   "topicId": 16,
+   "versions": [
+    17,
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau có biên dịch được không?",
+   "code": "static boolean f(Object o) {\n    return o instanceof String s || s.isEmpty();\n}",
+   "choices": [
+    "Không — compiler báo cannot find symbol vì s không nằm trong phạm vi ở vế phải của ||",
+    "Có — s luôn nằm trong phạm vi ở cả hai vế của biểu thức logic",
+    "Có, nhưng sẽ ném NullPointerException khi o không phải String",
+    "Không — biến pattern chỉ dùng được trong câu lệnh if, không dùng được trong biểu thức return"
+   ],
+   "correctAnswer": 0,
+   "explanation": "Với toán tử ||, vế phải chỉ được đánh giá khi vế trái SAI, tức là khi phép so khớp instanceof thất bại — lúc đó s không hề được gán nên compiler quyết định s không nằm trong phạm vi và báo cannot find symbol. Đổi sang && thì ngược lại: vế phải chỉ chạy khi so khớp thành công nên s hợp lệ. Đây là hệ quả trực tiếp của flow scoping và là cách nhanh nhất để kiểm tra người trả lời có thật sự hiểu quy tắc phạm vi hay chỉ học thuộc cú pháp.",
+   "whyWrong": [
+    "",
+    "Phạm vi của biến pattern phụ thuộc vào luồng logic; với || vế phải nằm ngoài phạm vi đó",
+    "Lỗi xảy ra lúc biên dịch nên không bao giờ có hành vi runtime",
+    "Biến pattern dùng được trong mọi biểu thức, kể cả return; vấn đề nằm ở toán tử ||"
+   ]
+  },
+  {
+   "id": "d-16-7",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "difficulty": "intermediate",
+   "question": "Đoạn code sau (Java 21) có biên dịch được không?",
+   "code": "sealed interface S permits A, B {}\nrecord A(int v) implements S {}\nrecord B(int v) implements S {}\n\nstatic String f(S s) {\n    return switch (s) {\n        case A a -> \"a\";\n        case B b when b.v() > 0 -> \"b duong\";\n    };\n}",
+   "choices": [
+    "Có — hai nhãn đã phủ hết hai biến thể của sealed interface",
+    "Không — nhánh có when không được tính vào exhaustiveness nên switch bị coi là thiếu trường hợp",
+    "Không — switch trên sealed interface luôn bắt buộc có default",
+    "Có, nhưng sẽ ném MatchException lúc chạy khi b.v() nhỏ hơn hoặc bằng 0"
+   ],
+   "correctAnswer": 1,
+   "explanation": "Compiler không thể chứng minh điều kiện trong when luôn đúng, nên một nhánh guarded không bao giờ được tính là đã phủ kiểu của nó; ở đây B chỉ được phủ một phần và switch expression bị báo lỗi 'the switch expression does not cover all possible input values'. Cách sửa là thêm một nhánh case B b không có guard đặt sau nhánh có guard. Quy tắc rút ra: guard dùng để tách nhánh, không dùng để phủ kiểu.",
+   "whyWrong": [
+    "case B b when ... chỉ phủ một phần của B nên tập biến thể chưa được phủ hết",
+    "",
+    "Từ Java 21, switch trên sealed type liệt kê đủ biến thể không guard thì không cần default",
+    "Lỗi bị bắt ngay lúc biên dịch nên không có hành vi runtime để bàn"
+   ]
+  },
+  {
+   "id": "d-16-8",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Đoạn code sau (Java 21) in ra gì?",
+   "code": "record Point(Integer x, Integer y) {}\nrecord Line(Point a, Point b) {}\n\npublic static void main(String[] args) {\n    Object o = new Line(null, new Point(1, 2));\n    String r = switch (o) {\n        case Line(Point(var x, var y), Point b) -> \"deconstructed\";\n        case Line l -> \"line\";\n        default -> \"other\";\n    };\n    System.out.println(r);\n}",
+   "choices": [
+    "deconstructed — x và y sẽ nhận giá trị null",
+    "other",
+    "line",
+    "Ném NullPointerException khi cố tháo rời Point là null"
+   ],
+   "correctAnswer": 2,
+   "explanation": "Một record pattern không bao giờ khớp null, kể cả khi nó là pattern lồng bên trong: component a của Line là null nên nhánh Line(Point(var x, var y), Point b) bị bỏ qua, giá trị rơi xuống case Line l và in ra 'line'. Lưu ý phân biệt: type pattern lồng bên trong thì CÓ khớp null nếu kiểu của nó bao trùm kiểu component, ví dụ với record Pair(Object x, Object y) thì Pair(Object a, Object b) khớp new Pair(null, null) còn Pair(String s, String t) thì không. Đây cũng là lý do mẫu 'record pattern rồi type pattern cùng kiểu' rất hữu ích để bắt dữ liệu con bị null.",
+   "whyWrong": [
+    "Record pattern lồng không khớp null nên nhánh này không được chọn",
+    "Giá trị vẫn là một Line nên nó khớp case Line l trước khi tới default",
+    "",
+    "Không có ngoại lệ nào; pattern chỉ đơn giản là không khớp và chuyển sang nhãn tiếp theo"
+   ]
+  },
+  {
+   "id": "d-16-9",
+   "topicId": 16,
+   "versions": [
+    21
+   ],
+   "difficulty": "advanced",
+   "question": "Đoạn code sau (Java 21) có biên dịch được không?",
+   "code": "sealed interface S permits A, B {}\nrecord A(int v) implements S {}\nrecord B(int v) implements S {}\n\nstatic void f(S s) {\n    switch (s) {                       // switch STATEMENT, không phải expression\n        case A a -> System.out.println(\"a\");\n    }\n}",
+   "choices": [
+    "Có — switch statement không bắt buộc đầy đủ, giá trị B chỉ đơn giản không làm gì",
+    "Có — nhưng sẽ ném MatchException lúc chạy khi truyền vào một B",
+    "Không — mọi switch statement trong Java 21 đều bắt buộc có default",
+    "Không — từ Java 21, switch statement có dùng pattern cũng bắt buộc đầy đủ"
+   ],
+   "correctAnswer": 3,
+   "explanation": "Java 21 phân biệt rõ: switch statement kiểu cũ trên int, String hay enum vẫn không bắt buộc đầy đủ, nhưng switch statement có dùng nhãn pattern thì BẮT BUỘC đầy đủ, và compiler báo 'the switch statement does not cover all possible input values'. Lý do là pattern switch được thiết kế để làm việc với sealed type, nơi bỏ sót một biến thể gần như luôn là bug chứ không phải ý định. Cách sửa là thêm case B b, hoặc thêm default nếu bạn thật sự muốn bỏ qua các trường hợp còn lại — nhưng khi đó bạn mất luôn lời nhắc của compiler cho các biến thể thêm sau này.",
+   "whyWrong": [
+    "Điều đó chỉ đúng với switch statement kiểu cũ không dùng pattern",
+    "MatchException chỉ xảy ra khi code đã biên dịch được rồi gặp giá trị không khớp do compile lệch phiên bản; ở đây code không biên dịch được",
+    "switch statement kiểu cũ trên int hay String vẫn không cần default",
+    ""
+   ]
+  }
+ ]
+}

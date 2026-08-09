@@ -1,0 +1,1247 @@
+{
+  "tutorials": [
+    {
+      "id": "t-8-1",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Lambda không phải anonymous inner class",
+      "summary": "Compiler dịch lambda bằng invokedynamic chứ không sinh một class con như anonymous class — và điều đó thay đổi cả số file .class lẫn cách bạn debug.",
+      "sections": [
+        "<b>Anonymous class sinh ra file .class thật.</b> Khi bạn viết <code>new Runnable(){...}</code> trong class <code>Outer</code>, javac tạo ra một class riêng biệt tên <code>Outer$1</code> và ghi nó thành một file <code>.class</code> nằm cạnh <code>Outer.class</code>. Mỗi anonymous class là một kiểu độc lập, được nạp bởi class loader như mọi class bình thường, và có chi phí metadata riêng trong metaspace.",
+        "<b>Lambda thì không.</b> Thân lambda được javac dịch thành một <i>method synthetic</i> nằm ngay trong class chứa nó, thường có tên dạng <code>lambda$run$0</code>. Điểm gọi lambda không phải lệnh <code>new</code> mà là một lệnh <code>invokedynamic</code>. Nghĩa là sau khi biên dịch, số file <code>.class</code> sinh thêm cho lambda là <b>không</b>.",
+        "<b>LambdaMetafactory làm gì lúc runtime.</b> Lần đầu chạy tới lệnh <code>invokedynamic</code>, JVM gọi bootstrap method <code>LambdaMetafactory.metafactory</code>. Nó sinh ra một class hiện thực interface đích ngay trong bộ nhớ (từ Java 15 dùng hidden class), rồi gắn kết quả vào call site. Các lần chạy sau đi thẳng qua call site đã liên kết, không phải sinh lại gì.",
+        "<b>Vì sao thiết kế như vậy.</b> Java 8 muốn giữ quyền thay đổi chiến lược cài đặt lambda mà không phải đổi bytecode đã biên dịch. Nếu lambda được dịch cứng thành anonymous class, mọi cải tiến sau này (chia sẻ instance, hidden class, tối ưu JIT) sẽ bị khoá lại trong file <code>.class</code> của người dùng. <code>invokedynamic</code> đẩy quyết định đó xuống runtime.",
+        "<b>Hệ quả thực tế bạn cảm nhận được.</b> Ứng dụng có hàng nghìn lambda tốn thêm thời gian khởi động lần đầu cho bootstrap (chi phí link call site), đổi lại giảm số class nạp từ đĩa. Lambda <i>không capture</i> gì thường được OpenJDK trả về cùng một instance mỗi lần đánh giá; còn lambda có capture thì thường phải tạo object mới. Đây là chi tiết cài đặt của JDK — JLS nói rõ identity của object lambda là <b>không xác định</b>, nên đừng bao giờ so sánh lambda bằng <code>==</code>.",
+        "<b>Debug và stack trace.</b> Vì thân lambda là method synthetic, stack trace hiện tên kiểu <code>Outer.lambda$run$0</code> cộng thêm vài frame của <code>LambdaMetafactory</code>. Đây là lý do stack trace trong pipeline stream thường dài và khó đọc hơn code vòng lặp thường."
+      ],
+      "example": "public class Outer {\n    private String tag = \"outer\";\n\n    void run() {\n        Runnable lambda = () -> System.out.println(tag);      // invokedynamic\n        Runnable anon = new Runnable() {                       // new Outer$1()\n            public void run() { System.out.println(tag); }\n        };\n        lambda.run();\n        anon.run();\n    }\n}\n\n// Sau khi javac biên dịch, thư mục đầu ra có:\n//   Outer.class      (chứa cả method synthetic lambda$run$0)\n//   Outer$1.class    (anonymous class)\n// -> KHÔNG có file .class nào cho lambda",
+      "exampleTitle": "Cùng một hành vi, hai cách dịch hoàn toàn khác nhau",
+      "keyPoints": [
+        "Lambda dịch thành method synthetic trong class chứa nó + một lệnh invokedynamic, không sinh file .class",
+        "Anonymous class sinh file Outer$1.class riêng và luôn tạo object mới bằng lệnh new",
+        "LambdaMetafactory sinh class hiện thực lúc runtime và liên kết vào call site, chỉ một lần cho mỗi call site",
+        "JLS không đảm bảo identity của object lambda — không so sánh bằng ==",
+        "Anonymous class hỗ trợ nhiều abstract method và có state riêng; lambda chỉ dùng được với functional interface"
+      ],
+      "trap": "Nhiều người trả lời lambda chỉ là đường cú pháp cho anonymous inner class. Người phỏng vấn sẽ vặn lại bằng câu hỏi số file .class sinh ra, hoặc bằng câu hỏi this trỏ vào đâu — cả hai đều cho thấy hai cơ chế khác hẳn nhau.",
+      "followUp": [
+        "Tại sao Java chọn invokedynamic thay vì dịch lambda thành anonymous class ngay lúc biên dịch?",
+        "Lambda không capture biến nào có được tái sử dụng cùng một instance không? Điều đó có được spec đảm bảo không?",
+        "Lambda có thể hiện thực một interface có hai abstract method không? Vì sao?"
+      ]
+    },
+    {
+      "id": "t-8-2",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Effectively final: vì sao lambda chỉ capture được biến không đổi",
+      "summary": "Biến local nằm trên stack và biến mất khi method trả về, còn lambda có thể sống lâu hơn — đó là gốc rễ của luật effectively final.",
+      "sections": [
+        "<b>Luật.</b> Lambda (và cả anonymous class) chỉ được tham chiếu tới biến local nếu biến đó là <code>final</code> hoặc <i>effectively final</i> — nghĩa là được gán đúng một lần và không bao giờ gán lại. Trước Java 8 bạn phải viết <code>final</code> tường minh; từ Java 8 compiler tự suy ra.",
+        "<b>Lý do nằm ở nơi lưu biến.</b> Biến local sống trong stack frame của method. Khi method trả về, frame bị huỷ. Nhưng object lambda nằm trên heap và hoàn toàn có thể được trả về, đưa vào listener, hay đẩy sang thread khác — nó sống lâu hơn frame đã sinh ra nó. Vì vậy giá trị biến phải được <b>sao chép</b> vào lambda tại thời điểm tạo, chứ không thể trỏ tới ô nhớ trên stack.",
+        "<b>Đã sao chép thì phải cấm gán lại.</b> Nếu Java cho phép sửa biến sau khi lambda đã copy, sẽ có hai bản giá trị lệch nhau và không có cách nào định nghĩa ngữ nghĩa hợp lý. Java chọn cách đơn giản nhất: cấm luôn ở compile time. Đây là <i>capture by value</i>, khác với ngôn ngữ như C# vốn nâng biến lên heap để capture by reference.",
+        "<b>Effectively final không có nghĩa là bất biến.</b> Ràng buộc chỉ áp lên <i>reference</i>, không áp lên object mà reference trỏ tới. Một <code>List</code> khai báo và gán một lần vẫn được <code>add()</code> thoải mái trong lambda. Đây chính là kẽ hở mà nhiều người dùng để lách luật (dùng mảng một phần tử hay <code>AtomicInteger</code> làm biến đếm) — chạy được nhưng thường là dấu hiệu bạn đang viết vòng lặp bằng lambda.",
+        "<b>Field không bị ràng buộc này.</b> Field instance và field static nằm trên heap, không biến mất theo stack frame, nên lambda tham chiếu chúng qua <code>this</code> hoặc qua tên class và được phép sửa tự do. Đây là lý do nhiều người bối rối khi thấy sửa field trong lambda thì được mà sửa biến local thì không.",
+        "<b>Biến của vòng lặp.</b> Biến điều khiển của <code>for (int i = 0; ...; i++)</code> bị gán lại mỗi vòng nên không effectively final — không capture được. Ngược lại, biến của <code>for (String s : list)</code> được coi là một biến mới ở mỗi lần lặp và luôn effectively final, nên capture được bình thường. Khác biệt này rất hay được đem ra hỏi."
+      ],
+      "example": "void demo(List<String> names) {\n    int count = 0;\n    names.forEach(n -> count++);          // LỖI BIÊN DỊCH: count không effectively final\n\n    List<String> upper = new ArrayList<>();\n    names.forEach(n -> upper.add(n.toUpperCase())); // OK: reference không đổi, nội dung đổi\n\n    for (int i = 0; i < 3; i++) {\n        Runnable r = () -> System.out.println(i);   // LỖI: i bị gán lại mỗi vòng\n    }\n\n    for (String s : names) {\n        Runnable r = () -> System.out.println(s);   // OK: s là biến mới mỗi vòng lặp\n    }\n}",
+      "exampleTitle": "Cái gì capture được, cái gì không",
+      "keyPoints": [
+        "Biến local được capture theo giá trị (copy) vì stack frame có thể biến mất trước lambda",
+        "Effectively final ràng buộc reference chứ không ràng buộc trạng thái của object được trỏ tới",
+        "Field instance/static không chịu ràng buộc này vì chúng nằm trên heap",
+        "Biến của for-each effectively final; biến điều khiển của for cổ điển thì không",
+        "Dùng mảng 1 phần tử hoặc AtomicInteger để lách luật là code smell, trừ khi thật sự cần cộng dồn thread-safe"
+      ],
+      "trap": "Câu trả lời sơ sài là 'để đảm bảo thread-safe'. Đó chỉ là hệ quả phụ. Lý do gốc là vòng đời: lambda trên heap có thể sống lâu hơn stack frame, nên buộc phải copy giá trị, và đã copy thì phải cấm gán lại để tránh hai bản giá trị lệch nhau.",
+      "followUp": [
+        "Vì sao capture một List rồi gọi add() trong lambda lại hợp lệ?",
+        "Tại sao biến của for-each capture được còn biến i của for cổ điển thì không?",
+        "Nếu cần cộng dồn một giá trị trong forEach song song thì nên dùng gì thay cho biến local?"
+      ]
+    },
+    {
+      "id": "t-8-3",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "this trong lambda và rủi ro memory leak",
+      "summary": "Trong lambda, this trỏ tới object bao ngoài; trong anonymous class, this trỏ tới chính nó — và khác biệt đó có thể giữ sống cả một object nặng.",
+      "sections": [
+        "<b>Lambda không tạo scope mới cho this.</b> Lambda là một <i>lexical scope</i>: <code>this</code>, <code>super</code> và tên biến bên trong nó mang đúng nghĩa như ở dòng code bao quanh. Vì thân lambda được dịch thành method của chính class bao ngoài, <code>this</code> tất nhiên là instance của class bao ngoài.",
+        "<b>Anonymous class thì ngược lại.</b> Nó là một class thật, có instance riêng, nên <code>this</code> bên trong trỏ tới object anonymous đó. Muốn lấy object bao ngoài phải viết <code>Outer.this</code>. Đây là điểm khác biệt được hỏi nhiều nhất khi so sánh hai cấu trúc.",
+        "<b>Hệ quả về che tên (shadowing).</b> Anonymous class được phép khai báo field và biến trùng tên với biến của method bao ngoài, che đi bản bên ngoài. Lambda thì <b>không</b>: khai báo lại một tên đã tồn tại trong scope bao ngoài là lỗi biên dịch. Điều này khiến lambda dễ đọc hơn nhưng cũng khiến việc chuyển đổi qua lại giữa hai dạng không phải lúc nào cũng thuần cơ học.",
+        "<b>Capture ngầm this là nguồn memory leak.</b> Trong lambda, viết <code>counter</code> thực chất là <code>this.counter</code>. Nghĩa là lambda giữ một tham chiếu mạnh tới toàn bộ object bao ngoài, kể cả những field khổng lồ mà nó không hề dùng. Nếu lambda đó được đăng ký vào một listener registry, một cache tĩnh hay một scheduler sống lâu, cả object bao ngoài sẽ không bao giờ được GC.",
+        "<b>Cách chữa.</b> Copy giá trị cần dùng ra một biến local trước rồi mới capture biến local đó — khi ấy lambda chỉ giữ giá trị chứ không giữ <code>this</code>. Nếu lambda không tham chiếu gì tới instance bao ngoài, javac còn sinh method synthetic dạng <code>static</code>, và lambda trở thành non-capturing, thường được tái sử dụng cùng một instance.",
+        "<b>Nhận diện khi review code.</b> Bất kỳ lambda nào được lưu vào một collection sống lâu, một event bus, hay một <code>ScheduledExecutorService</code> đều đáng bị soi xem có tham chiếu field instance không. Trong Android và các ứng dụng có vòng đời rõ ràng, đây là nguyên nhân leak kinh điển; trên server thì thường lộ ra dưới dạng metaspace/heap tăng dần sau mỗi lần redeploy."
+      ],
+      "example": "class Heavy {\n    private final byte[] buffer = new byte[64 * 1024 * 1024];\n    private int version = 7;\n\n    // XẤU: lambda đọc field 'version' => capture this => giữ luôn buffer 64MB\n    Supplier<Integer> leaky() {\n        return () -> version;\n    }\n\n    // TỐT: copy ra biến local, lambda chỉ giữ một int\n    Supplier<Integer> safe() {\n        int snapshot = version;\n        return () -> snapshot;\n    }\n}\n\nclass Outer {\n    void demo() {\n        Runnable lambda = () -> System.out.println(this);           // this = Outer\n        Runnable anon = new Runnable() {\n            public void run() {\n                System.out.println(this);                            // this = Outer$1\n                System.out.println(Outer.this);                      // muốn Outer phải viết rõ\n            }\n        };\n    }\n}",
+      "exampleTitle": "Capture ngầm this và cách tránh",
+      "keyPoints": [
+        "this trong lambda = instance bao ngoài; this trong anonymous class = chính object anonymous",
+        "Lambda không tạo scope mới nên không được khai báo biến trùng tên với scope bao ngoài",
+        "Đọc một field instance trong lambda tương đương this.field, tức là capture cả object bao ngoài",
+        "Lambda sống lâu (listener, cache, scheduler) mà capture this là nguyên nhân leak phổ biến",
+        "Copy field ra biến local trước khi capture để cắt tham chiếu tới this"
+      ],
+      "trap": "Câu hỏi vặn kinh điển: in this bên trong lambda và bên trong anonymous class đặt cạnh nhau, hỏi kết quả. Nhiều người trả lời cả hai đều là object bao ngoài, hoặc cả hai đều là object bên trong.",
+      "followUp": [
+        "Vì sao lambda không được khai báo biến trùng tên với biến của method bao ngoài?",
+        "Làm sao biết một lambda có capture this hay không mà không cần đọc bytecode?",
+        "Lambda capture this rồi đăng ký vào một static registry — hậu quả trên heap là gì?"
+      ]
+    },
+    {
+      "id": "t-8-4",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Functional interface: bốn nhóm gốc, biến thể primitive và @FunctionalInterface",
+      "summary": "java.util.function có hơn 40 interface nhưng thực chất chỉ là bốn hình dạng gốc nhân với các biến thể tránh boxing.",
+      "sections": [
+        "<b>Bốn hình dạng gốc.</b> <code>Function&lt;T,R&gt;</code> nhận một giá trị và trả về một giá trị; <code>Predicate&lt;T&gt;</code> nhận một giá trị và trả về <code>boolean</code>; <code>Consumer&lt;T&gt;</code> nhận một giá trị và không trả gì; <code>Supplier&lt;T&gt;</code> không nhận gì và trả về một giá trị. Mọi interface còn lại trong gói đều là biến tấu của bốn dạng này theo số tham số (<code>BiFunction</code>, <code>BiPredicate</code>, <code>BiConsumer</code>) hoặc theo kiểu (<code>UnaryOperator</code>, <code>BinaryOperator</code> là <code>Function</code> có tham số và kết quả cùng kiểu).",
+        "<b>Biến thể primitive tồn tại vì generic không nhận primitive.</b> <code>Function&lt;Integer,Integer&gt;</code> buộc mọi giá trị phải là object <code>Integer</code>, nghĩa là mỗi lần gọi có thể phải boxing và unboxing. Với vòng lặp hàng triệu phần tử, đó là hàng triệu object rác trên heap. Vì vậy JDK cung cấp <code>IntPredicate</code>, <code>IntUnaryOperator</code>, <code>ToIntFunction&lt;T&gt;</code>, <code>IntFunction&lt;R&gt;</code>, <code>ObjIntConsumer&lt;T&gt;</code>... cho ba kiểu <code>int</code>, <code>long</code>, <code>double</code>.",
+        "<b>Đọc tên interface theo quy tắc.</b> Tiền tố kiểu (<code>Int</code>, <code>Long</code>, <code>Double</code>) nói về <b>tham số vào</b>; tiền tố <code>To</code> nói về <b>kiểu trả về</b>. Vậy <code>IntFunction&lt;R&gt;</code> nhận <code>int</code> trả về <code>R</code>, còn <code>ToIntFunction&lt;T&gt;</code> nhận <code>T</code> trả về <code>int</code>. <code>IntToLongFunction</code> thì cả hai đều primitive. Nhớ quy tắc này là đủ để không phải tra tài liệu.",
+        "<b>@FunctionalInterface chỉ là kiểm tra của compiler.</b> Nó không tạo ra khả năng gì; bất kỳ interface nào có đúng một abstract method đều dùng được với lambda dù không gắn annotation. Giá trị của annotation là ngăn người khác vô tình thêm abstract method thứ hai và phá vỡ mọi lambda đang dùng interface đó.",
+        "<b>Cái gì không tính là abstract method.</b> <code>default</code> method có thân hàm nên không tính. <code>static</code> method và <code>private</code> method (Java 9+) cũng không. Đặc biệt, abstract method có chữ ký trùng với method <code>public</code> của <code>Object</code> — như <code>equals(Object)</code>, <code>hashCode()</code>, <code>toString()</code> — <b>cũng không tính</b>, vì mọi object đều đã có sẵn cài đặt. Đó là lý do <code>Comparator</code> vẫn là functional interface dù khai báo cả <code>compare</code> lẫn <code>equals</code>.",
+        "<b>Khi nào tự định nghĩa functional interface.</b> Khi bạn cần một chữ ký JDK không có (ví dụ ba tham số, hoặc method được phép ném checked exception), hoặc khi cái tên mang nghĩa nghiệp vụ quan trọng hơn hình dạng — <code>PriceRule</code> đọc rõ hơn <code>BiFunction&lt;Order, Customer, BigDecimal&gt;</code>. Ngoài hai lý do đó, dùng lại interface có sẵn để tương thích với các method <code>andThen</code>, <code>compose</code>, <code>negate</code> đã viết sẵn."
+      ],
+      "example": "// Boxing: mỗi lần apply tạo/mở một Integer\nFunction<Integer, Integer> boxed = x -> x * 2;\n\n// Không boxing\nIntUnaryOperator prim = x -> x * 2;\nToIntFunction<String> len = String::length;\nIntFunction<String> repeat = n -> \"x\".repeat(n);\n\n// Hợp lệ: default + static + method trùng chữ ký của Object đều không tính là abstract\n@FunctionalInterface\ninterface Validator {\n    boolean test(String s);                      // abstract duy nhất\n    default Validator negate() { return s -> !test(s); }\n    static Validator alwaysTrue() { return s -> true; }\n    @Override boolean equals(Object o);          // không tính\n    @Override String toString();                 // không tính\n}",
+      "exampleTitle": "Biến thể primitive và luật đếm abstract method",
+      "keyPoints": [
+        "Bốn hình dạng gốc: Function, Predicate, Consumer, Supplier — phần còn lại là biến tấu",
+        "Tiền tố Int/Long/Double chỉ kiểu tham số; tiền tố To chỉ kiểu trả về",
+        "Biến thể primitive tồn tại để tránh boxing, đáng dùng khi khối lượng dữ liệu lớn",
+        "@FunctionalInterface chỉ là guard của compiler, không bắt buộc để lambda hoạt động",
+        "default, static, private và method trùng chữ ký public của Object đều không tính là abstract method"
+      ],
+      "trap": "Đưa ra một interface có ba method — một abstract, một default, một khai báo lại toString() — rồi hỏi có gắn @FunctionalInterface được không. Đáp án là được, nhưng rất nhiều người đếm nhầm thành ba abstract method.",
+      "followUp": [
+        "Vì sao Comparator vẫn là functional interface dù khai báo cả compare lẫn equals?",
+        "Khi nào biến thể primitive thực sự đáng dùng, và khi nào là tối ưu sớm?",
+        "Functional interface có method ném checked exception thì dùng trong stream thế nào?"
+      ]
+    },
+    {
+      "id": "t-8-5",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Method reference: bốn dạng và bẫy Comparator",
+      "summary": "Cùng cú pháp :: nhưng bốn dạng method reference có chữ ký hoàn toàn khác nhau — hiểu sai là chọn nhầm functional interface.",
+      "sections": [
+        "<b>Dạng 1 — static method: <code>ClassName::staticMethod</code>.</b> Tham số của lambda trở thành tham số của method. <code>Integer::parseInt</code> tương đương <code>s -&gt; Integer.parseInt(s)</code>, khớp <code>Function&lt;String,Integer&gt;</code> hoặc <code>ToIntFunction&lt;String&gt;</code>.",
+        "<b>Dạng 2 — instance method của một object cụ thể: <code>expr::method</code>.</b> Receiver đã cố định từ trước, nên tham số của lambda chính là tham số của method. <code>System.out::println</code> tương đương <code>x -&gt; System.out.println(x)</code>. Lưu ý biểu thức <code>expr</code> được đánh giá <b>ngay tại lúc tạo</b> method reference, không phải lúc gọi — nếu sau đó biến trỏ sang object khác, method reference vẫn giữ object cũ.",
+        "<b>Dạng 3 — instance method của một object tuỳ ý thuộc một kiểu: <code>ClassName::instanceMethod</code>.</b> Đây là dạng gây nhầm nhất: tham số <b>đầu tiên</b> của lambda trở thành receiver, các tham số còn lại mới là tham số của method. <code>String::length</code> tương đương <code>s -&gt; s.length()</code> nên khớp <code>Function&lt;String,Integer&gt;</code>; còn <code>String::compareTo</code> tương đương <code>(a,b) -&gt; a.compareTo(b)</code> nên khớp <code>Comparator&lt;String&gt;</code>.",
+        "<b>Dạng 4 — constructor: <code>ClassName::new</code>.</b> Khớp với functional interface có kiểu trả về là class đó, số tham số quyết định constructor nào được chọn. <code>ArrayList::new</code> có thể là <code>Supplier&lt;List&lt;T&gt;&gt;</code> (constructor rỗng) hoặc <code>IntFunction&lt;List&lt;T&gt;&gt;</code> (constructor nhận capacity), tuỳ kiểu đích. Mảng cũng có dạng riêng: <code>String[]::new</code>.",
+        "<b>Bẫy <code>String::length</code> vs <code>str::length</code>.</b> Hai biểu thức chỉ khác nhau ở chỗ vế trái là tên class hay một biến, nhưng chữ ký hoàn toàn khác: <code>String::length</code> là dạng 3, nhận một <code>String</code> và trả <code>int</code>; <code>str::length</code> là dạng 2, <b>không nhận tham số nào</b> và trả <code>int</code>, tức là một <code>Supplier&lt;Integer&gt;</code> / <code>IntSupplier</code>. Đây là câu vặn rất hay gặp.",
+        "<b>Comparator.comparing và bẫy reversed().</b> <code>Comparator.comparing(Person::getName).thenComparing(Person::getAge).reversed()</code> — <code>reversed()</code> gói <b>toàn bộ</b> comparator đã ghép lại và đảo ngược tất cả tiêu chí, chứ không chỉ tiêu chí cuối. Muốn chỉ đảo một tiêu chí, phải viết <code>thenComparing(Comparator.comparing(Person::getAge).reversed())</code>. Ngoài ra, khi so sánh khoá số nên dùng <code>comparingInt</code>/<code>comparingLong</code>/<code>comparingDouble</code> để tránh boxing ở mỗi phép so sánh — sort là nơi hàm so sánh được gọi O(n log n) lần."
+      ],
+      "example": "// 1. static\nFunction<String, Integer> f1 = Integer::parseInt;\n\n// 2. instance của object cụ thể — receiver cố định\nString s = \"hello\";\nSupplier<Integer> f2 = s::length;              // KHÔNG nhận tham số\n\n// 3. instance của object tuỳ ý thuộc kiểu String — tham số đầu là receiver\nFunction<String, Integer> f3 = String::length; // nhận 1 tham số\nComparator<String> f4 = String::compareTo;     // nhận 2 tham số\n\n// 4. constructor\nSupplier<List<String>> f5 = ArrayList::new;\nIntFunction<String[]> f6 = String[]::new;\n\n// Bẫy reversed(): đảo cả name lẫn age\nComparator<Person> all = Comparator.comparing(Person::getName)\n                                   .thenComparing(Person::getAge)\n                                   .reversed();\n\n// Chỉ đảo age, giữ name tăng dần\nComparator<Person> onlyAge = Comparator.comparing(Person::getName)\n        .thenComparing(Comparator.comparingInt(Person::getAge).reversed());",
+      "exampleTitle": "Bốn dạng và hai bẫy hay bị hỏi",
+      "keyPoints": [
+        "Bốn dạng: static, instance của object cụ thể, instance của kiểu tuỳ ý, constructor",
+        "Ở dạng 3, tham số đầu tiên của lambda đóng vai receiver — nguồn nhầm lẫn lớn nhất",
+        "String::length nhận 1 tham số, str::length nhận 0 tham số",
+        "expr::method đánh giá expr ngay lúc tạo method reference, không phải lúc gọi",
+        "reversed() đảo toàn bộ chuỗi comparator; comparingInt tránh boxing trong sort"
+      ],
+      "trap": "Integer::toString là lỗi biên dịch ambiguous khi kiểu đích là Function<Integer,String>, vì vừa khớp static Integer.toString(int) (dạng 1) vừa khớp instance Integer.toString() (dạng 3). Khi gặp trường hợp này phải viết lambda tường minh hoặc dùng String::valueOf.",
+      "followUp": [
+        "Giải thích vì sao Comparator<String> nhận được String::compareTo dù compareTo chỉ có một tham số?",
+        "reversed() đặt sau thenComparing thì đảo cái gì?",
+        "Vì sao nên dùng comparingInt thay vì comparing khi khoá sắp xếp là int?"
+      ]
+    },
+    {
+      "id": "t-9-1",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Stream là lazy: không có terminal operation thì không có gì chạy",
+      "summary": "Intermediate operation chỉ dựng mô tả pipeline; toàn bộ công việc thật chỉ xảy ra khi terminal operation được gọi.",
+      "sections": [
+        "<b>Hai loại operation.</b> <i>Intermediate</i> (<code>filter</code>, <code>map</code>, <code>sorted</code>, <code>peek</code>, <code>limit</code>...) trả về một <code>Stream</code> mới và <b>không</b> xử lý phần tử nào. <i>Terminal</i> (<code>forEach</code>, <code>collect</code>, <code>reduce</code>, <code>count</code>, <code>findFirst</code>, <code>anyMatch</code>...) trả về kết quả hoặc <code>void</code> và là thứ duy nhất kích hoạt việc duyệt dữ liệu.",
+        "<b>Lazy nghĩa là gì về mặt cài đặt.</b> Mỗi intermediate operation gắn thêm một tầng vào một chuỗi <code>Sink</code>. Khi terminal operation chạy, JDK gấp toàn bộ chuỗi đó lại thành một hàm duy nhất rồi mới kéo dữ liệu từ <code>Spliterator</code> của nguồn. Vì vậy pipeline không có terminal operation là code chết — nó chỉ tạo vài object nhỏ rồi thôi.",
+        "<b>Thứ tự thực thi là theo TỪNG PHẦN TỬ, không phải theo từng tầng.</b> Đây là điểm gây bất ngờ nhiều nhất. Với <code>stream().filter(f).map(m).forEach(p)</code>, output không phải là 'chạy hết filter cho mọi phần tử rồi mới chạy map', mà là <code>f(a), m(a), p(a), f(b), m(b), p(b)...</code>. Mỗi phần tử đi hết chiều sâu pipeline rồi mới tới phần tử tiếp theo. Người ta hay đặt <code>peek</code> vào để debug rồi bối rối vì log không đúng như tưởng tượng.",
+        "<b>Hệ quả lớn nhất là fusion.</b> Vì các tầng được gộp thành một lần duyệt, pipeline nhiều bước <b>không</b> tạo ra nhiều collection trung gian như khi bạn viết ba vòng <code>for</code> và ba <code>ArrayList</code>. Đó là lợi ích hiệu năng thật của stream, và nó cũng cho phép short-circuit: <code>findFirst</code> hay <code>anyMatch</code> dừng ngay khi có kết quả, nên các phần tử phía sau không bao giờ được đụng tới.",
+        "<b>Ngoại lệ: operation có trạng thái là hàng rào.</b> <code>sorted()</code> và <code>distinct()</code> phải nhìn thấy dữ liệu trước khi phát tiếp — <code>sorted()</code> buộc phải gom toàn bộ phần tử vào bộ đệm mới sắp xếp được. Đặt <code>sorted()</code> trước <code>filter()</code> là lỗi hiệu năng phổ biến: bạn sắp xếp cả những phần tử sắp bị loại bỏ. Nguyên tắc là đẩy <code>filter</code> lên sớm nhất có thể và để <code>sorted</code> càng muộn càng tốt.",
+        "<b>Lazy còn nghĩa là stream đọc nguồn muộn.</b> Nếu bạn tạo stream từ một <code>List</code> rồi sửa <code>List</code> đó <i>trước khi</i> gọi terminal operation, phần lớn nguồn trong JDK sẽ nhìn thấy dữ liệu mới hoặc ném <code>ConcurrentModificationException</code> lúc duyệt. Nói cách khác, stream không chụp ảnh dữ liệu tại thời điểm tạo."
+      ],
+      "example": "List<String> names = List.of(\"an\", \"binh\", \"cuong\");\n\n// Không in gì cả — chưa có terminal operation\nStream<String> s = names.stream()\n        .filter(n -> { System.out.println(\"filter \" + n); return n.length() > 2; })\n        .map(n -> { System.out.println(\"map \" + n); return n.toUpperCase(); });\nSystem.out.println(\"--- chua chay ---\");\n\n// Bây giờ mới chạy, và chạy theo TỪNG PHẦN TỬ — output thực tế (có cả dòng do forEach in):\n// filter an / filter binh / map binh / BINH / filter cuong / map cuong / CUONG\ns.forEach(System.out::println);\n\n// Đặt sai thứ tự: sắp xếp 1 triệu phần tử rồi mới bỏ đi 999.000\nlist.stream().sorted().filter(x -> x.isActive()).toList();\n// Đúng: lọc trước, sắp xếp sau\nlist.stream().filter(x -> x.isActive()).sorted().toList();",
+      "exampleTitle": "Lazy, thứ tự theo phần tử, và vị trí của sorted",
+      "keyPoints": [
+        "Intermediate operation chỉ dựng pipeline; chỉ terminal operation mới kích hoạt duyệt dữ liệu",
+        "Thực thi theo từng phần tử đi hết chiều sâu pipeline, không phải theo từng tầng",
+        "Fusion giúp pipeline nhiều bước vẫn chỉ duyệt một lần và không tạo collection trung gian",
+        "sorted() và distinct() là stateful barrier — nên đặt filter trước sorted",
+        "Stream không chụp ảnh dữ liệu lúc tạo; nó đọc nguồn tại thời điểm terminal operation chạy"
+      ],
+      "trap": "Đặt peek() để debug rồi kết luận sai về thứ tự thực thi. Cũng phổ biến không kém: viết một pipeline dài với peek/map có side effect nhưng quên terminal operation, code im lặng không làm gì và không hề báo lỗi.",
+      "followUp": [
+        "Vì sao đặt filter trước sorted lại quan trọng hơn là chỉ chuyện thẩm mỹ?",
+        "Nếu sửa List nguồn sau khi tạo stream nhưng trước khi collect thì chuyện gì xảy ra?",
+        "Operation nào là stateful, và vì sao chúng cản trở short-circuit?"
+      ]
+    },
+    {
+      "id": "t-9-2",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Stream chỉ dùng được một lần, short-circuit và stream vô hạn",
+      "summary": "Stream không phải collection: nó có trạng thái tiêu thụ, và chính điều đó cho phép nó làm việc với nguồn vô hạn.",
+      "sections": [
+        "<b>Một stream chỉ đi qua đúng một terminal operation.</b> Bên trong <code>AbstractPipeline</code> có cờ <code>linkedOrConsumed</code>. Gọi terminal operation lần thứ hai — hoặc gắn thêm intermediate operation vào một stream đã dùng — sẽ ném <code>IllegalStateException: stream has already been operated upon or closed</code>. Lý do là stream không lưu dữ liệu; nó chỉ là một con trỏ tiêu thụ trên nguồn.",
+        "<b>Cách dùng lại đúng.</b> Đừng lưu <code>Stream</code> vào biến hay field để tái sử dụng. Hãy lưu <b>nguồn</b> (một <code>Collection</code>) và gọi <code>.stream()</code> mỗi lần cần, hoặc lưu một <code>Supplier&lt;Stream&lt;T&gt;&gt;</code> và gọi <code>get()</code> để có stream mới. Đây cũng là lý do method trả về <code>Stream</code> trong API công khai phải ghi rõ rằng người gọi chỉ tiêu thụ được một lần.",
+        "<b>Short-circuit operation.</b> <code>findFirst</code>, <code>findAny</code>, <code>anyMatch</code>, <code>allMatch</code>, <code>noneMatch</code> là terminal short-circuit: chúng dừng ngay khi biết được kết quả. <code>limit(n)</code> và <code>takeWhile</code> (Java 9+) là intermediate short-circuit: chúng cắt luồng dữ liệu ở giữa pipeline. Nhờ tính lazy, các phần tử phía sau điểm dừng không bao giờ được sinh ra.",
+        "<b>Stream vô hạn chỉ an toàn khi có short-circuit.</b> <code>Stream.iterate(seed, f)</code> và <code>Stream.generate(supplier)</code> tạo nguồn không có điểm kết thúc. Chúng dùng được vì lazy: <code>Stream.iterate(1, x -&gt; x*2).limit(10)</code> chỉ sinh đúng 10 phần tử. Nhưng nếu quên <code>limit</code>, hoặc đặt một operation stateful như <code>sorted()</code> vào giữa, chương trình sẽ treo hoặc <code>OutOfMemoryError</code> — vì <code>sorted()</code> phải chờ hết dữ liệu mà dữ liệu thì không bao giờ hết.",
+        "<b>Từ Java 9 có dạng iterate ba tham số.</b> <code>Stream.iterate(seed, hasNext, next)</code> mang điều kiện dừng vào ngay trong nguồn, đọc giống hệt vòng <code>for</code> và an toàn hơn hẳn. Java 9 cũng thêm <code>takeWhile</code> (lấy tới khi điều kiện sai lần đầu) và <code>dropWhile</code> (bỏ tới khi điều kiện sai lần đầu) — khác <code>filter</code> ở chỗ chúng dừng dựa trên <b>vị trí</b> chứ không kiểm tra từng phần tử tới cuối.",
+        "<b>Stream cần đóng thì phải đóng.</b> Phần lớn stream từ collection không giữ tài nguyên nên không cần <code>close()</code>. Nhưng stream từ I/O như <code>Files.lines(path)</code> hay <code>Files.walk(path)</code> giữ file handle và phải đặt trong <code>try-with-resources</code>, nếu không sẽ rò rỉ descriptor — lỗi này thường chỉ lộ ra khi hệ thống chạy đủ lâu."
+      ],
+      "example": "Stream<String> s = List.of(\"a\", \"b\").stream();\nlong n = s.count();\nList<String> l = s.collect(Collectors.toList()); // IllegalStateException\n\n// Đúng: giữ Supplier chứ không giữ Stream\nSupplier<Stream<String>> src = () -> List.of(\"a\", \"b\").stream();\nlong n2 = src.get().count();\nList<String> l2 = src.get().collect(Collectors.toList());\n\n// Vô hạn + short-circuit: an toàn\nList<Integer> pow = Stream.iterate(1, x -> x * 2).limit(10).collect(Collectors.toList());\n\n// Vô hạn + stateful barrier: TREO / OOM\n// Stream.iterate(1, x -> x + 1).sorted().findFirst();\n\n// Java 9+: điều kiện dừng nằm trong nguồn\n// Stream.iterate(1, x -> x <= 1024, x -> x * 2)\n\n// Stream từ I/O bắt buộc đóng\ntry (Stream<String> lines = Files.lines(Path.of(\"data.txt\"))) {\n    lines.filter(x -> !x.isBlank()).forEach(System.out::println);\n}",
+      "exampleTitle": "Tiêu thụ một lần, short-circuit và nguồn vô hạn",
+      "keyPoints": [
+        "Dùng lại stream đã tiêu thụ ném IllegalStateException — hãy giữ nguồn hoặc Supplier<Stream<T>>",
+        "findFirst/findAny/anyMatch/allMatch/noneMatch là terminal short-circuit; limit và takeWhile là intermediate short-circuit",
+        "Stream vô hạn chỉ an toàn khi pipeline có điểm cắt; sorted/distinct trên nguồn vô hạn sẽ treo hoặc OOM",
+        "Java 9 thêm Stream.iterate ba tham số, takeWhile và dropWhile",
+        "Stream từ Files.lines/Files.walk giữ file handle và phải nằm trong try-with-resources"
+      ],
+      "trap": "Lưu Stream vào một field hay trả Stream ra rồi dùng hai lần. Bẫy nặng hơn: allMatch trên stream rỗng luôn trả về true (vacuous truth) còn anyMatch trả về false — rất hay bị dùng sai trong validation.",
+      "followUp": [
+        "Vì sao stream lại thiết kế chỉ dùng được một lần thay vì cho phép duyệt lại như Iterable?",
+        "allMatch trên một stream rỗng trả về gì, và điều đó ảnh hưởng thế nào tới logic validation?",
+        "takeWhile khác filter ở chỗ nào khi dữ liệu không được sắp xếp?"
+      ]
+    },
+    {
+      "id": "t-9-3",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Collector: toList, groupingBy, và các bẫy của toMap",
+      "summary": "Collector là nơi phần lớn logic nghiệp vụ của stream nằm — và cũng là nơi có nhiều hành vi ngầm định dễ gây lỗi production nhất.",
+      "sections": [
+        "<b><code>Collectors.toList()</code> không hứa gì cả.</b> Javadoc ghi rõ: không đảm bảo về kiểu, tính thay đổi được, tính serializable hay thread-safety của <code>List</code> trả về. Trên OpenJDK hiện nay nó trả về <code>ArrayList</code> nên sửa được, nhưng dựa vào điều đó là dựa vào chi tiết cài đặt. Nếu bạn thực sự cần một list sửa được, hãy nói rõ ý định bằng <code>Collectors.toCollection(ArrayList::new)</code>.",
+        "<b>Ba lựa chọn 'ra list' và khác biệt thật giữa chúng.</b> <code>Collectors.toUnmodifiableList()</code> (Java 10) trả list bất biến và <b>ném NPE nếu có phần tử null</b>. <code>Stream.toList()</code> (Java 16) cũng trả list bất biến nhưng <b>cho phép null</b>, và ngắn hơn vì không cần <code>collect</code>. Trong code Java 17/21 mới, <code>stream().toList()</code> nên là mặc định, trừ khi bạn cần sửa kết quả về sau.",
+        "<b><code>groupingBy</code> và downstream collector.</b> Dạng một tham số trả về <code>Map&lt;K, List&lt;T&gt;&gt;</code> với <code>HashMap</code> làm cài đặt. Dạng hai tham số cho phép thay <code>List&lt;T&gt;</code> bằng bất kỳ collector nào: <code>counting()</code> cho <code>Long</code>, <code>mapping(f, toList())</code> để đổi phần tử, <code>summingInt</code>, <code>averagingDouble</code>, hoặc lồng thêm một <code>groupingBy</code> nữa để có map hai tầng. Dạng ba tham số cho phép chỉ định factory của map, ví dụ <code>TreeMap::new</code> để kết quả có thứ tự.",
+        "<b>Bẫy null của groupingBy.</b> Hàm phân loại (classifier) <b>không được trả về null</b> — <code>groupingBy</code> sẽ ném <code>NullPointerException</code>. Đây là lỗi hay gặp khi gom nhóm theo một trường có thể null trong database. Cách xử lý là map giá trị null về một khoá đại diện trước khi gom nhóm.",
+        "<b>Bẫy của <code>toMap</code>.</b> Ba thứ dễ nổ: khoá trùng ném <code>IllegalStateException: Duplicate key</code> nếu không truyền merge function; giá trị <code>null</code> ném <code>NullPointerException</code> (vì cài đặt dùng <code>Map.merge</code>), khác hẳn <code>HashMap.put</code> vốn chấp nhận null; và map trả về là <code>HashMap</code> nên không giữ thứ tự — muốn giữ thì truyền thêm <code>LinkedHashMap::new</code> ở tham số thứ tư. Trong code thật, gần như luôn nên truyền merge function tường minh để nói rõ bạn muốn giữ bản nào.",
+        "<b><code>partitioningBy</code> khác <code>groupingBy</code> ở một điểm quan trọng.</b> Nó luôn trả về map có <b>đủ cả hai khoá</b> <code>true</code> và <code>false</code>, kể cả khi một bên rỗng — nên gọi <code>get(false)</code> không bao giờ ra null. <code>groupingBy(x -&gt; cond)</code> thì chỉ tạo khoá nào thực sự có phần tử. Khi chỉ cần chia hai nhóm, <code>partitioningBy</code> vừa an toàn hơn vừa nhanh hơn vì nó dùng cài đặt map chuyên biệt hai phần tử."
+      ],
+      "example": "// Java 16+: bất biến, cho phép null, ngắn gọn\nList<String> a = stream.toList();\n\n// Java 10+: bất biến, NÉM NPE nếu có phần tử null\nList<String> b = stream.collect(Collectors.toUnmodifiableList());\n\n// Nói rõ ý định khi cần list sửa được\nList<String> c = stream.collect(Collectors.toCollection(ArrayList::new));\n\n// groupingBy + downstream\nMap<Integer, Long> byLen = names.stream()\n        .collect(Collectors.groupingBy(String::length, Collectors.counting()));\n\nMap<Dept, List<String>> namesByDept = emps.stream()\n        .collect(Collectors.groupingBy(Emp::dept,\n                 Collectors.mapping(Emp::name, Collectors.toList())));\n\n// toMap: luôn truyền merge function trong code thật\nMap<String, Integer> m = words.stream()\n        .collect(Collectors.toMap(w -> w, String::length,\n                                  (older, newer) -> older,   // giữ bản đầu\n                                  LinkedHashMap::new));       // giữ thứ tự\n\n// partitioningBy luôn có đủ hai khoá\nMap<Boolean, List<Emp>> p = emps.stream()\n        .collect(Collectors.partitioningBy(e -> e.salary() > 1000));\nint soNguoiLuongThap = p.get(false).size();   // không bao giờ null",
+      "exampleTitle": "Chọn đúng collector và tránh ba bẫy của toMap",
+      "keyPoints": [
+        "Collectors.toList() không đảm bảo mutability — thực tế OpenJDK trả ArrayList nhưng đừng phụ thuộc",
+        "Stream.toList() (Java 16+) trả list bất biến và cho phép null; toUnmodifiableList() (Java 10+) ném NPE với null",
+        "groupingBy trả HashMap và ném NPE nếu classifier trả null",
+        "toMap ném IllegalStateException khi khoá trùng và NPE khi giá trị null",
+        "partitioningBy luôn có đủ khoá true và false, an toàn hơn groupingBy khi chỉ chia hai nhóm"
+      ],
+      "trap": "Câu vặn hay dùng: Collectors.toList() có sửa được không? Trả lời 'có' là chưa đủ — đúng phải là 'trên OpenJDK hiện tại thì có, nhưng hợp đồng không đảm bảo, còn Stream.toList() thì chắc chắn không sửa được'.",
+      "followUp": [
+        "Vì sao Collectors.toMap ném NPE với giá trị null trong khi HashMap.put thì không?",
+        "Làm sao gom nhóm theo một trường có thể null mà không bị NPE?",
+        "Khi nào dùng partitioningBy thay vì groupingBy với một điều kiện boolean?"
+      ]
+    },
+    {
+      "id": "t-9-4",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "reduce, side effect và tính đúng đắn của pipeline",
+      "summary": "reduce chỉ cho kết quả đúng khi hàm tích luỹ associative và không có trạng thái — và mọi side effect trong lambda của stream đều là mầm bug.",
+      "sections": [
+        "<b>Ba dạng của <code>reduce</code>.</b> Dạng một tham số <code>reduce(BinaryOperator)</code> trả về <code>Optional</code> vì stream có thể rỗng. Dạng hai tham số <code>reduce(identity, accumulator)</code> trả thẳng giá trị. Dạng ba tham số <code>reduce(identity, accumulator, combiner)</code> dành cho trường hợp kiểu tích luỹ khác kiểu phần tử, và <code>combiner</code> chỉ thực sự được dùng khi chạy song song.",
+        "<b>Hợp đồng bắt buộc: identity và associativity.</b> <code>identity</code> phải thoả <code>accumulator(identity, x) == x</code> với mọi <code>x</code> — nếu bạn dùng <code>reduce(1, (a,b) -&gt; a+b)</code> thì kết quả sẽ lệch đi 1, và lệch thêm nữa khi chạy song song vì mỗi nhánh đều bắt đầu bằng identity. <code>accumulator</code> phải associative, tức <code>(a op b) op c == a op (b op c)</code>, vì stream song song chia dữ liệu thành các đoạn và ghép kết quả theo thứ tự cây chứ không theo thứ tự tuyến tính. Phép trừ và phép chia không associative nên không được dùng với <code>reduce</code>.",
+        "<b>Associative không đòi hỏi giao hoán.</b> Nối chuỗi là associative nhưng không giao hoán, và <code>reduce</code> vẫn cho kết quả đúng thứ tự trên stream có thứ tự — kể cả khi chạy song song, vì JDK ghép các đoạn theo đúng thứ tự vị trí. Nhiều người nhầm hai khái niệm này. (Dù vậy, nối chuỗi bằng <code>reduce</code> là O(n²) do tạo chuỗi mới mỗi bước; nên dùng <code>Collectors.joining()</code>.)",
+        "<b>Lambda trong stream phải không có side effect.</b> Javadoc gọi chúng là <i>behavioral parameter</i> và yêu cầu <i>non-interfering</i> (không sửa nguồn dữ liệu) và <i>stateless</i> (kết quả không phụ thuộc trạng thái có thể đổi giữa các lần gọi). Vi phạm điều thứ nhất thường ném <code>ConcurrentModificationException</code>; vi phạm điều thứ hai cho kết quả sai một cách im lặng, đặc biệt khi chạy song song.",
+        "<b>Vì sao <code>forEach(list::add)</code> là sai.</b> Nó gom kết quả vào một <code>ArrayList</code> chung. Chạy tuần tự thì may mắn đúng; chạy song song thì nhiều thread cùng <code>add</code> vào một <code>ArrayList</code> không thread-safe, cho ra list thiếu phần tử, chứa <code>null</code>, hoặc ném <code>ArrayIndexOutOfBoundsException</code>. Cách đúng là dùng <code>collect</code> — cơ chế collect chia cho mỗi nhánh một container riêng rồi mới gộp, nên nó an toàn theo thiết kế.",
+        "<b><code>collect</code> là reduce có tính khả biến.</b> Khi kết quả là một container (list, map, <code>StringBuilder</code>), tạo object mới ở mỗi bước như <code>reduce</code> sẽ tốn kém khủng khiếp. <code>collect(supplier, accumulator, combiner)</code> cho phép tích luỹ vào container khả biến mà vẫn an toàn song song, vì mỗi nhánh có container riêng. Hiểu được điều này là hiểu vì sao JDK có cả <code>reduce</code> lẫn <code>collect</code>."
+      ],
+      "example": "// SAI: identity không phải phần tử trung hoà của phép cộng\nint wrong = IntStream.rangeClosed(1, 4).reduce(1, (a, b) -> a + b);   // 11, không phải 10\n\n// SAI: phép trừ không associative -> kết quả khác nhau giữa tuần tự và song song\nint bad = Stream.of(1, 2, 3, 4).reduce(0, (a, b) -> a - b);\n\n// ĐÚNG\nint sum = IntStream.rangeClosed(1, 4).reduce(0, Integer::sum);        // 10\nOptional<Integer> max = Stream.of(3, 9, 2).reduce(Integer::max);\n\n// SAI: side effect vào collection dùng chung\nList<Integer> out = new ArrayList<>();\nIntStream.range(0, 100_000).parallel().boxed().forEach(out::add);      // kết quả không xác định\n\n// ĐÚNG: để collect lo chuyện gộp\nList<Integer> ok = IntStream.range(0, 100_000).parallel().boxed()\n        .collect(Collectors.toList());\n\n// Nối chuỗi: dùng joining chứ không dùng reduce (reduce là O(n^2))\nString csv = names.stream().collect(Collectors.joining(\", \", \"[\", \"]\"));",
+      "exampleTitle": "Hợp đồng của reduce và cái giá của side effect",
+      "keyPoints": [
+        "identity phải thoả accumulator(identity, x) == x, nếu không kết quả sai và sai nặng hơn khi song song",
+        "accumulator phải associative; phép trừ và phép chia thì không",
+        "Associative không đồng nghĩa với giao hoán — stream có thứ tự vẫn giữ đúng thứ tự khi ghép",
+        "Behavioral parameter phải non-interfering và stateless; forEach(list::add) vi phạm điều đó",
+        "collect tồn tại để tích luỹ vào container khả biến một cách an toàn, thay vì tạo object mới mỗi bước như reduce"
+      ],
+      "trap": "reduce(1, (a,b) -> a+b) là bẫy kinh điển vì chạy tuần tự chỉ lệch đúng 1 và dễ bị bỏ qua trong test, nhưng khi chuyển sang parallel thì mỗi nhánh cộng thêm một identity nữa và sai số phụ thuộc số CPU.",
+      "followUp": [
+        "Vì sao combiner trong reduce ba tham số chỉ được gọi khi chạy song song?",
+        "Tại sao nối chuỗi bằng reduce là O(n²) còn Collectors.joining thì không?",
+        "Non-interfering và stateless khác nhau thế nào, mỗi cái vi phạm sẽ gây triệu chứng gì?"
+      ]
+    },
+    {
+      "id": "t-9-5",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "parallelStream: common ForkJoinPool và khi nào KHÔNG nên dùng",
+      "summary": "Thêm .parallel() là một dòng code, nhưng nó đẩy công việc vào một thread pool dùng chung toàn JVM — đó là rủi ro thật trong ứng dụng web.",
+      "sections": [
+        "<b>Toàn bộ JVM chia sẻ một pool.</b> Mặc định, mọi parallel stream chạy trên <code>ForkJoinPool.commonPool()</code>. Mức song song của pool này là <code>Runtime.getRuntime().availableProcessors() - 1</code> (thread gọi cũng tham gia làm việc nên tổng vẫn bằng số CPU). Không có sự phân tách giữa các request, các module hay các thư viện — tất cả đều dùng chung.",
+        "<b>Vì sao đó là nguy hiểm trong web app.</b> Nếu một request chạy parallel stream có tác vụ chậm hoặc blocking (gọi HTTP, truy vấn DB, đọc file), nó chiếm giữ thread của common pool. Mọi parallel stream khác trong toàn JVM — kể cả của thư viện bên thứ ba — phải xếp hàng chờ. Đây là kiểu sự cố rất khó chẩn đoán vì triệu chứng xuất hiện ở nơi hoàn toàn không liên quan tới đoạn code gây ra nó. Quy tắc đơn giản: <b>không bao giờ đưa tác vụ blocking vào parallel stream</b>.",
+        "<b>Chi phí cố định của việc chia nhỏ.</b> Parallel stream phải chia dữ liệu, phân phối task, rồi gộp kết quả. Với dataset nhỏ hoặc hàm xử lý rẻ, chi phí đó lớn hơn phần tiết kiệm được và parallel <i>chậm hơn</i> sequential. Parallel chỉ có lãi khi thoả đồng thời: dữ liệu lớn, mỗi phần tử tốn CPU thật, và không có blocking. Không có con số vạn năng — phải đo bằng benchmark trên chính workload của mình.",
+        "<b>Nguồn dữ liệu quyết định phần lớn hiệu quả.</b> <code>ArrayList</code>, mảng và <code>IntStream.range</code> chia đôi được theo chỉ số nên chia cực rẻ. <code>LinkedList</code>, <code>HashSet</code>, <code>TreeMap</code> chia kém hơn nhiều. Nguồn từ I/O hay từ <code>Stream.iterate</code> thì gần như không chia được vì không biết trước kích thước — parallel với chúng hầu như vô ích.",
+        "<b>Thứ tự và các operation đắt khi song song.</b> <code>forEach</code> không đảm bảo thứ tự khi song song; muốn giữ thứ tự phải dùng <code>forEachOrdered</code>, và điều đó xoá đi phần lớn lợi ích. <code>findFirst</code> đắt hơn <code>findAny</code> vì phải xác định phần tử đầu tiên theo thứ tự gốc. <code>limit</code> và <code>skip</code> cũng đắt trên stream có thứ tự vì phải đếm chính xác.",
+        "<b>Boxing là kẻ giết hiệu năng thầm lặng.</b> <code>list.stream().map(Order::amount).reduce(0, Integer::sum)</code> tạo một <code>Integer</code> ở mỗi bước; <code>list.stream().mapToInt(Order::amount).sum()</code> làm việc thẳng trên <code>int</code>. Với dữ liệu lớn, chuyển sang <code>IntStream</code>/<code>LongStream</code>/<code>DoubleStream</code> thường cho cải thiện rõ hơn nhiều so với việc bật <code>parallel()</code>. Lưu ý <code>IntStream.sum()</code> trả về <code>int</code> nên có thể tràn số — với dữ liệu lớn hãy dùng <code>mapToLong</code> hoặc <code>asLongStream()</code>."
+      ],
+      "example": "// NGUY HIỂM: blocking trong common pool, ảnh hưởng toàn JVM\nurls.parallelStream().map(httpClient::fetch).toList();\n\n// Tách pool riêng cho tác vụ CPU-bound (parallel stream submit vào FJP nào\n// thì chạy trên FJP đó — hành vi này đúng với cài đặt hiện tại của OpenJDK\n// nhưng KHÔNG được đặc tả, nên hãy dùng có ý thức)\nForkJoinPool pool = new ForkJoinPool(4);\ntry {\n    List<Result> r = pool.submit(() -> data.parallelStream().map(this::heavyCpu).toList()).get();\n} finally {\n    pool.shutdown();\n}\n\n// Boxing vs primitive stream\nint s1 = orders.stream().map(Order::amount).reduce(0, Integer::sum);  // boxing mỗi bước\nint s2 = orders.stream().mapToInt(Order::amount).sum();                // không boxing\nlong s3 = orders.stream().mapToLong(Order::amount).sum();              // tránh tràn int\n\n// Nguồn khó chia -> parallel gần như vô ích\nnew LinkedList<>(data).parallelStream().map(this::work).toList();",
+      "exampleTitle": "Ba quyết định quan trọng: pool, kích thước, và boxing",
+      "keyPoints": [
+        "Mặc định parallel stream chạy trên ForkJoinPool.commonPool() dùng chung toàn JVM",
+        "Tác vụ blocking trong parallel stream có thể làm nghẽn mọi parallel stream khác trong tiến trình",
+        "Parallel chỉ có lãi khi dữ liệu lớn, mỗi phần tử tốn CPU, nguồn chia rẻ (ArrayList, mảng, IntStream.range)",
+        "forEachOrdered, findFirst, limit, skip đều đắt hơn khi chạy song song vì phải giữ thứ tự",
+        "Chuyển sang IntStream/LongStream để bỏ boxing thường hiệu quả hơn là bật parallel"
+      ],
+      "trap": "Nhiều người coi parallelStream() là nút tăng tốc miễn phí. Câu hỏi vặn thường là: nếu hai request cùng gọi parallelStream với tác vụ chậm thì chuyện gì xảy ra — đáp án là chúng tranh nhau đúng một common pool của cả JVM.",
+      "followUp": [
+        "Mức song song mặc định của common pool là bao nhiêu, và thread gọi có tham gia làm việc không?",
+        "Vì sao LinkedList là nguồn tệ cho parallel stream còn ArrayList thì tốt?",
+        "IntStream.sum() có nguy cơ gì với dữ liệu lớn, và khắc phục thế nào?"
+      ]
+    },
+    {
+      "id": "t-10-1",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Optional được thiết kế cho KIỂU TRẢ VỀ, không phải cho field hay tham số",
+      "summary": "Hiểu đúng phạm vi sử dụng của Optional quan trọng hơn thuộc hết API của nó.",
+      "sections": [
+        "<b>Bài toán mà Optional giải quyết.</b> Trước Java 8, một method trả về <code>User</code> không có cách nào nói cho người gọi biết rằng kết quả có thể không tồn tại — thông tin đó nằm trong javadoc, và javadoc thì không ai bắt buộc phải đọc. <code>Optional&lt;User&gt;</code> đưa khả năng 'không có giá trị' vào <b>hệ thống kiểu</b>, nên compiler buộc người gọi phải nghĩ tới trường hợp rỗng.",
+        "<b>Tuyên bố của chính người thiết kế.</b> Brian Goetz đã nói rõ Optional ra đời cho tình huống hẹp: kiểu trả về của method mà việc 'không có kết quả' là bình thường và người gọi cần được nhắc xử lý. Nó không phải cơ chế thay thế null trên toàn bộ codebase, và cũng không phải kiểu dữ liệu đa dụng.",
+        "<b>Vì sao không dùng cho field.</b> Ba lý do cụ thể. Thứ nhất, <code>Optional</code> <b>không implement <code>Serializable</code></b>, nên một class <code>Serializable</code> có field kiểu <code>Optional</code> sẽ ném <code>NotSerializableException</code> lúc ghi. Thứ hai, mỗi field <code>Optional</code> là thêm một object trên heap cho mỗi instance — với entity đọc hàng triệu dòng thì đó là chi phí thật. Thứ ba, framework như JPA, Jackson hay nhiều thư viện mapping không xử lý được kiểu này một cách tự nhiên. Cách đúng là để field nullable và cho <b>getter</b> trả về <code>Optional</code>.",
+        "<b>Vì sao không dùng cho tham số.</b> Người gọi buộc phải viết <code>f(Optional.of(x))</code> hoặc <code>f(Optional.empty())</code> — dài dòng mà không mang lại an toàn nào, vì bản thân tham số kiểu <code>Optional</code> vẫn có thể nhận giá trị <code>null</code> và lúc đó bạn có tới ba trạng thái phải xử lý: null, empty, có giá trị. Giải pháp đúng cho tham số tuỳ chọn là overload method hoặc dùng builder.",
+        "<b>Cũng không dùng cho collection.</b> <code>Optional&lt;List&lt;T&gt;&gt;</code> gần như luôn sai: một list rỗng đã diễn đạt trọn vẹn ý 'không có gì' rồi, và người gọi có thể duyệt nó bình thường mà không cần kiểm tra. Tương tự, đừng bao giờ trả về <code>Optional</code> mà giá trị bên trong là <code>null</code> hay tạo <code>List&lt;Optional&lt;T&gt;&gt;</code> nếu có cách lọc trước.",
+        "<b>Optional không giải quyết được null bên trong.</b> <code>Optional&lt;User&gt;</code> chỉ nói rằng có hay không có <code>User</code>; nó không nói gì về việc <code>user.getEmail()</code> có null hay không. Nếu bạn bọc mọi thứ vào Optional để 'khỏi NPE', bạn chỉ đang di chuyển vấn đề. Optional có giá trị nhất ở ranh giới API — repository, lookup, parse — chứ không phải rải khắp mọi tầng."
+      ],
+      "example": "// SAI: field kiểu Optional -> NotSerializableException khi serialize\nclass User implements Serializable {\n    private Optional<String> nickname = Optional.empty();\n}\n\n// ĐÚNG: field nullable, getter trả Optional\nclass User implements Serializable {\n    private String nickname;                     // có thể null\n    public Optional<String> nickname() {\n        return Optional.ofNullable(nickname);\n    }\n}\n\n// SAI: Optional làm tham số\nvoid search(String q, Optional<Integer> limit) { ... }\n\n// ĐÚNG: overload\nvoid search(String q)            { search(q, 20); }\nvoid search(String q, int limit) { ... }\n\n// SAI: Optional bọc collection\nOptional<List<Order>> findOrders(long id);\n// ĐÚNG: trả list rỗng\nList<Order> findOrders(long id);",
+      "exampleTitle": "Đúng chỗ và sai chỗ của Optional",
+      "keyPoints": [
+        "Optional đưa khả năng 'không có giá trị' vào hệ thống kiểu, dành cho kiểu trả về của method",
+        "Optional không implement Serializable — field kiểu Optional làm hỏng Java serialization",
+        "Tham số kiểu Optional tạo ra ba trạng thái (null / empty / có giá trị) thay vì hai",
+        "Collection rỗng đã đủ diễn đạt 'không có gì', không cần Optional<List<T>>",
+        "Optional chỉ nói về sự tồn tại của chính giá trị đó, không bảo vệ khỏi null bên trong object"
+      ],
+      "trap": "Câu vặn hay dùng: vì sao không nên đặt Optional làm field của entity? Câu trả lời đầy đủ phải nêu được cả ba mặt — không Serializable, thêm một object cho mỗi instance, và framework mapping không hỗ trợ.",
+      "followUp": [
+        "Nếu class có field Optional và bạn phải serialize nó thì làm cách nào?",
+        "Vì sao Optional<List<T>> gần như luôn là thiết kế sai?",
+        "Optional có giúp gì cho trường hợp user.getAddress().getCity() bị null ở giữa chuỗi không?"
+      ]
+    },
+    {
+      "id": "t-10-2",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Tạo và mở Optional: of, ofNullable, get, orElseThrow",
+      "summary": "Ba cách tạo và năm cách lấy giá trị ra — chọn sai là biến Optional thành một cách viết dài dòng của null.",
+      "sections": [
+        "<b>Ba cách tạo.</b> <code>Optional.of(x)</code> yêu cầu <code>x</code> khác null và <b>ném NPE ngay lập tức</b> nếu null. <code>Optional.ofNullable(x)</code> chấp nhận null và biến nó thành <code>Optional.empty()</code>. <code>Optional.empty()</code> trả về instance rỗng. Việc <code>of</code> ném NPE không phải là thiếu sót mà là chủ đích: nó biến 'giá trị này lẽ ra không bao giờ null' thành một khẳng định được kiểm tra ngay tại điểm sinh ra, thay vì để lỗi nổ ở đâu đó xa hơn.",
+        "<b>Chọn giữa of và ofNullable là một quyết định thiết kế.</b> Dùng <code>of</code> khi bạn biết chắc giá trị tồn tại và muốn fail-fast nếu giả định sai. Dùng <code>ofNullable</code> khi bạn đang bọc kết quả từ một API có thể trả null, ví dụ <code>map.get(key)</code> hay một thư viện cũ. Viết <code>ofNullable</code> ở mọi nơi 'cho chắc' là làm mất khả năng phát hiện lỗi sớm.",
+        "<b><code>get()</code> không kiểm tra là anti-pattern.</b> <code>opt.get()</code> ném <code>NoSuchElementException</code> khi rỗng. Viết <code>if (opt.isPresent()) return opt.get();</code> chỉ là câu lệnh kiểm tra null cũ với nhiều chữ hơn và thêm một object rác — nó vứt bỏ toàn bộ giá trị của Optional. Nếu bạn thấy <code>isPresent</code> đi kèm <code>get</code> trong code review, gần như luôn có thể viết lại bằng <code>map</code>, <code>filter</code>, <code>orElse</code>, <code>orElseGet</code> hoặc <code>ifPresent</code>.",
+        "<b><code>orElseThrow()</code> không tham số có từ Java 10.</b> Nó làm đúng việc của <code>get()</code> nhưng tên gọi nói rõ rằng có thể ném exception, nên đọc code là thấy ngay ý định. Từ Java 10 trở đi, nếu thật sự cần lấy giá trị và chấp nhận nổ khi rỗng, hãy dùng <code>orElseThrow()</code> thay cho <code>get()</code>. Bản có tham số <code>orElseThrow(Supplier)</code> đã có từ Java 8 và là cách chuẩn để ném exception nghiệp vụ của bạn.",
+        "<b>Bảng chọn nhanh.</b> Có giá trị mặc định rẻ (hằng số, chuỗi rỗng) thì dùng <code>orElse</code>. Giá trị mặc định phải tính toán hoặc gọi ra ngoài thì dùng <code>orElseGet</code>. Rỗng là lỗi nghiệp vụ thì dùng <code>orElseThrow(() -&gt; new NotFoundException(id))</code>. Chỉ cần chạy một hành động khi có giá trị thì dùng <code>ifPresent</code>. Cần cả hai nhánh thì dùng <code>ifPresentOrElse</code> (Java 9+).",
+        "<b><code>isEmpty()</code> có từ Java 11.</b> Trước đó phải viết <code>!opt.isPresent()</code>, khá khó đọc khi lồng trong điều kiện phức tạp. Đây là một trong những khác biệt phiên bản nhỏ nhưng hay được hỏi khi phỏng vấn về Optional."
+      ],
+      "example": "// Tạo\nOptional<String> a = Optional.of(\"x\");          // NPE nếu tham số null\nOptional<String> b = Optional.ofNullable(map.get(\"k\"));  // null -> empty\nOptional<String> c = Optional.empty();\n\n// XẤU: isPresent + get\nif (opt.isPresent()) {\n    return opt.get().getName();\n}\nreturn \"unknown\";\n\n// TỐT\nreturn opt.map(User::getName).orElse(\"unknown\");\n\n// Rỗng là lỗi nghiệp vụ\nUser u = repo.findById(id)\n             .orElseThrow(() -> new UserNotFoundException(id));\n\n// Java 10+: thay cho get()\nUser u2 = repo.findById(id).orElseThrow();\n\n// Java 11+\nif (opt.isEmpty()) { ... }        // trước đó: !opt.isPresent()",
+      "exampleTitle": "Tạo, mở và chọn đúng method",
+      "keyPoints": [
+        "of ném NPE với null (fail-fast có chủ đích); ofNullable biến null thành empty",
+        "isPresent() + get() là anti-pattern — hầu như luôn viết lại được bằng map/orElse/ifPresent",
+        "orElseThrow() không tham số có từ Java 10, nên dùng thay cho get()",
+        "orElseThrow(Supplier) có từ Java 8, là cách chuẩn ném exception nghiệp vụ",
+        "isEmpty() có từ Java 11"
+      ],
+      "trap": "Nhiều người nghĩ get() đã bị deprecated. Tính tới Java 21 thì get() KHÔNG bị deprecated — nó chỉ bị khuyến cáo tránh dùng, và orElseThrow() (Java 10) được thêm vào làm bản thay thế có tên rõ nghĩa hơn.",
+      "followUp": [
+        "Khi nào nên dùng of thay vì ofNullable, và ngược lại?",
+        "orElseThrow() không tham số ném exception gì khi Optional rỗng?",
+        "Vì sao isPresent() + get() bị coi là bỏ phí toàn bộ giá trị của Optional?"
+      ]
+    },
+    {
+      "id": "t-10-3",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "orElse vs orElseGet: bẫy đánh giá sớm",
+      "summary": "orElse luôn tính đối số của nó, kể cả khi Optional có giá trị — đó là bẫy kinh điển và cũng là bug hiệu năng thật.",
+      "sections": [
+        "<b>Cơ chế nằm ở luật của Java, không phải ở Optional.</b> <code>orElse(other)</code> nhận một <b>giá trị</b>. Java đánh giá mọi đối số trước khi gọi method, nên biểu thức trong ngoặc luôn được thực thi — dù Optional có giá trị và giá trị đó rốt cuộc bị vứt đi. <code>orElseGet(supplier)</code> nhận một <b>hàm</b>, và hàm đó chỉ được gọi khi Optional rỗng.",
+        "<b>Vì sao đây là bug thật chứ không phải chuyện học thuật.</b> <code>cache.find(k).orElse(loadFromDatabase(k))</code> gọi database ở <b>mọi</b> lần chạy, kể cả khi cache trúng — cache mất hoàn toàn tác dụng mà không ai nhận ra vì kết quả trả về vẫn đúng. Đây là dạng lỗi chỉ lộ ra qua profiler hoặc qua hoá đơn hạ tầng.",
+        "<b>Trường hợp nguy hiểm hơn: đối số có side effect.</b> <code>opt.orElse(counter.incrementAndGet())</code> tăng bộ đếm ngay cả khi Optional có giá trị. <code>opt.orElse(list.remove(0))</code> xoá phần tử ngay cả khi không cần. Những lỗi này sai <b>ngữ nghĩa</b> chứ không chỉ chậm.",
+        "<b>Khi nào orElse là lựa chọn đúng.</b> Khi giá trị mặc định là một hằng số hoặc biến đã có sẵn: <code>orElse(\"\")</code>, <code>orElse(0)</code>, <code>orElse(DEFAULT_CONFIG)</code>. Trong những trường hợp đó <code>orElseGet</code> chỉ thêm một lambda vô ích. Quy tắc gọn: đối số là một <b>lời gọi method</b> thì dùng <code>orElseGet</code>; đối số là một hằng hay biến sẵn thì dùng <code>orElse</code>.",
+        "<b>Cùng một bẫy xuất hiện ở nhiều nơi khác.</b> <code>orElseThrow(Supplier)</code> dùng supplier chính vì lý do này — nếu nhận thẳng một exception thì object exception (kèm chi phí điền stack trace) sẽ được tạo ở mọi lần gọi. Tư duy tương tự áp dụng cho <code>Map.computeIfAbsent</code> so với <code>getOrDefault</code>, và cho các API logging nhận supplier.",
+        "<b>Một nhầm lẫn thường đi kèm.</b> Nhiều người tưởng <code>orElse</code> không được gọi khi Optional có giá trị. Chính xác là <b>method <code>orElse</code> vẫn được gọi</b> và vẫn trả về giá trị bên trong Optional; chỉ có điều đối số của nó đã bị tính xong từ trước khi lời gọi bắt đầu. Nói rõ được điều này chứng tỏ bạn hiểu cơ chế chứ không chỉ thuộc lòng lời khuyên."
+      ],
+      "example": "static String loadFromDb(String k) {\n    System.out.println(\"truy van DB\");\n    return \"db-\" + k;\n}\n\nOptional<String> cached = Optional.of(\"cache-hit\");\n\n// In ra \"truy van DB\" DÙ Optional có giá trị; kết quả vẫn là \"cache-hit\"\nString v1 = cached.orElse(loadFromDb(\"k\"));\n\n// KHÔNG gọi DB\nString v2 = cached.orElseGet(() -> loadFromDb(\"k\"));\n\n// orElse hợp lý khi mặc định là hằng số\nString name = opt.orElse(\"\");\n\n// Cùng lý do: exception được tạo lười\nUser u = repo.findById(id)\n             .orElseThrow(() -> new UserNotFoundException(id));",
+      "exampleTitle": "Cùng kết quả, khác hoàn toàn về tác dụng phụ",
+      "keyPoints": [
+        "Java đánh giá đối số trước khi gọi method, nên biểu thức trong orElse luôn chạy",
+        "orElseGet nhận Supplier nên chỉ chạy khi Optional rỗng",
+        "Đối số là lời gọi method thì dùng orElseGet; là hằng hay biến sẵn thì dùng orElse",
+        "Đối số có side effect trong orElse gây sai ngữ nghĩa chứ không chỉ chậm",
+        "orElseThrow nhận Supplier cũng vì lý do đánh giá lười — tránh tạo exception ở mọi lần gọi"
+      ],
+      "trap": "Người phỏng vấn đưa code có println bên trong hàm truyền vào orElse rồi hỏi output. Trả lời 'không in gì vì Optional có giá trị' là sai — nó in, vì đối số được tính trước khi orElse chạy.",
+      "followUp": [
+        "Vì sao orElseThrow lại nhận Supplier<X> thay vì nhận thẳng một exception?",
+        "Có trường hợp nào orElseGet tệ hơn orElse không?",
+        "Nêu một API khác trong JDK cũng dùng Supplier vì lý do đánh giá lười tương tự."
+      ]
+    },
+    {
+      "id": "t-10-4",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "map, flatMap và filter: xâu chuỗi Optional đúng cách",
+      "summary": "Optional là một container có thể duyệt, nên nó có map và flatMap với đúng ngữ nghĩa như của Stream.",
+      "sections": [
+        "<b><code>map</code> tự bọc kết quả bằng <code>ofNullable</code>.</b> <code>opt.map(f)</code> trả về <code>Optional.empty()</code> nếu opt rỗng, ngược lại trả về <code>Optional.ofNullable(f.apply(value))</code>. Chi tiết quan trọng nằm ở chữ <code>ofNullable</code>: nếu hàm <code>f</code> trả về <code>null</code>, kết quả là một Optional <b>rỗng</b> chứ không phải Optional chứa null. Nhờ đó chuỗi <code>map</code> tự động hấp thụ mọi null xuất hiện ở giữa.",
+        "<b><code>flatMap</code> dành cho hàm vốn đã trả về Optional.</b> Nếu <code>getAddress()</code> trả <code>Optional&lt;Address&gt;</code> mà bạn dùng <code>map</code>, kết quả sẽ là <code>Optional&lt;Optional&lt;Address&gt;&gt;</code> — hợp lệ về kiểu nhưng vô dụng, và thường lộ ra dưới dạng lỗi biên dịch ở dòng tiếp theo. <code>flatMap</code> phẳng hoá một tầng, cho ra <code>Optional&lt;Address&gt;</code>. Quy tắc: hàm trả về giá trị thường thì <code>map</code>, hàm trả về Optional thì <code>flatMap</code>.",
+        "<b><code>filter</code> biến điều kiện thành rỗng.</b> <code>opt.filter(p)</code> giữ nguyên Optional nếu có giá trị và giá trị thoả predicate, ngược lại trả về rỗng. Nó cho phép gộp kiểm tra tồn tại và kiểm tra hợp lệ vào một chuỗi duy nhất, ví dụ <code>findUser(id).filter(User::isActive).map(User::getEmail)</code>.",
+        "<b>Chuỗi map thay cho kim tự tháp if.</b> Đây là lợi ích thực tế rõ nhất: thay vì bốn tầng <code>if (x != null)</code> lồng nhau để đi từ <code>Order</code> tới tên thành phố, ta viết một chuỗi phẳng và đọc theo đúng thứ tự nghiệp vụ. Điều kiện là các getter phải trả về giá trị có thể bọc được; nếu chúng đã trả Optional thì dùng <code>flatMap</code>.",
+        "<b>Nhưng đừng lạm dụng.</b> Nếu chỉ có đúng một lần kiểm tra null, viết <code>if (x != null)</code> vẫn rõ ràng và rẻ hơn — mỗi lời gọi <code>Optional.ofNullable</code> là một object mới trên heap. Optional có giá trị khi nó nằm trong <b>chữ ký</b> của API để truyền đạt ý nghĩa, hoặc khi chuỗi kiểm tra đủ dài để cách viết cũ trở nên khó đọc. Bọc một biến local vào Optional chỉ để tránh một lệnh <code>if</code> là dùng sai công cụ.",
+        "<b>Chi phí và giới hạn.</b> Optional là một class thường (không phải value type), nên mỗi instance là một object trên heap; JIT có thể loại bỏ được khi nó không thoát khỏi method, nhưng không có gì đảm bảo. Trong vòng lặp nóng hoặc trên đường đi được gọi hàng triệu lần mỗi giây, đó là chi phí cần cân nhắc — thêm một lý do nữa để giữ Optional ở ranh giới API chứ không rải xuống mọi tầng bên trong."
+      ],
+      "example": "// Kim tự tháp if\nString city = \"unknown\";\nif (order != null) {\n    Customer c = order.getCustomer();\n    if (c != null) {\n        Address a = c.getAddress();\n        if (a != null && a.getCity() != null) city = a.getCity();\n    }\n}\n\n// Chuỗi map: null ở bất kỳ bước nào cũng thành empty\nString city2 = Optional.ofNullable(order)\n        .map(Order::getCustomer)\n        .map(Customer::getAddress)\n        .map(Address::getCity)\n        .orElse(\"unknown\");\n\n// Getter đã trả Optional -> phải flatMap\n// Customer.getAddress() : Optional<Address>\nOptional<Optional<Address>> sai = optOrder.map(Order::getCustomer).map(Customer::getAddress);\nOptional<Address> dung = optOrder.map(Order::getCustomer).flatMap(Customer::getAddress);\n\n// filter gộp kiểm tra tồn tại và kiểm tra hợp lệ\nOptional<String> email = repo.findById(id)\n        .filter(User::isActive)\n        .map(User::getEmail);",
+      "exampleTitle": "map, flatMap, filter và giới hạn của chúng",
+      "keyPoints": [
+        "map bọc kết quả bằng ofNullable nên hàm trả null cho ra Optional rỗng, không phải Optional chứa null",
+        "Hàm trả về Optional thì dùng flatMap, nếu không sẽ ra Optional<Optional<T>>",
+        "filter biến giá trị không thoả điều kiện thành Optional rỗng",
+        "Chuỗi map thay được kim tự tháp if và đọc theo đúng thứ tự nghiệp vụ",
+        "Mỗi Optional là một object trên heap — đừng dùng chỉ để né một lệnh if trong code nội bộ"
+      ],
+      "trap": "Đưa ra một getter trả về Optional rồi hỏi kiểu kết quả khi dùng map. Đáp án Optional<Optional<T>> làm nhiều người bất ngờ vì họ quen nghĩ map luôn phẳng hoá.",
+      "followUp": [
+        "Optional.of(\"a\").map(s -> null) cho ra gì?",
+        "Khi nào chuỗi Optional trở nên khó đọc hơn cách viết if truyền thống?",
+        "Vì sao nói Optional có chi phí allocation, và JIT xử lý được tới đâu?"
+      ]
+    },
+    {
+      "id": "t-10-5",
+      "topicId": 10,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "Optional từ Java 9 tới 11: ifPresentOrElse, or, stream, isEmpty",
+      "summary": "Ba phiên bản sau Java 8 bổ sung đúng những method còn thiếu để không phải quay lại isPresent + get.",
+      "sections": [
+        "<b><code>ifPresentOrElse</code> (Java 9).</b> Java 8 chỉ có <code>ifPresent(Consumer)</code>, nên khi cần cả nhánh 'không có gì' người ta buộc phải quay lại <code>if (opt.isPresent()) ... else ...</code>. <code>ifPresentOrElse(consumer, runnable)</code> lấp đúng khoảng trống đó và giữ được phong cách hàm.",
+        "<b><code>or</code> (Java 9).</b> <code>or(Supplier&lt;Optional&lt;T&gt;&gt;)</code> trả về chính Optional nếu có giá trị, ngược lại trả về Optional do supplier sinh ra. Khác biệt với <code>orElseGet</code> nằm ở kiểu trả về: <code>or</code> trả về <code>Optional</code> nên xâu chuỗi tiếp được, còn <code>orElseGet</code> trả về giá trị trần và kết thúc chuỗi. Đây là công cụ đúng cho mẫu fallback nhiều tầng: tìm trong cache, không có thì tìm DB, không có nữa thì tìm service ngoài — và vì là <code>Supplier</code> nên các tầng sau chỉ chạy khi thực sự cần.",
+        "<b><code>stream()</code> (Java 9).</b> Biến Optional thành một stream có 0 hoặc 1 phần tử. Kết hợp với <code>flatMap</code>, nó cho phép lọc và mở một <code>Stream&lt;Optional&lt;T&gt;&gt;</code> chỉ trong một bước: <code>stream.flatMap(Optional::stream)</code>, thay cho cặp <code>filter(Optional::isPresent).map(Optional::get)</code> vốn dài hơn và có <code>get()</code> ở giữa.",
+        "<b><code>isEmpty</code> (Java 11).</b> Chỉ là <code>!isPresent()</code> nhưng đọc rõ hơn nhiều trong điều kiện phủ định và trong early return. Đây là bổ sung nhỏ nhất nhưng lại hay được hỏi vì nó xác định người trả lời có thực sự dùng Java hiện đại hay không.",
+        "<b>So sánh Optional phải dùng <code>equals</code>.</b> <code>Optional</code> override <code>equals</code>: hai Optional bằng nhau khi cùng rỗng, hoặc cùng có giá trị và hai giá trị <code>equals</code> nhau. Dùng <code>==</code> là so sánh tham chiếu object bao ngoài và gần như luôn sai. Ngoài ra <code>Optional.empty()</code> trong OpenJDK trả về một instance dùng chung, nên <code>==</code> có thể tình cờ đúng với Optional rỗng và khiến bạn tin nhầm — đây là chi tiết cài đặt, đừng dựa vào.",
+        "<b>Ba lưu ý cuối khi thiết kế API.</b> Đừng bao giờ trả về <code>null</code> từ một method có kiểu trả về là <code>Optional</code> — đó là lỗi tệ nhất có thể mắc với Optional, vì người gọi không còn cách nào tự bảo vệ. Không dùng Optional làm khoá hay giá trị trong map. Và nếu method của bạn trả <code>Optional</code>, hãy giữ nguyên như vậy suốt chuỗi gọi thay vì mở ra rồi bọc lại nhiều lần."
+      ],
+      "example": "// Java 9\nrepo.findById(id).ifPresentOrElse(\n        u -> log.info(\"found {}\", u),\n        () -> log.warn(\"khong thay {}\", id));\n\n// Fallback nhiều tầng: tầng sau chỉ chạy khi cần\nOptional<Config> cfg = fromCache(k)\n        .or(() -> fromDatabase(k))\n        .or(() -> fromRemote(k));\n\n// Lọc Stream<Optional<T>> gọn gàng\nList<Optional<String>> raw = List.of(Optional.of(\"a\"), Optional.empty(), Optional.of(\"b\"));\n\nList<String> cu = raw.stream()\n        .filter(Optional::isPresent).map(Optional::get)\n        .collect(Collectors.toList());              // Java 8\n\nList<String> moi = raw.stream()\n        .flatMap(Optional::stream)\n        .collect(Collectors.toList());              // Java 9+\n\n// Java 11\nif (opt.isEmpty()) return;\n\n// So sánh\nOptional<String> a = Optional.of(new String(\"java\"));\nOptional<String> b = Optional.of(\"java\");\na == b;        // false\na.equals(b);   // true",
+      "exampleTitle": "Những bổ sung sau Java 8 và cách so sánh Optional",
+      "keyPoints": [
+        "Java 9 thêm ifPresentOrElse, or(Supplier<Optional<T>>) và stream()",
+        "or trả về Optional nên xâu chuỗi tiếp được; orElseGet trả giá trị trần và kết thúc chuỗi",
+        "flatMap(Optional::stream) thay cho filter(isPresent).map(get)",
+        "Java 11 thêm isEmpty()",
+        "So sánh Optional bằng equals; đừng bao giờ trả về null từ method có kiểu trả về Optional"
+      ],
+      "trap": "Nhầm or với orElse. or nhận Supplier<Optional<T>> và trả về Optional<T>; orElse nhận T và trả về T. Gọi nhầm sẽ không biên dịch được, nhưng khi hỏi miệng thì rất nhiều người mô tả sai kiểu.",
+      "followUp": [
+        "or và orElseGet khác nhau ở kiểu trả về như thế nào, và điều đó ảnh hưởng gì tới cách xâu chuỗi?",
+        "Vì sao trả về null từ một method khai báo Optional lại là lỗi nghiêm trọng hơn cả trả null thông thường?",
+        "Optional.empty() == Optional.empty() cho ra gì, và có nên dựa vào kết quả đó không?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-8-1",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Bạn cần một hàm nhận vào một String và trả về độ dài dạng int, dùng trong pipeline xử lý hàng chục triệu phần tử. Functional interface nào có sẵn trong java.util.function là phù hợp nhất để tránh autoboxing?",
+      "choices": [
+        "Function<String, Integer>",
+        "ToIntFunction<String>",
+        "IntFunction<String>",
+        "IntSupplier"
+      ],
+      "correctAnswer": 1,
+      "explanation": "ToIntFunction<T> có method int applyAsInt(T value): tham số là object T, kết quả là primitive int nên không phải bọc vào Integer. Quy tắc đọc tên: tiền tố Int/Long/Double chỉ kiểu THAM SỐ, còn tiền tố To chỉ kiểu TRẢ VỀ. Với vài trăm phần tử thì boxing không đáng kể, nhưng ở quy mô hàng chục triệu, mỗi lần boxing là một object trên heap và một lần tra Integer cache (chỉ áp dụng cho -128..127), tạo áp lực GC thật sự.",
+      "whyWrong": [
+        "Function<String,Integer> trả về Integer nên mỗi lần gọi phải boxing giá trị int thành object — đúng thứ câu hỏi muốn tránh.",
+        "",
+        "IntFunction<R> đi ngược chiều: nhận vào một int và trả về object R. Ở đây đầu vào là String chứ không phải int.",
+        "IntSupplier không nhận tham số nào, nên không thể nhận String để tính độ dài."
+      ]
+    },
+    {
+      "id": "d-8-2",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau có hành vi gì?",
+      "code": "void countShortNames(List<String> names) {\n    int count = 0;\n    names.forEach(n -> {\n        if (n.length() < 4) count++;\n    });\n    System.out.println(count);\n}",
+      "choices": [
+        "In ra số tên ngắn hơn 4 ký tự",
+        "In ra 0 vì lambda chỉ sửa bản sao của count",
+        "Lỗi biên dịch: biến local dùng trong lambda phải là final hoặc effectively final",
+        "Ném ConcurrentModificationException vì sửa biến trong lúc duyệt"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Code không biên dịch được. Biến local sống trong stack frame của method, còn object lambda nằm trên heap và có thể sống lâu hơn frame đó, nên Java capture biến local theo GIÁ TRỊ (copy). Đã copy thì việc cho phép gán lại sẽ tạo ra hai bản giá trị lệch nhau, vì vậy compiler cấm luôn: biến được capture phải effectively final. Cách đúng ở đây là dùng chính stream: names.stream().filter(n -> n.length() < 4).count().",
+      "whyWrong": [
+        "Không có gì để in vì code không qua được bước biên dịch.",
+        "Java không âm thầm sửa bản sao rồi bỏ qua — đây là lỗi biên dịch tường minh, không phải lỗi logic lúc chạy.",
+        "",
+        "ConcurrentModificationException chỉ xảy ra khi sửa cấu trúc của collection đang duyệt, không liên quan tới việc gán biến local."
+      ]
+    },
+    {
+      "id": "d-8-3",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Interface sau có biên dịch được không?",
+      "code": "@FunctionalInterface\ninterface Validator {\n    boolean test(String s);\n    default Validator negate() { return s -> !test(s); }\n    static Validator alwaysTrue() { return s -> true; }\n    @Override String toString();\n}",
+      "choices": [
+        "Không — @FunctionalInterface chỉ cho phép đúng một method trong interface",
+        "Không — default method và static method không được phép trong functional interface",
+        "Có — default, static và abstract method trùng chữ ký public của Object đều không tính là abstract method",
+        "Có, nhưng chỉ từ Java 9 trở lên khi interface hỗ trợ private method"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Biên dịch tốt. Luật của @FunctionalInterface là interface phải có đúng một abstract method, và ba thứ sau không được tính: method có thân hàm (default, static, private), và abstract method có chữ ký trùng với method public của lớp Object (equals, hashCode, toString) — vì mọi object đã có sẵn cài đặt nên lambda không cần cung cấp. Đây chính là lý do Comparator vẫn là functional interface dù khai báo cả compare lẫn equals.",
+      "whyWrong": [
+        "Ràng buộc là đúng một ABSTRACT method, không phải đúng một method. Interface có bao nhiêu default/static tuỳ ý.",
+        "Default và static method hoàn toàn hợp lệ trong functional interface — Predicate và Function của JDK đều có.",
+        "",
+        "Cả default lẫn static method trong interface đã có từ Java 8; private method (Java 9) không xuất hiện trong đoạn code này."
+      ]
+    },
+    {
+      "id": "d-8-4",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Chương trình in ra gì?",
+      "code": "public class Outer {\n    private String name = \"outer\";\n\n    void run() {\n        Runnable lambda = () -> System.out.println(this.name);\n        Runnable anon = new Runnable() {\n            private String name = \"anon\";\n            public void run() { System.out.println(this.name); }\n        };\n        lambda.run();\n        anon.run();\n    }\n\n    public static void main(String[] a) { new Outer().run(); }\n}",
+      "choices": [
+        "outer rồi anon",
+        "outer rồi outer",
+        "anon rồi anon",
+        "Lỗi biên dịch: không được dùng this bên trong lambda"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Lambda không tạo ra một instance mới của kiểu nào cả — thân nó được dịch thành method của chính class Outer, nên this bên trong lambda chính là instance Outer, in ra 'outer'. Anonymous class thì là một class thật (Outer$1) có instance riêng, nên this trỏ tới object anonymous và this.name lấy field 'anon' của nó; muốn lấy field của Outer phải viết Outer.this.name. Hệ quả quan trọng: đọc một field instance trong lambda đồng nghĩa với capture this, tức giữ tham chiếu mạnh tới toàn bộ object bao ngoài.",
+      "whyWrong": [
+        "",
+        "Anonymous class có field name riêng che field của Outer, và this của nó trỏ vào chính nó nên in ra 'anon'.",
+        "Lambda không có instance riêng và cũng không được khai báo biến trùng tên với scope bao ngoài, nên this.name của nó là field của Outer.",
+        "this hoàn toàn hợp lệ trong lambda — chỉ là nó mang nghĩa lexical, tức là this của ngữ cảnh bao quanh."
+      ]
+    },
+    {
+      "id": "d-8-5",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Cho String s = \"hello\". Phát biểu nào đúng về hai method reference String::length và s::length?",
+      "choices": [
+        "Cả hai đều tương thích với Function<String, Integer>",
+        "String::length tương thích Function<String,Integer> (hoặc ToIntFunction<String>), còn s::length tương thích Supplier<Integer> (hoặc IntSupplier)",
+        "Cả hai đều tương thích với Supplier<Integer> vì length() không có tham số",
+        "s::length không hợp lệ — method reference chỉ viết được với tên class ở vế trái"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Đây là hai dạng method reference khác nhau. String::length là dạng 'instance method của một object tuỳ ý thuộc một kiểu': tham số ĐẦU TIÊN của lambda trở thành receiver, nên nó tương đương x -> x.length() và nhận một tham số. Còn s::length là dạng 'instance method của một object cụ thể': receiver đã cố định là s, nên nó tương đương () -> s.length() và không nhận tham số nào. Thêm một chi tiết hay bị bỏ qua: biểu thức s được đánh giá NGAY lúc tạo method reference, nên nếu sau đó gán s sang chuỗi khác thì method reference vẫn giữ object cũ.",
+      "whyWrong": [
+        "s::length đã cố định receiver nên không còn tham số nào để nhận String — nó không khớp Function<String,Integer>.",
+        "",
+        "String::length cần một String làm receiver, và receiver đó đến từ tham số của lambda, nên nó nhận đúng một tham số chứ không phải không tham số.",
+        "Vế trái của :: hoàn toàn có thể là một biểu thức tham chiếu object — đó chính là dạng 2 trong bốn dạng method reference."
+      ]
+    },
+    {
+      "id": "d-8-6",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Một class chứa 3 biểu thức lambda. Sau khi javac biên dịch, có bao nhiêu file .class được sinh thêm cho riêng các lambda đó, và cơ chế nào tạo ra class hiện thực?",
+      "choices": [
+        "3 file — mỗi lambda thành một class con giống hệt anonymous inner class",
+        "1 file gộp chung, chứa cả 3 lambda dưới dạng inner class",
+        "0 file — thân lambda thành method synthetic trong chính class chứa nó, class hiện thực do LambdaMetafactory sinh lúc runtime qua invokedynamic",
+        "0 file — JVM thông dịch trực tiếp bytecode của lambda mà không cần bất kỳ object nào"
+      ],
+      "correctAnswer": 2,
+      "explanation": "javac dịch thân lambda thành một method synthetic ngay trong class bao ngoài (tên dạng lambda$run$0) và đặt tại điểm dùng một lệnh invokedynamic. Lần đầu chạy tới đó, JVM gọi bootstrap method LambdaMetafactory.metafactory để sinh class hiện thực functional interface trong bộ nhớ rồi gắn vào call site; các lần sau đi thẳng qua call site đã liên kết. Ngược lại, anonymous inner class sinh file Outer$1.class thật trên đĩa. Lý do thiết kế là để JDK tự do đổi chiến lược cài đặt lambda mà không phải biên dịch lại code người dùng.",
+      "whyWrong": [
+        "Đó là cách anonymous inner class hoạt động, không phải lambda. Nếu đúng vậy thì lambda đã không cần tới invokedynamic.",
+        "javac không gộp lambda vào một file .class chung; nó không sinh file .class nào cho lambda cả.",
+        "",
+        "Lambda vẫn phải trở thành một object hiện thực functional interface thì mới gọi được qua invokeinterface — JVM không có cơ chế 'thi hành lambda' tách rời object."
+      ]
+    },
+    {
+      "id": "d-8-7",
+      "topicId": 8,
+      "versions": [
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Danh sách sau được sắp xếp thế nào?",
+      "code": "record P(String name, int age) {}\n\nList<P> ps = new ArrayList<>(List.of(\n        new P(\"An\", 30), new P(\"Binh\", 25), new P(\"An\", 25)));\n\nps.sort(Comparator.comparing(P::name)\n                  .thenComparing(P::age)\n                  .reversed());\nSystem.out.println(ps);",
+      "choices": [
+        "[Binh 25, An 30, An 25] — reversed() đảo toàn bộ chuỗi so sánh đã ghép",
+        "[Binh 25, An 25, An 30] — reversed() chỉ đảo tiêu chí cuối là age",
+        "[An 30, An 25, Binh 25] — reversed() chỉ đảo tiêu chí đầu là name",
+        "[An 25, An 30, Binh 25] — reversed() không có tác dụng sau thenComparing"
+      ],
+      "correctAnswer": 0,
+      "explanation": "comparing(...).thenComparing(...) trả về MỘT comparator ghép, và reversed() bọc toàn bộ comparator đó lại rồi đảo dấu kết quả — nên cả name lẫn age đều thành giảm dần. Kết quả: Binh trước (name giảm dần), rồi hai An sắp theo age giảm dần là 30 trước 25. Muốn giữ name tăng dần và chỉ đảo age, phải đảo riêng tiêu chí đó: comparing(P::name).thenComparing(Comparator.comparingInt(P::age).reversed()).",
+      "whyWrong": [
+        "",
+        "reversed() không biết gì về 'tiêu chí cuối' — nó chỉ nhận một Comparator (đã ghép) và trả về comparator đảo dấu của nó.",
+        "Tương tự, reversed() không tách được tiêu chí đầu ra khỏi chuỗi; nó áp lên kết quả so sánh cuối cùng.",
+        "reversed() luôn có tác dụng; nó là một default method của Comparator trả về comparator mới đảo thứ tự."
+      ]
+    },
+    {
+      "id": "d-8-8",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Một event bus tĩnh giữ mãi Supplier trả về từ versionSupplier(). Hậu quả về bộ nhớ là gì?",
+      "code": "class Cache {\n    private final byte[] data = new byte[64 * 1024 * 1024];\n    private int version = 1;\n\n    Supplier<Integer> versionSupplier() {\n        return () -> version;\n    }\n}\n\n// EventBus.register(new Cache().versionSupplier());  // giữ rất lâu",
+      "choices": [
+        "Không sao — lambda đã copy giá trị version tại thời điểm tạo nên object Cache được GC bình thường",
+        "Lambda capture this của Cache, nên cả object Cache kể cả mảng 64MB không được GC chừng nào Supplier còn sống",
+        "Lỗi biên dịch vì version không phải effectively final",
+        "Lambda tạo bản sao sâu của Cache nên tốn gấp đôi bộ nhớ ngay lúc đăng ký"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Trong thân lambda, viết version thực chất là this.version, nên javac sinh method synthetic dạng instance và lambda phải giữ một tham chiếu mạnh tới this. Supplier sống trong một registry tĩnh thì cả cây object mà nó trỏ tới đều là GC root reachable — mảng 64MB không liên quan gì tới nghiệp vụ vẫn bị giữ lại. Cách chữa: copy giá trị ra biến local trước rồi capture biến local (int snapshot = version; return () -> snapshot;), khi đó lambda không tham chiếu instance nào và thường còn được JDK tái sử dụng chung một object.",
+      "whyWrong": [
+        "Luật copy-by-value chỉ áp cho biến LOCAL. Field instance không được copy — lambda truy cập nó qua this ở mỗi lần gọi.",
+        "",
+        "Effectively final chỉ ràng buộc biến local; field instance được đọc và ghi tự do trong lambda nên đây không phải lỗi biên dịch.",
+        "Java không sao chép sâu object khi capture. Vấn đề đúng là ngược lại: nó chỉ giữ một reference, và chính reference đó chặn GC."
+      ]
+    },
+    {
+      "id": "d-8-9",
+      "topicId": 8,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau có vấn đề gì?",
+      "code": "List<Runnable> tasks = new ArrayList<>();\n\nfor (int i = 0; i < 3; i++) {\n    tasks.add(() -> System.out.print(i));\n}\n\nfor (String s : Arrays.asList(\"x\", \"y\")) {\n    tasks.add(() -> System.out.print(s));\n}\n\ntasks.forEach(Runnable::run);",
+      "choices": [
+        "Chạy được, in ra 012xy",
+        "Chạy được, in ra 333xy vì lambda thấy giá trị cuối cùng của i",
+        "Lỗi biên dịch ở vòng for đầu tiên; vòng for-each phía dưới hoàn toàn hợp lệ",
+        "Lỗi biên dịch ở cả hai vòng lặp vì biến điều khiển không bao giờ effectively final"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Biến i của for cổ điển được gán lại ở mỗi lần lặp (i++) nên không effectively final, và lambda không capture được nó — lỗi biên dịch. Ngược lại, biến của for-each được đặc tả như một biến MỚI được khởi tạo ở mỗi lần lặp và không bị gán lại, nên nó effectively final và capture bình thường; mỗi lambda giữ đúng giá trị của lần lặp sinh ra nó. Nếu thật sự cần chỉ số, hãy copy ra biến local trong thân vòng lặp: for (int i=0;i<3;i++) { int idx = i; tasks.add(() -> print(idx)); }.",
+      "whyWrong": [
+        "Vòng for đầu tiên không qua được bước biên dịch nên chương trình không chạy tới lúc in gì.",
+        "Đây là hành vi của closure capture-by-reference trong JavaScript cũ (var), không phải Java. Java chặn ngay ở compile time.",
+        "",
+        "Biến của for-each là ngoại lệ: đặc tả coi nó là biến mới mỗi lần lặp, nên nó effectively final và capture được."
+      ]
+    },
+    {
+      "id": "d-9-1",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "List<String> names = Arrays.asList(\"an\", \"binh\", \"cuong\");\n\nStream<String> s = names.stream()\n        .filter(n -> { System.out.println(\"filter \" + n); return n.length() > 2; })\n        .map(n -> { System.out.println(\"map \" + n); return n.toUpperCase(); });\n\nSystem.out.println(\"--- xong ---\");",
+      "choices": [
+        "3 dòng filter, 2 dòng map, rồi mới tới --- xong ---",
+        "--- xong --- trước, sau đó mới in các dòng filter và map",
+        "Chỉ in --- xong ---",
+        "Ném IllegalStateException vì stream không có terminal operation"
+      ],
+      "correctAnswer": 2,
+      "explanation": "filter và map là intermediate operation: chúng chỉ dựng thêm một tầng vào mô tả pipeline chứ không đụng tới phần tử nào. Không có terminal operation (collect, forEach, count...) thì JDK không bao giờ kéo dữ liệu từ Spliterator của nguồn, nên không lambda nào được gọi. Đây là lỗi im lặng khó chịu: một pipeline dài viết cho có side effect mà quên terminal operation sẽ không làm gì và cũng không báo lỗi.",
+      "whyWrong": [
+        "Đó là kết quả nếu có terminal operation và nếu pipeline chạy theo từng tầng — cả hai giả định đều sai.",
+        "Không có gì để in sau --- xong --- vì pipeline chưa bao giờ được kích hoạt.",
+        "",
+        "Stream không có terminal operation là hợp lệ về mặt ngôn ngữ, chỉ đơn giản là không làm gì. IllegalStateException chỉ xảy ra khi dùng lại một stream đã tiêu thụ."
+      ]
+    },
+    {
+      "id": "d-9-2",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Kết quả của đoạn code sau là gì?",
+      "code": "Stream<String> s = Arrays.asList(\"a\", \"b\").stream();\nlong n = s.count();\nList<String> l = s.collect(Collectors.toList());\nSystem.out.println(n + \" \" + l);",
+      "choices": [
+        "In ra: 2 [a, b]",
+        "In ra: 2 [] vì stream đã bị tiêu thụ hết phần tử",
+        "n = 2 rồi dòng collect ném IllegalStateException: stream has already been operated upon or closed",
+        "Lỗi biên dịch vì không được gọi hai terminal operation trên cùng một biến"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Stream không lưu dữ liệu — nó là một pipeline có trạng thái tiêu thụ trỏ tới nguồn. Bên trong AbstractPipeline có cờ linkedOrConsumed; terminal operation đầu tiên bật cờ đó, và mọi thao tác sau (dù là intermediate hay terminal) đều ném IllegalStateException. Đây là lỗi RUNTIME, compiler không phát hiện được. Muốn dùng nhiều lần, hãy giữ nguồn rồi gọi .stream() lại, hoặc giữ một Supplier<Stream<T>>.",
+      "whyWrong": [
+        "Stream không phải collection nên không thể duyệt lại lần thứ hai.",
+        "Nó không im lặng trả về list rỗng — JDK ném exception tường minh để lỗi lộ ra ngay.",
+        "",
+        "Kiểu Stream<String> cho phép gọi mọi terminal operation nên compiler không có cơ sở nào để từ chối; ràng buộc chỉ được kiểm tra lúc chạy."
+      ]
+    },
+    {
+      "id": "d-9-3",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Có một List<List<String>> và bạn muốn thu được một List<String> phẳng chứa mọi phần tử con. Cách nào đúng?",
+      "choices": [
+        "nested.stream().map(List::stream).collect(Collectors.toList())",
+        "nested.stream().map(l -> l.get(0)).collect(Collectors.toList())",
+        "nested.stream().flatMap(l -> l).collect(Collectors.toList())",
+        "nested.stream().flatMap(List::stream).collect(Collectors.toList())"
+      ],
+      "correctAnswer": 3,
+      "explanation": "flatMap nhận một hàm biến mỗi phần tử thành một Stream, rồi nối (concat) tất cả các stream con đó thành một stream duy nhất — đúng thao tác cần để làm phẳng. Điểm khác biệt cốt lõi với map: map giữ nguyên số phần tử và chỉ đổi kiểu, còn flatMap thay đổi cả số lượng phần tử (một phần tử vào có thể ra 0, 1 hay nhiều). Ngoài làm phẳng, flatMap còn là cách chuẩn để bỏ qua phần tử không hợp lệ bằng cách trả về Stream.empty().",
+      "whyWrong": [
+        "map(List::stream) cho ra Stream<Stream<String>>, tức collect được List<Stream<String>> chứ không phải List<String>.",
+        "Chỉ lấy phần tử đầu của mỗi list con, bỏ mất toàn bộ phần còn lại — và ném IndexOutOfBoundsException nếu có list rỗng.",
+        "Không biên dịch được: flatMap yêu cầu hàm trả về một Stream, còn l ở đây là một List.",
+        ""
+      ]
+    },
+    {
+      "id": "d-9-4",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Thứ tự output của đoạn code sau là gì?",
+      "code": "Stream.of(\"a\", \"b\", \"c\")\n      .filter(s -> { System.out.println(\"filter \" + s); return true; })\n      .map(s -> { System.out.println(\"map \" + s); return s; })\n      .forEach(s -> System.out.println(\"forEach \" + s));",
+      "choices": [
+        "filter a, filter b, filter c, map a, map b, map c, forEach a, forEach b, forEach c",
+        "filter a, map a, forEach a, filter b, map b, forEach b, filter c, map c, forEach c",
+        "forEach a, forEach b, forEach c rồi mới tới filter và map",
+        "Thứ tự không xác định vì JDK có thể tự động chạy song song"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Pipeline được thực thi theo từng PHẦN TỬ chứ không theo từng TẦNG. Khi terminal operation chạy, JDK gấp toàn bộ chuỗi Sink thành một hàm duy nhất rồi kéo từng phần tử từ nguồn cho đi hết chiều sâu pipeline mới lấy phần tử tiếp theo. Chính cơ chế fusion này khiến pipeline nhiều bước vẫn chỉ duyệt nguồn một lần, không tạo collection trung gian, và cho phép short-circuit dừng sớm giữa chừng.",
+      "whyWrong": [
+        "Đó là mô hình 'mỗi bước tạo một list mới' của cách viết vòng lặp thủ công, không phải cách stream hoạt động.",
+        "",
+        "forEach là terminal operation nên nó là thứ kích hoạt toàn bộ pipeline, không thể chạy trước filter và map.",
+        "Stream chỉ chạy song song khi bạn gọi parallel() hoặc parallelStream(); JDK không bao giờ tự bật song song."
+      ]
+    },
+    {
+      "id": "d-9-5",
+      "topicId": 9,
+      "versions": [
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Chuyện gì xảy ra khi chạy đoạn code sau?",
+      "code": "List<String> a = Stream.of(\"x\").collect(Collectors.toList());\nList<String> b = Stream.of(\"x\").toList();\n\na.add(\"y\");\nb.add(\"y\");",
+      "choices": [
+        "Cả hai lệnh add đều thành công",
+        "a.add(\"y\") chạy được; b.add(\"y\") ném UnsupportedOperationException vì Stream.toList() trả về list bất biến",
+        "Cả hai lệnh add đều ném UnsupportedOperationException",
+        "a.add(\"y\") ném UnsupportedOperationException; b.add(\"y\") chạy được"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Stream.toList() (Java 16+) được đặc tả trả về một list KHÔNG sửa được, nên add ném UnsupportedOperationException. Còn Collectors.toList() thì javadoc ghi rõ là không đảm bảo về kiểu, mutability, serializability hay thread-safety — trên OpenJDK hiện nay nó trả ArrayList nên add chạy được, nhưng đó là chi tiết cài đặt chứ không phải hợp đồng. Quy tắc thực tế: cần list bất biến thì dùng stream().toList(); cần list sửa được thì nói rõ bằng Collectors.toCollection(ArrayList::new).",
+      "whyWrong": [
+        "Stream.toList() được đặc tả là unmodifiable nên add chắc chắn thất bại.",
+        "",
+        "Collectors.toList() trên OpenJDK hiện tại trả về ArrayList nên add thành công; nó chỉ không được ĐẢM BẢO như vậy.",
+        "Đúng ngược chiều: cái bất biến là kết quả của Stream.toList(), không phải của Collectors.toList()."
+      ]
+    },
+    {
+      "id": "d-9-6",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Kết quả của đoạn code sau?",
+      "code": "List<String> words = Arrays.asList(\"an\", \"ba\", \"an\");\n\nMap<String, Integer> m = words.stream()\n        .collect(Collectors.toMap(w -> w, String::length));",
+      "choices": [
+        "Ném IllegalStateException vì khoá \"an\" bị trùng và không có merge function",
+        "Trả về {an=2, ba=2} — bản sau ghi đè bản trước giống HashMap.put",
+        "Ném IllegalArgumentException vì stream chứa phần tử trùng lặp",
+        "Trả về {an=2, ba=2, an=2} vì toMap không kiểm tra trùng khoá"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Bản toMap hai tham số cố ý không cho phép trùng khoá: khi phát hiện khoá đã tồn tại, nó ném IllegalStateException với thông điệp 'Duplicate key'. Thiết kế này buộc lập trình viên nói rõ ý định thay vì im lặng mất dữ liệu. Muốn giữ bản nào phải truyền merge function ở tham số thứ ba: toMap(w -> w, String::length, (older, newer) -> older). Hai bẫy còn lại của toMap: giá trị null ném NullPointerException (vì cài đặt dùng Map.merge, khác HashMap.put), và map trả về là HashMap nên không giữ thứ tự nếu không truyền thêm LinkedHashMap::new.",
+      "whyWrong": [
+        "",
+        "Ghi đè im lặng là hành vi của HashMap.put, không phải của Collectors.toMap hai tham số.",
+        "Exception được ném là IllegalStateException chứ không phải IllegalArgumentException.",
+        "Map không thể có hai entry cùng khoá; và toMap kiểm tra trùng khoá rất chặt."
+      ]
+    },
+    {
+      "id": "d-9-7",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Biến m có giá trị gì?",
+      "code": "List<String> names = Arrays.asList(\"an\", \"ba\", \"cuong\", \"duy\");\n\nMap<Integer, Long> m = names.stream()\n        .collect(Collectors.groupingBy(String::length, Collectors.counting()));",
+      "choices": [
+        "{2=2, 3=1, 5=1}",
+        "{2=[an, ba], 3=[duy], 5=[cuong]}",
+        "{an=2, ba=2, cuong=5, duy=3}",
+        "Lỗi biên dịch vì counting() trả về Long nên Map phải khai báo là Map<Integer, Integer>"
+      ],
+      "correctAnswer": 0,
+      "explanation": "groupingBy hai tham số dùng classifier để tạo khoá và dùng downstream collector để xử lý các phần tử rơi vào cùng khoá. Ở đây khoá là độ dài chuỗi, downstream là counting() nên giá trị là số phần tử kiểu Long: độ dài 2 có an và ba (2 phần tử), độ dài 3 có duy, độ dài 5 có cuong. Map trả về mặc định là HashMap nên thứ tự in phụ thuộc hash; muốn có thứ tự phải dùng bản ba tham số với TreeMap::new. Lưu ý classifier không được trả về null, nếu không groupingBy ném NullPointerException.",
+      "whyWrong": [
+        "",
+        "Đó là kết quả của groupingBy MỘT tham số (downstream mặc định là toList()); ở đây downstream đã bị thay bằng counting().",
+        "Đó là kết quả của toMap(w -> w, String::length) — và bản đó còn nổ IllegalStateException nếu có chuỗi trùng.",
+        "counting() thực sự trả về Collector<T, ?, Long>, nên khai báo Map<Integer, Long> trong code là chính xác."
+      ]
+    },
+    {
+      "id": "d-9-8",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "List<Integer> out = new ArrayList<>();\n\nIntStream.range(0, 100_000)\n         .parallel()\n         .boxed()\n         .forEach(out::add);\n\nSystem.out.println(out.size());",
+      "choices": [
+        "Luôn in 100000, chỉ khác là thứ tự phần tử bị xáo trộn",
+        "Luôn ném ConcurrentModificationException",
+        "Luôn ném UnsupportedOperationException vì không được sửa collection trong forEach",
+        "Kết quả không xác định: có thể nhỏ hơn 100000, có thể chứa null, hoặc ném ArrayIndexOutOfBoundsException / NullPointerException"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Nhiều thread của ForkJoinPool cùng gọi add trên một ArrayList không thread-safe. ArrayList.add gồm hai bước không nguyên tử: tăng size và ghi vào mảng — hai thread có thể ghi đè cùng một ô, hoặc thấy mảng đang được resize dở dang. Triệu chứng vì thế không xác định và thay đổi giữa các lần chạy. Đây chính là điều javadoc gọi là vi phạm yêu cầu 'stateless, non-interfering' của behavioral parameter. Cách đúng là dùng collect: cơ chế collect cấp cho mỗi nhánh một container riêng rồi mới gộp, nên nó an toàn theo thiết kế.",
+      "whyWrong": [
+        "Đây là data race chứ không phải chỉ chuyện thứ tự — số phần tử hoàn toàn có thể bị mất.",
+        "ConcurrentModificationException dành cho việc sửa cấu trúc collection ĐANG được duyệt; ở đây out không phải nguồn của stream.",
+        "ArrayList hoàn toàn cho phép add; vấn đề nằm ở truy cập đồng thời chứ không phải ở tính bất biến.",
+        ""
+      ]
+    },
+    {
+      "id": "d-9-9",
+      "topicId": 9,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Trên Java 11 trở lên, đoạn code sau in ra gì?",
+      "code": "long n = List.of(\"a\", \"b\", \"c\").stream()\n        .peek(System.out::println)\n        .count();\n\nSystem.out.println(\"n = \" + n);",
+      "choices": [
+        "In a, b, c rồi n = 3",
+        "Không in a, b, c; chỉ in n = 3 — count() lấy thẳng số phần tử từ nguồn mà không chạy pipeline",
+        "Không in gì cả và n = 0 vì peek không phải operation hợp lệ trước count",
+        "In a, b, c rồi n = 0"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Từ Java 9, javadoc của count() cho phép cài đặt tính thẳng số phần tử từ nguồn nếu nó biết chắc kích thước và pipeline không có operation nào làm thay đổi số phần tử (peek thì không). Khi đó không phần tử nào được duyệt và mọi behavioral parameter có side effect đều bị bỏ qua. Trên Java 8 cùng đoạn code này in ra a, b, c — nên đây là khác biệt hành vi phụ thuộc phiên bản. Bài học thực tế: peek chỉ dùng để debug tạm, đừng bao giờ đặt logic thật vào đó, và cũng đừng dựa vào peek để suy luận pipeline có chạy hay không.",
+      "whyWrong": [
+        "Đó là hành vi của Java 8. Từ Java 9, count() được phép bỏ qua toàn bộ pipeline khi kích thước nguồn đã biết.",
+        "",
+        "peek là intermediate operation hoàn toàn hợp lệ, và count() vẫn trả về đúng số phần tử là 3.",
+        "count() luôn trả về đúng số phần tử của stream; ở đây không có filter nào nên kết quả là 3."
+      ]
+    },
+    {
+      "id": "d-10-1",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Chuyện gì xảy ra khi chạy đoạn code sau?",
+      "code": "String s = null;\n\nOptional<String> a = Optional.ofNullable(s);\nOptional<String> b = Optional.of(s);\n\nSystem.out.println(a.isPresent() + \" \" + b.isPresent());",
+      "choices": [
+        "In ra: false false — cả hai đều tạo Optional rỗng",
+        "a là Optional rỗng; dòng tạo b ném NullPointerException",
+        "Cả hai dòng đều ném NullPointerException",
+        "Cả hai đều tạo Optional chứa giá trị null nên in ra true true"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Optional.ofNullable chấp nhận null và biến nó thành Optional.empty(). Optional.of thì gọi Objects.requireNonNull nên ném NullPointerException ngay tại dòng đó. Đây không phải thiếu sót thiết kế mà là chủ đích: of dùng khi bạn khẳng định giá trị không thể null và muốn lỗi nổ ngay tại nguồn, còn ofNullable dùng khi bọc kết quả từ API có thể trả null (map.get, thư viện cũ). Viết ofNullable ở mọi nơi 'cho an toàn' làm mất khả năng phát hiện lỗi sớm.",
+      "whyWrong": [
+        "Chỉ ofNullable mới chuyển null thành rỗng; of từ chối null.",
+        "",
+        "ofNullable được thiết kế đúng để nhận null, nó không bao giờ ném NPE vì tham số null.",
+        "Optional không bao giờ chứa null — một Optional hoặc rỗng, hoặc chứa một giá trị khác null."
+      ]
+    },
+    {
+      "id": "d-10-2",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Optional được thiết kế chủ yếu cho mục đích nào?",
+      "choices": [
+        "Làm kiểu cho field của entity để không bao giờ phải lưu null vào database",
+        "Làm kiểu tham số của method để bắt caller nói rõ có truyền giá trị hay không",
+        "Làm KIỂU TRẢ VỀ của method có thể không có kết quả, để chữ ký nói rõ điều đó",
+        "Thay thế toàn bộ việc kiểm tra null trong codebase, kể cả biến local"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Optional đưa khả năng 'không có giá trị' vào hệ thống kiểu ở đúng nơi cần: chữ ký của method. Trước Java 8, một method trả về User không có cách nào báo cho caller biết kết quả có thể không tồn tại ngoài javadoc. Ba cách dùng còn lại đều bị chính người thiết kế JDK khuyến cáo tránh: Optional không implement Serializable nên hỏng field của entity; làm tham số thì tạo ba trạng thái (null / empty / có giá trị) thay vì hai; và mỗi Optional là một object trên heap nên rải khắp code nội bộ là chi phí vô ích.",
+      "whyWrong": [
+        "Optional không Serializable và không được JPA/Jackson hỗ trợ tự nhiên. Cách đúng là field nullable, getter trả Optional.",
+        "Tham số kiểu Optional vẫn có thể nhận null, nên caller phải xử lý ba trạng thái thay vì hai. Dùng overload hoặc builder thay thế.",
+        "",
+        "Optional không thay thế được null ở mọi chỗ: nó chỉ nói về sự tồn tại của chính giá trị đó, không bảo vệ khỏi null bên trong object, và có chi phí allocation thật."
+      ]
+    },
+    {
+      "id": "d-10-3",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Viết lại đoạn code sau theo đúng tinh thần Optional thì dùng cách nào?",
+      "code": "Optional<User> u = repo.findById(id);\nif (u.isPresent()) {\n    return u.get().getName();\n}\nreturn \"unknown\";",
+      "choices": [
+        "return u.map(User::getName).orElse(\"unknown\");",
+        "return u.orElse(null).getName();",
+        "return u.filter(Objects::nonNull).get().getName();",
+        "return u.isEmpty() ? \"unknown\" : u.get().getName();   (Optional.isEmpty() chỉ có từ Java 11)"
+      ],
+      "correctAnswer": 0,
+      "explanation": "map biến đổi giá trị nếu có và giữ nguyên trạng thái rỗng nếu không, orElse cung cấp giá trị mặc định — cả chuỗi thành một biểu thức duy nhất không có nhánh rẽ nào. Mẫu isPresent() + get() chỉ là câu kiểm tra null cũ viết dài hơn và thêm một object rác, nó vứt bỏ toàn bộ giá trị của Optional. Ở đây orElse dùng đúng vì giá trị mặc định là một hằng chuỗi, không tốn gì để tính.",
+      "whyWrong": [
+        "",
+        "orElse(null) trả về null rồi gọi getName() ngay trên đó, tức là quay lại đúng NullPointerException mà Optional sinh ra để tránh.",
+        "filter(Objects::nonNull) là thừa vì Optional không bao giờ chứa null; và get() vẫn ném NoSuchElementException khi rỗng.",
+        "Vẫn là isPresent/get đội lốt toán tử ba ngôi — ngắn hơn nhưng cùng một anti-pattern, và isEmpty() còn đòi Java 11 trở lên."
+      ]
+    },
+    {
+      "id": "d-10-4",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "static String loadFromDb() {\n    System.out.println(\"truy van DB\");\n    return \"db\";\n}\n\npublic static void main(String[] args) {\n    Optional<String> cached = Optional.of(\"cache\");\n    String v1 = cached.orElse(loadFromDb());\n    String v2 = cached.orElseGet(() -> loadFromDb());\n    System.out.println(v1 + \" \" + v2);\n}",
+      "choices": [
+        "Không in \"truy van DB\" lần nào; in cache cache",
+        "In \"truy van DB\" một lần (do orElse), rồi in cache cache",
+        "In \"truy van DB\" hai lần, rồi in db db",
+        "In \"truy van DB\" một lần (do orElseGet), rồi in cache db"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Java đánh giá mọi đối số trước khi gọi method, nên loadFromDb() trong orElse(...) chạy bất kể Optional có giá trị hay không — kết quả của nó bị vứt đi nhưng side effect thì đã xảy ra. orElseGet nhận một Supplier nên thân lambda chỉ chạy khi Optional rỗng, ở đây là không bao giờ. Cả hai biến đều nhận giá trị bên trong Optional là \"cache\". Đây là bug hiệu năng thật trong code cache: opt.orElse(loadFromDatabase(k)) gọi DB ở mọi lần chạy mà kết quả trả về vẫn đúng nên không ai phát hiện.",
+      "whyWrong": [
+        "Đối số của orElse là một lời gọi method nên nó buộc phải được đánh giá trước khi orElse bắt đầu chạy.",
+        "",
+        "orElseGet không gọi supplier khi Optional có giá trị, nên chỉ có đúng một lần in; và giá trị trả về vẫn là nội dung Optional chứ không phải mặc định.",
+        "Ngược chiều: orElseGet mới là bản lười, orElse mới là bản đánh giá sớm."
+      ]
+    },
+    {
+      "id": "d-10-5",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Cho Customer.getAddress() có kiểu trả về là Optional<Address>. Biểu thức optCustomer.map(Customer::getAddress) có kiểu gì?",
+      "choices": [
+        "Optional<Address> — map tự phẳng hoá kết quả",
+        "Optional<Optional<Address>> — cần dùng flatMap để phẳng hoá một tầng",
+        "Address — map mở luôn giá trị bên trong",
+        "Không biên dịch được vì map không nhận hàm trả về Optional"
+      ],
+      "correctAnswer": 1,
+      "explanation": "map bọc kết quả của hàm bằng Optional.ofNullable, nên hàm trả về Optional<Address> sẽ cho ra Optional<Optional<Address>>. Kiểu này hợp lệ về mặt biên dịch nhưng vô dụng, và thường lộ ra dưới dạng lỗi ở dòng tiếp theo khi bạn gọi một method của Address. flatMap tồn tại đúng để xử lý trường hợp này: nó nhận hàm đã trả về Optional và ghép trực tiếp, cho ra Optional<Address>. Quy tắc: hàm trả về giá trị thường thì map, hàm trả về Optional thì flatMap.",
+      "whyWrong": [
+        "map không phẳng hoá — đó chính là công việc của flatMap.",
+        "",
+        "map luôn trả về một Optional, nó không bao giờ mở giá trị trần ra ngoài.",
+        "Hoàn toàn biên dịch được; hàm truyền vào map có thể trả về kiểu bất kỳ, kể cả Optional."
+      ]
+    },
+    {
+      "id": "d-10-6",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Giá trị của biến port là gì?",
+      "code": "Map<String, String> cfg = new HashMap<>();\ncfg.put(\"host\", \"localhost\");\n\nString port = Optional.ofNullable(cfg.get(\"host\"))\n        .map(h -> cfg.get(\"port\"))\n        .orElse(\"8080\");",
+      "choices": [
+        "port = null",
+        "Ném NullPointerException tại lời gọi map",
+        "port = \"8080\"",
+        "port = \"localhost\""
+      ],
+      "correctAnswer": 2,
+      "explanation": "cfg.get(\"host\") trả về \"localhost\" nên Optional có giá trị và map được thực thi. Hàm bên trong map trả về cfg.get(\"port\") tức null, nhưng map bọc kết quả bằng Optional.ofNullable chứ không phải Optional.of — nên kết quả là Optional rỗng chứ không phải Optional chứa null, cũng không phải NPE. orElse do đó trả về \"8080\". Chính đặc tính này khiến chuỗi map tự hấp thụ mọi null xuất hiện ở giữa và thay được kim tự tháp if.",
+      "whyWrong": [
+        "orElse chỉ trả null nếu bạn truyền null làm mặc định; ở đây mặc định là \"8080\".",
+        "map dùng ofNullable nên null từ hàm biến đổi không gây NPE — nó chỉ làm Optional trở thành rỗng.",
+        "",
+        "\"localhost\" là giá trị đầu vào của map, không phải kết quả; hàm trong map đã thay nó bằng cfg.get(\"port\")."
+      ]
+    },
+    {
+      "id": "d-10-7",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "Optional<String> a = Optional.of(new String(\"java\"));\nOptional<String> b = Optional.of(\"java\");\n\nSystem.out.println(a == b);\nSystem.out.println(a.equals(b));",
+      "choices": [
+        "false rồi true",
+        "true rồi true",
+        "false rồi false",
+        "Lỗi biên dịch vì Optional không override equals nên không so sánh được"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Optional.of luôn tạo một object Optional mới nên a và b là hai tham chiếu khác nhau, == cho false. Optional có override equals: hai Optional bằng nhau khi cùng rỗng, hoặc cùng có giá trị và hai giá trị equals nhau — ở đây new String(\"java\").equals(\"java\") là true nên equals cho true. Quy tắc thực hành: luôn so sánh Optional bằng equals. Lưu ý thêm một cái bẫy: Optional.empty() trong OpenJDK trả về một instance dùng chung nên == có thể tình cờ đúng với Optional rỗng, nhưng đó là chi tiết cài đặt, đừng dựa vào.",
+      "whyWrong": [
+        "",
+        "of() cấp phát một object Optional mới ở mỗi lời gọi, nên hai tham chiếu không thể bằng nhau.",
+        "Optional có override equals dựa trên giá trị bên trong, nên phép so sánh thứ hai cho true.",
+        "Optional override cả equals lẫn hashCode và toString — đoạn code biên dịch bình thường."
+      ]
+    },
+    {
+      "id": "d-10-8",
+      "topicId": 10,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Có List<Optional<String>> và muốn lấy ra List<String> chỉ chứa các giá trị có mặt. Cách nào là idiom chuẩn từ Java 9 trở lên?",
+      "code": "List<Optional<String>> raw = List.of(Optional.of(\"a\"), Optional.empty(), Optional.of(\"b\"));",
+      "choices": [
+        "raw.stream().map(Optional::get).collect(Collectors.toList())",
+        "raw.stream().flatMap(Optional::stream).collect(Collectors.toList())",
+        "raw.stream().flatMap(Optional::get).collect(Collectors.toList())",
+        "raw.stream().filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList()) — và đây là cách duy nhất chạy được"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Optional.stream() (Java 9) biến Optional thành stream có 0 hoặc 1 phần tử, nên flatMap(Optional::stream) vừa lọc vừa mở giá trị trong một bước và không có get() nào ở giữa. Ý tưởng giống hệt flatMap trên Stream: một phần tử vào có thể cho ra 0 hoặc nhiều phần tử ra. Trên Java 8 vẫn phải viết filter(Optional::isPresent).map(Optional::get); biết cả hai và biết mốc phiên bản là điều người phỏng vấn muốn nghe.",
+      "whyWrong": [
+        "map(Optional::get) ném NoSuchElementException ngay khi gặp Optional.empty() trong danh sách.",
+        "",
+        "flatMap yêu cầu hàm trả về một Stream; Optional::get trả về String nên không biên dịch được.",
+        "Cách này thực sự chạy được và là idiom của Java 8, nhưng khẳng định 'duy nhất chạy được' là sai — từ Java 9 đã có flatMap(Optional::stream) ngắn hơn."
+      ]
+    },
+    {
+      "id": "d-10-9",
+      "topicId": 10,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Chuyện gì xảy ra khi serialize object User dưới đây bằng ObjectOutputStream?",
+      "code": "class User implements Serializable {\n    private String name = \"an\";\n    private Optional<String> nickname = Optional.of(\"bin\");\n}\n\n// new ObjectOutputStream(out).writeObject(new User());",
+      "choices": [
+        "Chạy bình thường — Optional được serialize như một wrapper chứa giá trị bên trong",
+        "Lỗi biên dịch vì field của class Serializable phải là kiểu Serializable",
+        "Serialize được nhưng khi deserialize thì nickname trở thành null",
+        "Ném NotSerializableException vì Optional không implement Serializable"
+      ],
+      "correctAnswer": 3,
+      "explanation": "java.util.Optional cố ý KHÔNG implement Serializable, nên khi ObjectOutputStream đi tới field nickname nó ném NotSerializableException: java.util.Optional lúc chạy. Đây là một trong ba lý do chính không đặt Optional làm field (hai lý do còn lại: thêm một object trên heap cho mỗi instance, và các framework mapping như JPA/Jackson không xử lý tự nhiên). Cách đúng là để field là String nullable và cho getter trả về Optional.ofNullable(nickname) — Optional khi đó chỉ tồn tại ở ranh giới API. Nếu buộc phải giữ field như vậy, có thể đánh dấu transient và tự xử lý trong writeObject/readObject.",
+      "whyWrong": [
+        "Java serialization chỉ ghi được object của kiểu implement Serializable; Optional không nằm trong số đó.",
+        "Compiler không kiểm tra điều này — ràng buộc Serializable chỉ được kiểm tra lúc chạy, đó là lý do lỗi kiểu này thường lọt tới production.",
+        "Không có bước deserialize nào xảy ra vì quá trình serialize đã thất bại ngay từ đầu.",
+        ""
+      ]
+    }
+  ]
+}
