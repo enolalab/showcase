@@ -1,0 +1,598 @@
+{
+  "tutorials": [
+    {
+      "id": "t-18-9",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "final field freeze, safe publication và bẫy this escape",
+      "summary": "Vì sao một object thật sự immutable chia sẻ được giữa các thread mà không cần synchronized, và vì sao chỉ một field không final hoặc một dòng this escape là mất sạch bảo đảm đó.",
+      "sections": [
+        "<b>Bài toán publication, không phải bài toán mutual exclusion.</b> Kịch bản kinh điển: thread A chạy <code>shared = new Config(8080)</code>, thread B đọc <code>shared.port</code>. Không ai ghi đè lên ai, không có tranh chấp nào để mà khoá — vậy mà B vẫn có thể đọc ra <code>0</code>. Lý do là việc ghi field bên trong constructor và việc ghi tham chiếu <code>shared</code> là hai lệnh ghi độc lập, JIT hoặc CPU được phép sắp xếp lại, và giữa hai thread không có cạnh happens-before nào bắt B phải thấy chúng theo đúng thứ tự. Đây gọi là <i>unsafe publication</i>: object lọt ra ngoài trước khi nó kịp hoàn thành.",
+        "<b>Bảo đảm final field freeze (JMM, JLS 17.5).</b> JMM định nghĩa một hành động <i>freeze</i> cho mọi field <code>final</code> tại thời điểm constructor kết thúc. Hợp đồng: nếu một thread nhìn thấy tham chiếu tới object <i>sau khi</i> constructor đã kết thúc, thì thread đó bảo đảm nhìn thấy giá trị đúng của mọi field <code>final</code> — kể cả khi tham chiếu được truyền qua một data race, không cần <code>volatile</code>, không cần <code>synchronized</code>, không cần lock. Bảo đảm này còn lan truyền: mọi thứ mà object đó với tới được thông qua các final field cũng được nhìn thấy đúng. Đây chính là lý do kỹ thuật để câu 'object immutable thì thread-safe' là đúng chứ không phải khẩu hiệu.",
+        "<b>Một field non-final là đủ để mất bảo đảm.</b> Freeze chỉ áp dụng cho field <code>final</code>. Nếu class có một field thường, thread đọc qua data race có thể thấy các final field đã đúng nhưng field thường vẫn là giá trị mặc định — trạng thái nửa vời, khó tin và gần như không debug được vì nó chỉ xuất hiện dưới tải cao trên CPU nhiều core. Đó là lý do quy tắc thực hành là 'mặc định mọi field đều final, chỉ bỏ final khi có lý do', chứ không phải ngược lại.",
+        "<b>this escape phá vỡ freeze từ bên trong.</b> Freeze xảy ra ở <i>cuối</i> constructor. Nếu constructor để <code>this</code> thoát ra trước đó, mọi bảo đảm biến mất: đăng ký listener (<code>registry.add(this)</code>), gán vào một static field, khởi động một thread trong constructor (<code>new Thread(this).start()</code>), hoặc gọi một method có thể bị override — đều là this escape. Thread khác có thể chạm tới object <i>trước</i> freeze và đọc final field ra 0 hay null. Cách sửa chuẩn là để constructor <code>private</code> và dùng static factory: construct xong hẳn rồi mới đăng ký.",
+        "<b>final không đồng nghĩa với immutable.</b> <code>final</code> chỉ khoá <i>tham chiếu</i>, không khoá state mà tham chiếu đó trỏ tới. Một field <code>private final List&lt;String&gt; hosts</code> vẫn cho phép mọi thread gọi <code>hosts.add(...)</code>, và <code>ArrayList</code> không thread-safe. Immutable thật sự cần đủ bốn điều: mọi field final và bản thân chúng cũng immutable, không có method nào thay đổi state, không cho <code>this</code> escape, và defensive copy cả khi <i>nhận</i> tham số vào lẫn khi <i>trả</i> collection hay mảng ra ngoài. Class nên <code>final</code> để class con không phá vỡ tính bất biến.",
+        "<b>Các cách publish an toàn khác, và góc nhìn LTS.</b> Ngoài final field, một object được publish an toàn khi: khởi tạo trong static initializer, gán vào field <code>volatile</code> hoặc <code>AtomicReference</code>, đặt vào một collection thread-safe, hoặc ghi trong khi giữ lock mà bên đọc cũng giữ đúng lock đó. Từ Java 16, <code>record</code> (có ở 17 và 21) sinh sẵn mọi component là final nên hưởng trọn freeze — nhưng nó <i>không</i> tự deep copy, một component kiểu <code>List</code> vẫn mutable, nên vẫn phải copy thủ công trong compact constructor. Với Java 8 dùng <code>Collections.unmodifiableList</code> quanh một bản sao; từ Java 10 có <code>List.copyOf</code> gọn hơn."
+      ],
+      "example": "// SAI: this escape trong constructor\npublic final class Sensor implements Listener {\n    private final int[] calibration;\n\n    public Sensor(EventBus bus) {\n        bus.register(this);              // this thoat ra TRUOC khi freeze\n        this.calibration = load();       // thread khac co the doc calibration == null\n    }\n\n    public void onEvent() { use(calibration); }\n}\n\n// DUNG: construct xong han roi moi dang ky\npublic final class Sensor implements Listener {\n    private final int[] calibration;\n\n    private Sensor() { this.calibration = load(); }\n\n    public static Sensor newInstance(EventBus bus) {\n        Sensor s = new Sensor();         // constructor da ket thuc -> freeze da xay ra\n        bus.register(s);\n        return s;\n    }\n\n    public void onEvent() { use(calibration); }\n}",
+      "exampleTitle": "this escape và cách sửa bằng static factory",
+      "keyPoints": [
+        "Unsafe publication là lỗi visibility chứ không phải lỗi tranh chấp: object lọt ra ngoài trước khi construct xong.",
+        "final field freeze bảo đảm mọi thread thấy tham chiếu sau khi constructor kết thúc đều thấy final field đúng, kể cả qua data race.",
+        "Chỉ cần một field không final là bảo đảm đó không còn áp dụng cho field đó.",
+        "this escape (đăng ký listener, start thread, gọi method overridable trong constructor) vô hiệu hoá freeze — dùng static factory để sửa.",
+        "final khoá tham chiếu chứ không khoá state; immutable còn cần defensive copy cả chiều vào lẫn chiều ra.",
+        "record từ Java 16 (có ở 17, 21) có mọi component final nhưng không tự deep copy component kiểu collection."
+      ],
+      "trap": "Người phỏng vấn đưa một class có đủ field final rồi hỏi 'chia sẻ giữa thread có an toàn không?'. Trả lời 'an toàn vì immutable' là chưa đủ — phải soi constructor: nếu constructor cho this thoát ra ngoài (đăng ký listener, start thread) thì bảo đảm final field không còn hiệu lực và thread khác có thể đọc ra null.",
+      "followUp": [
+        "Vì sao bảo đảm của final field không cần volatile mà vẫn hoạt động, trong khi field thường thì cần?",
+        "Gọi một method có thể bị override trong constructor liên quan gì tới this escape?",
+        "Một record có component kiểu List thì có thật sự immutable không? Sửa thế nào?"
+      ]
+    },
+    {
+      "id": "t-18-10",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Latch, barrier, semaphore, phaser, BlockingQueue và ForkJoinPool: chọn đúng công cụ",
+      "summary": "Năm synchronizer của java.util.concurrent giải năm bài toán khác nhau — nhầm cái nọ sang cái kia là lỗi thiết kế, không phải lỗi cú pháp.",
+      "sections": [
+        "<b>CountDownLatch — cổng một chiều, dùng đúng một lần.</b> Khởi tạo với một số đếm; <code>await()</code> chặn cho tới khi số đếm về 0, <code>countDown()</code> giảm nó đi một. Hai kịch bản chuẩn: một thread chờ N thread khác xong (latch N), hoặc N thread cùng chờ một tín hiệu xuất phát (latch 1). Điểm mấu chốt hay bị hỏi: latch <b>không reset được</b>. Khi đã về 0 thì mọi <code>await()</code> sau đó trả về ngay lập tức và mãi mãi; <code>countDown()</code> thêm nữa là no-op chứ không làm số đếm âm và cũng không ném exception.",
+        "<b>CyclicBarrier — điểm hẹn, tái sử dụng được.</b> N thread cùng gọi <code>await()</code>, tất cả bị chặn cho tới khi đủ N thì cùng đi tiếp, rồi barrier tự nạp lại cho vòng sau. Khác biệt về vai trò cũng quan trọng: latch là 'người ngoài chờ', barrier là 'các thành viên chờ nhau'. <code>await()</code> trả về chỉ số đến (arrival index), và có thể gắn một <i>barrier action</i> chạy đúng một lần trên thread cuối cùng đến — chỗ lý tưởng để gộp kết quả giữa các vòng. Bẫy: nếu một thread bị interrupt hay timeout thì barrier chuyển sang trạng thái <i>broken</i>, mọi thread còn lại nhận <code>BrokenBarrierException</code>, và phải <code>reset()</code> mới dùng lại được.",
+        "<b>Semaphore — đếm giấy phép, không có khái niệm sở hữu.</b> Dùng để hạn chế số thread cùng truy cập một tài nguyên: N kết nối, N lượt gọi API đồng thời. Khác lock ở chỗ giấy phép không thuộc về thread nào — thread A <code>acquire()</code> rồi thread B <code>release()</code> là hợp lệ, và chính vì thế semaphore không reentrant, cũng không phát hiện được lỗi quên nhả. <code>release()</code> nhiều hơn <code>acquire()</code> sẽ <i>tăng</i> số giấy phép vượt mức khởi tạo — một cách rò rỉ hạn mức rất khó thấy. Luôn nhả trong khối <code>finally</code>, và cân nhắc <code>tryAcquire(timeout)</code> để có backpressure thay vì chờ vô hạn.",
+        "<b>Phaser — barrier linh hoạt cho số bên tham gia thay đổi.</b> Điểm yếu của <code>CyclicBarrier</code> là số bên phải cố định lúc khởi tạo. <code>Phaser</code> cho phép <code>register()</code> và <code>arriveAndDeregister()</code> giữa chừng, hỗ trợ nhiều pha có đánh số, và có <code>arriveAndAwaitAdvance()</code> cho kiểu dùng giống barrier. Nó cũng phân cấp được để giảm tranh chấp khi số bên tham gia lớn. Thực tế Phaser ít gặp hơn hẳn ba công cụ trên; biết nó tồn tại và biết nó giải bài toán 'số bên thay đổi động' là đủ cho phỏng vấn.",
+        "<b>BlockingQueue — xương sống của producer-consumer.</b> Đây là công cụ được dùng nhiều nhất trong nhóm này, vì nó vừa truyền dữ liệu vừa đồng bộ và vừa tạo backpressure. Bốn nhóm method phải phân biệt được: ném exception (<code>add</code>/<code>remove</code>), trả giá trị đặc biệt ngay (<code>offer</code> trả <code>false</code>, <code>poll</code> trả <code>null</code>), chặn vô hạn (<code>put</code>/<code>take</code>), và chặn có timeout (<code>offer(e, t, u)</code>/<code>poll(t, u)</code>). Chọn hàng đợi <b>có giới hạn</b> (<code>ArrayBlockingQueue</code> hoặc <code>LinkedBlockingQueue</code> có capacity) để producer nhanh hơn consumer sẽ bị chặn lại thay vì làm phình heap tới <code>OutOfMemoryError</code>. Để dừng consumer, dùng <i>poison pill</i> hoặc interrupt — đừng dùng cờ <code>boolean</code>, vì consumer đang kẹt trong <code>take()</code> không đọc cờ.",
+        "<b>ForkJoinPool và work-stealing — dành cho chia để trị CPU-bound.</b> Mỗi worker có một deque riêng: nó đẩy và lấy task ở một đầu, còn worker rảnh <i>ăn trộm</i> task ở đầu kia, nhờ vậy tranh chấp thấp và tải tự cân bằng. Với <code>RecursiveTask</code>, thứ tự viết rất quan trọng: <code>left.fork(); long r = right.compute(); return left.join() + r;</code> — fork một nhánh rồi tự tính nhánh kia, thay vì fork cả hai. Ngưỡng chia nhỏ phải đủ lớn, nếu không chi phí quản lý task ăn hết lợi ích. Sai lầm nghiêm trọng nhất là đưa lời gọi blocking (IO, JDBC, <code>sleep</code>) vào ForkJoinPool: worker bị chặn thì không ai ăn trộm được task của nó, và nếu đó là <code>commonPool</code> — cũng là pool mà <code>parallelStream</code> và <code>CompletableFuture.supplyAsync</code> mặc định dùng — thì bạn làm đói toàn bộ ứng dụng. Trường hợp buộc phải block thì có <code>ForkJoinPool.ManagedBlocker</code> để pool biết mà bù thêm worker."
+      ],
+      "example": "// Producer-consumer voi hang doi CO GIOI HAN + poison pill\nfinal BlockingQueue<String> queue = new ArrayBlockingQueue<>(1000);\nfinal String POISON = new String(\"POISON\"); // so sanh bang ==\n\nRunnable producer = () -> {\n    try {\n        for (String line : source) {\n            queue.put(line);          // BI CHAN khi day -> backpressure\n        }\n        queue.put(POISON);\n    } catch (InterruptedException e) {\n        Thread.currentThread().interrupt();\n    }\n};\n\nRunnable consumer = () -> {\n    try {\n        while (true) {\n            String item = queue.take();\n            if (item == POISON) { queue.put(POISON); break; } // truyen tiep cho consumer khac\n            handle(item);\n        }\n    } catch (InterruptedException e) {\n        Thread.currentThread().interrupt();\n    }\n};",
+      "exampleTitle": "Backpressure bằng hàng đợi có giới hạn và poison pill",
+      "keyPoints": [
+        "CountDownLatch dùng một lần, không reset; countDown() khi đã về 0 là no-op và count không xuống âm.",
+        "CyclicBarrier tái sử dụng được, có barrier action, nhưng interrupt hoặc timeout làm barrier broken và phải reset().",
+        "Semaphore không có khái niệm sở hữu nên không reentrant; release() thừa sẽ làm tăng hạn mức vĩnh viễn.",
+        "Phaser là lựa chọn khi số bên tham gia thay đổi động giữa chừng.",
+        "BlockingQueue: add/remove ném exception, offer/poll trả ngay, put/take chặn, offer/poll có timeout — luôn chọn hàng đợi có giới hạn.",
+        "ForkJoinPool work-stealing hợp với chia để trị CPU-bound; đưa blocking IO vào commonPool là làm đói cả ứng dụng."
+      ],
+      "trap": "Câu hỏi vặn phổ biến nhất là 'CountDownLatch và CyclicBarrier khác nhau chỗ nào?'. Trả lời 'đều để chờ' là trượt. Phải nêu được hai điểm: latch dùng một lần và không reset được, barrier tái sử dụng được; và vai trò khác nhau — latch là người ngoài chờ nhóm, barrier là các thành viên chờ lẫn nhau.",
+      "followUp": [
+        "Consumer đang kẹt trong take() thì dừng nó bằng cách nào cho đúng?",
+        "Vì sao không nên gọi JDBC bên trong một task chạy trên ForkJoinPool.commonPool()?",
+        "Semaphore(1) và ReentrantLock khác nhau ra sao ngoài chuyện tên gọi?"
+      ]
+    },
+    {
+      "id": "t-18-11",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Giao thức interrupt, Future.cancel và bẫy im lặng của scheduleAtFixedRate",
+      "summary": "Java không có cách dừng thread cưỡng bức — huỷ tác vụ là một giao thức hợp tác mà đa số code production cài đặt sai.",
+      "sections": [
+        "<b>Không tồn tại cơ chế dừng cưỡng bức.</b> <code>Thread.stop()</code> bị deprecate từ Java 1.2 vì nó ném exception vào một điểm bất kỳ, để lại object ở trạng thái nửa vời trong khi vẫn nhả lock — hỏng dữ liệu một cách không thể sửa. Từ Java 20 nó ném thẳng <code>UnsupportedOperationException</code>. Thứ thay thế là <code>interrupt()</code>, và cần hiểu đúng: nó <i>không</i> dừng thread, nó chỉ bật một cờ boolean và yêu cầu code đang chạy tự nguyện hợp tác dừng lại.",
+        "<b>Ba API dễ nhầm.</b> <code>t.interrupt()</code> bật cờ trên thread <code>t</code>. <code>t.isInterrupted()</code> đọc cờ và <b>không</b> xoá. <code>Thread.interrupted()</code> là method <code>static</code>, luôn thao tác trên thread hiện tại, đọc cờ rồi <b>xoá</b> nó — nên gọi hai lần liên tiếp sẽ ra <code>true</code> rồi <code>false</code>. Ngoài ra, mọi method blocking của thư viện chuẩn (<code>sleep</code>, <code>wait</code>, <code>join</code>, <code>take</code>, <code>Condition.await</code>, <code>Lock.lockInterruptibly</code>) khi bị interrupt sẽ ném <code>InterruptedException</code> và <b>xoá cờ trước khi ném</b>. Đây là lý do cốt lõi của mục tiếp theo.",
+        "<b>Nuốt InterruptedException là bug, không phải phong cách.</b> Vì cờ đã bị xoá lúc exception được ném, nếu bạn <code>catch (InterruptedException e) {}</code> hoặc chỉ log rồi đi tiếp thì tín hiệu huỷ biến mất hoàn toàn: tầng gọi phía trên, và đặc biệt là worker của thread pool, không còn cách nào biết rằng có người vừa yêu cầu dừng. Chỉ có hai cách xử lý đúng: <b>ném tiếp</b> (khai báo <code>throws InterruptedException</code>) để người gọi quyết định, hoặc nếu không ném được thì <b>khôi phục cờ</b> bằng <code>Thread.currentThread().interrupt()</code> rồi thoát khỏi vòng lặp.",
+        "<b>Vòng lặp huỷ được, và bẫy catch-rồi-continue.</b> Tác vụ dài phải kiểm tra <code>while (!Thread.currentThread().isInterrupted())</code> ở mỗi vòng, hoặc dựa vào một method blocking để nhận exception. Bẫy hay gặp: đặt <code>try/catch (InterruptedException e) { log(e); }</code> <i>bên trong</i> vòng lặp — cờ bị xoá mỗi lần, điều kiện vòng lặp luôn đúng, và tác vụ không bao giờ dừng dù bạn gọi <code>shutdownNow()</code> bao nhiêu lần.",
+        "<b>Huỷ ở tầng ExecutorService.</b> <code>future.cancel(false)</code> chỉ ngăn task chưa chạy được lấy ra khỏi hàng đợi; <code>cancel(true)</code> còn interrupt thread đang chạy task — nhưng vẫn chỉ là interrupt, task viết sai vẫn không dừng. <code>shutdown()</code> ngừng nhận task mới và chạy hết hàng đợi; <code>shutdownNow()</code> huỷ hàng đợi, trả về danh sách task chưa chạy và interrupt các thread đang chạy. Mẫu tắt an toàn là <code>shutdown()</code>, chờ <code>awaitTermination</code>, hết hạn thì <code>shutdownNow()</code> rồi chờ lần nữa. Lưu ý: nếu task đang kẹt ở IO socket cũ hoặc <code>InputStream.read()</code>, interrupt không giải phóng được — phải đóng socket/stream mới thoát.",
+        "<b>Bẫy nghiêm trọng nhất: scheduleAtFixedRate nuốt exception và huỷ luôn lịch.</b> Nếu một exception thoát ra khỏi <code>Runnable</code> của <code>scheduleAtFixedRate</code> hay <code>scheduleWithFixedDelay</code>, tác vụ đó <b>bị huỷ vĩnh viễn</b>: không lần chạy nào nữa, và mặc định <b>không có dòng log nào</b> — exception nằm im trong <code>ScheduledFuture</code>, chỉ lộ ra khi ai đó gọi <code>get()</code> và nhận <code>ExecutionException</code>. Job dọn dẹp hay job đồng bộ chết lặng lẽ từ tuần trước là sự cố production rất phổ biến, và rất khó truy vì mọi thứ khác vẫn chạy bình thường. Cách sửa bắt buộc: bọc toàn bộ thân task trong <code>try/catch (Throwable)</code> và log. Nói thêm cho đủ: <code>scheduleAtFixedRate</code> tính chu kỳ từ lúc <i>bắt đầu</i> lần trước, <code>scheduleWithFixedDelay</code> tính từ lúc <i>kết thúc</i>; nếu task chạy lâu hơn chu kỳ thì fixedRate không chạy chồng lên nhau mà lần sau nối ngay sau lần trước."
+      ],
+      "example": "// SAI: mot exception la lich chet vinh vien, khong log gi\nscheduler.scheduleAtFixedRate(() -> {\n    syncFromRemote();          // nem RuntimeException khi mang loi\n}, 0, 1, TimeUnit.MINUTES);\n\n// DUNG: chan moi Throwable ngay trong than task\nscheduler.scheduleAtFixedRate(() -> {\n    try {\n        syncFromRemote();\n    } catch (Throwable t) {\n        log.error(\"sync that bai, se thu lai o chu ky sau\", t);\n    }\n}, 0, 1, TimeUnit.MINUTES);\n\n// DUNG: khoi phuc co interrupt khi khong the nem tiep\n@Override\npublic void run() {\n    while (!Thread.currentThread().isInterrupted()) {\n        try {\n            process(queue.take());\n        } catch (InterruptedException e) {\n            Thread.currentThread().interrupt();  // khoi phuc co roi thoat\n            break;\n        }\n    }\n}",
+      "exampleTitle": "Hai lỗi huỷ tác vụ hay gặp nhất và cách sửa",
+      "keyPoints": [
+        "interrupt() chỉ bật cờ; không có cách nào dừng thread cưỡng bức (Thread.stop ném UnsupportedOperationException từ Java 20).",
+        "isInterrupted() không xoá cờ; Thread.interrupted() là static và xoá cờ; method blocking xoá cờ trước khi ném InterruptedException.",
+        "Nuốt InterruptedException làm mất tín hiệu huỷ — phải ném tiếp hoặc khôi phục cờ bằng Thread.currentThread().interrupt().",
+        "cancel(true) và shutdownNow() chỉ interrupt; task viết sai vẫn không dừng, và IO đang chặn thì phải đóng stream mới thoát.",
+        "Exception thoát khỏi task của scheduleAtFixedRate huỷ vĩnh viễn mọi lần chạy sau, trong im lặng — luôn bọc try/catch Throwable.",
+        "scheduleAtFixedRate tính chu kỳ từ lúc bắt đầu, scheduleWithFixedDelay tính từ lúc kết thúc; fixedRate không chạy chồng lấn."
+      ],
+      "trap": "Đưa một khối catch (InterruptedException e) { log.warn(...); } đặt trong vòng lặp rồi hỏi 'shutdownNow() có dừng được task này không'. Đáp án là không: exception đã xoá cờ, log xong vòng lặp chạy tiếp mãi mãi. Đây là câu vặn phân loại rất rõ người từng debug production.",
+      "followUp": [
+        "Vì sao method blocking phải xoá cờ interrupt trước khi ném InterruptedException?",
+        "Một job scheduleAtFixedRate ngừng chạy mà log không có gì, bạn kiểm tra theo hướng nào?",
+        "shutdown() và shutdownNow() khác nhau gì, và task đang kẹt ở socket read thì cái nào dừng được?"
+      ]
+    },
+    {
+      "id": "t-2-6",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "clone() hỏng ở chỗ nào và vì sao copy constructor luôn tốt hơn",
+      "summary": "Cloneable là một trong những thiết kế bị chê nhiều nhất của thư viện chuẩn — hiểu chính xác nó sai ở đâu là câu phân loại rất tốt.",
+      "sections": [
+        "<b>Cloneable là marker interface không hề khai báo method clone.</b> Method <code>clone()</code> nằm ở <code>Object</code>, ở mức <code>protected</code> và là native. <code>Cloneable</code> không có method nào; nó chỉ đóng vai trò công tắc thay đổi hành vi của <code>Object.clone()</code>: không implement thì <code>super.clone()</code> ném <code>CloneNotSupportedException</code>. Đây là cách dùng interface đi ngược lại toàn bộ tinh thần của interface — implement nó mà không override <code>clone()</code> thì bên ngoài vẫn không gọi được, vì <code>protected</code>.",
+        "<b>clone() không gọi constructor.</b> <code>Object.clone()</code> cấp phát một object mới rồi copy từng field theo bit, bỏ qua hoàn toàn constructor. Mọi invariant bạn thiết lập và kiểm tra trong constructor đều không được chạy. Nghiêm trọng hơn với field <code>final</code>: sau khi copy bit, bạn không thể gán lại chúng, nên một class có <code>final</code> field trỏ tới object mutable gần như không thể viết clone sâu cho đúng — đây là lý do <code>clone</code> và thiết kế immutable xung khắc với nhau.",
+        "<b>Mặc định là shallow copy, và đó là nguồn bug im lặng.</b> <code>Object.clone()</code> copy giá trị của tham chiếu chứ không copy object mà nó trỏ tới, nên bản gốc và bản sao dùng chung mọi collection, mảng, và object con. Sửa <code>copy.members.add(...)</code> là bản gốc cũng đổi theo — bug này thường chỉ lộ ra ở production. Muốn deep copy phải tự clone từng field mutable, và phải làm đệ quy xuống hết các tầng; công sức đó bằng hoặc hơn viết copy constructor.",
+        "<b>Hợp đồng của clone rất yếu và có bẫy kế thừa.</b> Javadoc chỉ nói <code>x.clone() != x</code> và <code>x.clone().getClass() == x.getClass()</code> là 'thường đúng' chứ không bắt buộc, và <code>x.clone().equals(x)</code> cũng không bắt buộc. Bẫy kế thừa: nếu class cha cài <code>clone()</code> bằng <code>new Parent(...)</code> thay vì <code>super.clone()</code>, thì class con gọi <code>super.clone()</code> sẽ nhận về object kiểu <code>Parent</code> và ép kiểu thất bại lúc chạy. Nói cách khác một class có thể phá vỡ clone của mọi class con. Điểm tích cực duy nhất: từ Java 5 có covariant return nên bản override được trả kiểu con và nới access thành <code>public</code>.",
+        "<b>Copy constructor và static factory sao chép là lời giải.</b> <code>public Team(Team other)</code> gọi constructor thật nên invariant được kiểm tra, field <code>final</code> gán được bình thường, không kéo theo exception checked, không cần ép kiểu, và không phụ thuộc vào một cơ chế ngoài ngôn ngữ. Nó còn linh hoạt hơn hẳn: nhận được cả kiểu khác (<code>new ArrayList&lt;&gt;(someSet)</code>) và cho phép đổi implementation khi sao chép. Chính thư viện chuẩn cũng chọn hướng này — toàn bộ họ collection có constructor nhận <code>Collection</code> chứ không dựa vào clone.",
+        "<b>Lối thoát tốt nhất là không cần sao chép.</b> Object immutable thì chia sẻ thoải mái, không có nhu cầu copy. Từ Java 16 (có ở 17 và 21), <code>record</code> sinh sẵn constructor chính tắc và cho phép viết compact constructor để defensive copy các component kiểu collection; nhưng record không có sẵn 'wither' nên muốn tạo bản sao đổi một field thì phải tự viết method <code>withX()</code> trả về record mới. Cuối cùng, tránh mẹo deep copy bằng serialize rồi deserialize: chậm hơn nhiều lần, đòi hỏi mọi thứ đều <code>Serializable</code>, và im lặng bỏ qua các field <code>transient</code>."
+      ],
+      "example": "// clone() mac dinh la SHALLOW COPY\nclass Team implements Cloneable {\n    String name;\n    List<String> members = new ArrayList<>();\n\n    @Override public Team clone() throws CloneNotSupportedException {\n        return (Team) super.clone();     // members dung chung!\n    }\n}\n\nTeam a = new Team();\na.name = \"A\";\na.members.add(\"an\");\n\nTeam b = a.clone();\nb.name = \"B\";\nb.members.add(\"binh\");\n\nSystem.out.println(a.name);           // A   (String immutable, gan lai khong anh huong)\nSystem.out.println(a.members.size());  // 2  <-- ban goc bi sua!\n\n// ------------------------------------------------------------\n// PHIEN BAN THAY THE: bo hoan toan Cloneable, dung copy constructor\n// ------------------------------------------------------------\nclass Team {\n    final String name;\n    final List<String> members;\n\n    Team(String name, List<String> members) {\n        this.name = name;\n        this.members = new ArrayList<>(members);   // defensive copy\n    }\n\n    Team(Team other) {\n        this(other.name, other.members);\n    }\n}",
+      "exampleTitle": "Shallow copy của clone() so với copy constructor",
+      "keyPoints": [
+        "Cloneable không khai báo clone(); nó chỉ là công tắc bật hành vi của Object.clone(), không có nó thì super.clone() ném CloneNotSupportedException.",
+        "Object.clone() không gọi constructor nên bỏ qua mọi invariant và không gán lại được field final.",
+        "Mặc định là shallow copy: bản gốc và bản sao dùng chung mọi object con mutable.",
+        "Class cha cài clone() bằng new thay vì super.clone() sẽ làm hỏng clone của toàn bộ class con.",
+        "Copy constructor gọi constructor thật, xử lý được final field, không có checked exception và nhận được cả kiểu khác.",
+        "record (Java 16+, có ở 17 và 21) tránh được vấn đề nếu defensive copy trong compact constructor, nhưng không có wither sẵn."
+      ],
+      "trap": "Câu vặn kinh điển: 'clone() là deep copy hay shallow copy?'. Trả lời shallow mới được nửa điểm. Ý sâu hơn mà người phỏng vấn chờ: clone() không gọi constructor, nên không thể gán field final và mọi kiểm tra hợp lệ trong constructor bị bỏ qua — đó mới là lý do khiến nó không sửa được chứ không chỉ là chuyện nông hay sâu.",
+      "followUp": [
+        "Vì sao một class có field final gần như không viết được clone sâu cho đúng?",
+        "Class cha viết clone() bằng new Parent(...) thì class con gặp vấn đề gì lúc chạy?",
+        "Deep copy bằng serialize/deserialize có nhược điểm gì?"
+      ]
+    },
+    {
+      "id": "t-2-7",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Comparable, Comparator và bẫy 'không nhất quán với equals'",
+      "summary": "TreeSet và TreeMap không hề gọi equals — hiểu điều đó giải thích được vì sao một Set có thể im lặng nuốt mất phần tử của bạn.",
+      "sections": [
+        "<b>Hợp đồng của compareTo.</b> Bốn điều: <code>sgn(x.compareTo(y)) == -sgn(y.compareTo(x))</code>; nếu <code>x.compareTo(y) &gt; 0</code> và <code>y.compareTo(z) &gt; 0</code> thì <code>x.compareTo(z) &gt; 0</code>; nếu <code>x.compareTo(y) == 0</code> thì <code>sgn(x.compareTo(z)) == sgn(y.compareTo(z))</code> với mọi <code>z</code>; và ném <code>NullPointerException</code> khi so với <code>null</code>. Điều thứ năm — nhất quán với <code>equals</code> — chỉ được javadoc <i>khuyến nghị mạnh</i> chứ không bắt buộc, và chính khe hở đó sinh ra hầu hết bug ở phần dưới.",
+        "<b>Sorted collection dùng compareTo, không dùng equals hay hashCode.</b> <code>TreeSet</code> và <code>TreeMap</code> xác định 'trùng nhau' hoàn toàn bằng <code>compareTo</code> trả về 0 (hoặc <code>Comparator.compare</code> trả về 0). Ví dụ nổi tiếng nhất nằm ngay trong javadoc của <code>BigDecimal</code>: <code>new BigDecimal(\"1.0\")</code> và <code>new BigDecimal(\"1.00\")</code> có <code>equals</code> là <code>false</code> vì <code>equals</code> so cả scale, nhưng <code>compareTo</code> trả về 0. Kết quả: <code>HashSet</code> giữ hai phần tử còn <code>TreeSet</code> chỉ giữ một. Không có gì sai ở đây cả — chỉ là hai collection dùng hai khái niệm 'bằng nhau' khác nhau.",
+        "<b>Chiều ngược lại nguy hiểm hơn nhiều: mất dữ liệu im lặng.</b> Nếu bạn viết một comparator chỉ so theo một field, ví dụ <code>Comparator.comparing(Employee::getDepartment)</code>, rồi đưa vào <code>TreeSet</code>, thì mọi nhân viên cùng phòng bị coi là một và <code>add</code> thứ hai trở đi trả về <code>false</code> — tập hợp mất phần tử mà không có lỗi nào. Tương tự, <code>contains</code> và <code>remove</code> trên <code>TreeSet</code> cũng đi theo comparator: một object <code>equals</code>-bằng vẫn có thể không tìm thấy, hoặc một object khác hẳn lại bị xoá nhầm. Quy tắc: comparator dùng cho sorted collection phải là một total order phân biệt được mọi object khác nhau — thêm tie-breaker như <code>id</code> ở cuối chuỗi <code>thenComparing</code>.",
+        "<b>Bẫy so sánh bằng phép trừ.</b> <code>(a, b) -&gt; a.getScore() - b.getScore()</code> trông gọn nhưng tràn số khi hai giá trị cách xa nhau (ví dụ một số âm lớn và một số dương lớn), cho ra dấu ngược hẳn. Hậu quả không dừng ở 'sắp xếp hơi sai': từ Java 7, thuật toán TimSort phát hiện được mâu thuẫn và ném <code>IllegalArgumentException: Comparison method violates its general contract!</code> — một exception chỉ xuất hiện với một số bộ dữ liệu nhất định nên cực khó tái hiện. Luôn dùng <code>Integer.compare</code>, <code>Long.compare</code> hoặc <code>Comparator.comparingInt</code>.",
+        "<b>API Comparator từ Java 8.</b> <code>Comparator.comparing</code>, <code>thenComparing</code>, <code>reversed</code>, <code>nullsFirst</code>/<code>nullsLast</code> làm code đọc như đặc tả. Hai điểm thực hành: dùng <code>comparingInt</code>/<code>comparingLong</code>/<code>comparingDouble</code> khi khoá là số nguyên thuỷ để tránh autoboxing trong vòng lặp so sánh; và khi nối chuỗi, đôi khi phải chỉ kiểu tường minh (<code>Comparator.&lt;Person, String&gt;comparing(...)</code>) vì suy luận kiểu của compiler thất bại ở mắt xích <code>thenComparing</code>. Cũng lưu ý <code>reversed()</code> đảo toàn bộ chuỗi đứng trước nó chứ không chỉ tiêu chí cuối.",
+        "<b>Chọn Comparable hay Comparator, và ghi chú về thuật toán sắp xếp.</b> <code>Comparable</code> là thứ tự tự nhiên, chỉ có một, nằm trong chính class — hợp lý khi tồn tại một thứ tự hiển nhiên (số, chuỗi, ngày). <code>Comparator</code> là thứ tự ngoài, muốn bao nhiêu cũng được, và là lựa chọn bắt buộc khi bạn không sở hữu class. Về cài đặt: <code>Arrays.sort</code> cho object và <code>List.sort</code> (Java 8) dùng TimSort — <i>ổn định</i>, tức các phần tử so bằng nhau giữ nguyên thứ tự tương đối, nhờ đó sắp xếp nhiều tiêu chí bằng nhiều lượt sort mới đúng; còn <code>Arrays.sort</code> cho mảng kiểu nguyên thuỷ dùng dual-pivot quicksort và <b>không</b> ổn định (điều này không quan trọng với primitive vì các giá trị bằng nhau không phân biệt được)."
+      ],
+      "example": "import java.math.BigDecimal;\nimport java.util.*;\n\n// 1. equals va compareTo khong nhat quan\nSet<BigDecimal> hash = new HashSet<>();\nhash.add(new BigDecimal(\"1.0\"));\nhash.add(new BigDecimal(\"1.00\"));\n\nSet<BigDecimal> tree = new TreeSet<>();\ntree.add(new BigDecimal(\"1.0\"));\ntree.add(new BigDecimal(\"1.00\"));\n\nSystem.out.println(hash.size());  // 2  - equals so ca scale\nSystem.out.println(tree.size());   // 1  - compareTo tra ve 0\n\n// 2. Comparator thieu tie-breaker lam TreeSet nuot phan tu\nSet<Employee> byDept = new TreeSet<>(Comparator.comparing(Employee::getDepartment));\n// -> moi nhan vien cung phong bi coi la mot\n\n// DUNG: them tie-breaker de thanh total order\nSet<Employee> safe = new TreeSet<>(\n        Comparator.comparing(Employee::getDepartment)\n                  .thenComparingLong(Employee::getId));\n\n// 3. Tru so nguyen co the tran; dung Integer.compare\nComparator<Employee> bad  = (a, b) -> a.getScore() - b.getScore();\nComparator<Employee> good = Comparator.comparingInt(Employee::getScore);",
+      "exampleTitle": "Ba tình huống compareTo hay gây bug",
+      "keyPoints": [
+        "TreeSet/TreeMap xác định trùng nhau bằng compareTo trả về 0, hoàn toàn không gọi equals hay hashCode.",
+        "BigDecimal(\"1.0\") và BigDecimal(\"1.00\"): equals false nhưng compareTo bằng 0 — HashSet giữ 2, TreeSet giữ 1.",
+        "Comparator thiếu tie-breaker làm sorted set nuốt phần tử im lặng; luôn kết thúc chuỗi thenComparing bằng một khoá duy nhất.",
+        "So sánh bằng phép trừ tràn số và có thể làm TimSort ném IllegalArgumentException về vi phạm hợp đồng.",
+        "Dùng comparingInt/comparingLong để tránh boxing; reversed() đảo toàn bộ chuỗi đứng trước nó.",
+        "Arrays.sort cho object và List.sort dùng TimSort ổn định; Arrays.sort cho primitive dùng quicksort không ổn định."
+      ],
+      "trap": "Người phỏng vấn hỏi 'TreeSet có gọi equals không?'. Rất nhiều người trả lời có. Đáp án là không: nó chỉ dùng compareTo hoặc Comparator, và đó là lý do một comparator so theo một field sẽ làm TreeSet loại bỏ những object hoàn toàn khác nhau mà không báo lỗi gì.",
+      "followUp": [
+        "Vì sao TimSort lại ném IllegalArgumentException thay vì sắp xếp sai một cách im lặng?",
+        "Muốn TreeSet giữ hai BigDecimal 1.0 và 1.00 thì phải làm gì?",
+        "Tính ổn định của thuật toán sắp xếp có ý nghĩa gì khi sắp xếp theo nhiều tiêu chí?"
+      ]
+    },
+    {
+      "id": "t-2-8",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Inner class, static nested class và lambda: tham chiếu ẩn và rò rỉ bộ nhớ",
+      "summary": "Một chữ static thiếu chỗ khai báo class lồng nhau đủ để giữ sống cả một object lớn — và lambda không phải anonymous class như nhiều người nghĩ.",
+      "sections": [
+        "<b>Bốn loại class lồng nhau và điểm khác biệt cốt lõi.</b> Static nested class, inner class (non-static), local class (khai báo trong method) và anonymous class. Chỉ static nested class là độc lập; ba loại còn lại đều là inner và đều mang một tham chiếu <b>ẩn</b> tới instance bao ngoài. Compiler hiện thực hoá điều đó bằng một field tổng hợp thường thấy tên là <code>this$0</code> và một tham số constructor tương ứng — bạn có thể xác nhận bằng <code>javap -p</code>.",
+        "<b>Hệ quả trực tiếp về cú pháp và ngữ nghĩa.</b> Muốn tạo inner class từ bên ngoài phải viết <code>outer.new Inner()</code> chứ không thể <code>new Outer.Inner()</code>; bên trong inner class, <code>Outer.this</code> trỏ tới instance bao ngoài. Trước Java 16, inner class không được khai báo thành viên <code>static</code> (trừ hằng biên dịch); từ Java 16 (có ở 17 và 21) hạn chế này được gỡ bỏ. Ngược lại, static nested class chỉ là một class bình thường được đặt trong không gian tên của class ngoài — nó vẫn truy cập được thành viên <code>private</code> của class ngoài, điều mà nhiều người tưởng nhầm là đặc quyền riêng của inner class.",
+        "<b>Rò rỉ bộ nhớ: đây mới là lý do thực sự quan trọng.</b> Nếu một object của inner class sống lâu hơn class ngoài — được đưa vào một cache tĩnh, một registry listener, một hàng đợi của executor, hay giữ trong một trường của framework — thì tham chiếu <code>this$0</code> giữ luôn class ngoài không cho GC thu hồi, kèm theo toàn bộ đồ thị object mà nó tham chiếu. Bug này rất khó thấy khi đọc code vì trong source không hề có dòng nào tham chiếu tới outer. Cách sửa mặc định: khai báo <code>static</code> cho nested class và truyền tường minh đúng những gì nó cần; nếu buộc phải giữ tham chiếu ngược thì dùng <code>WeakReference</code>.",
+        "<b>Capture biến local: vì sao phải effectively final.</b> Local class và anonymous class chỉ dùng được biến local <code>final</code> hoặc effectively final (Java 8 nới lỏng, trước đó phải viết <code>final</code> tường minh). Lý do là cơ chế: biến local nằm trên stack và biến mất khi method kết thúc, nên compiler <b>copy</b> giá trị vào một field tổng hợp của class lồng. Nếu cho phép sửa biến sau đó, hai bản sao sẽ lệch nhau và không có ngữ nghĩa nào hợp lý. Muốn thay đổi giá trị được capture, phải dùng một object chứa: mảng một phần tử, <code>AtomicInteger</code>, hoặc một field instance. Lưu ý field instance <i>không</i> chịu ràng buộc này vì nó nằm trên heap và được truy cập qua tham chiếu.",
+        "<b>Lambda KHÔNG phải là anonymous class.</b> Đây là câu vặn rất hay gặp. Anonymous class sinh ra một file <code>.class</code> riêng ngay lúc biên dịch (dạng <code>Outer$1</code>). Lambda thì không: thân lambda được biên dịch thành một method tổng hợp <code>private</code> của chính class chứa nó, và điểm gọi trở thành một lệnh <code>invokedynamic</code> để <code>LambdaMetafactory</code> dựng implementation lúc chạy. Hệ quả ngữ nghĩa quan trọng nhất: trong anonymous class, <code>this</code> trỏ tới chính object ẩn danh; trong lambda, <code>this</code> có <i>phạm vi từ vựng</i> — nó là instance bao ngoài. Vì vậy lambda cũng không tự tham chiếu tới chính mình được, và không có scope riêng nên không khai báo được biến trùng tên với biến bên ngoài.",
+        "<b>Nhưng lambda vẫn rò rỉ đúng như inner class khi nó capture this.</b> Hiểu nhầm phổ biến là 'đổi anonymous class sang lambda thì hết leak'. Sai: nếu thân lambda đụng tới một field hay method instance của class bao ngoài, nó capture <code>this</code> và giữ nguyên vẹn object đó. Chỉ lambda không capture gì mới an toàn — và loại này còn được JVM cache lại và tái dùng một instance duy nhất. Quy tắc thực hành: mặc định khai báo nested class là <code>static</code>; trong lambda sống lâu, hãy sao chép field cần dùng ra biến local trước để lambda chỉ capture giá trị đó thay vì capture cả <code>this</code>."
+      ],
+      "example": "public class CacheService {\n    private final byte[] hugeBuffer = new byte[64 * 1024 * 1024];\n\n    // RO RI: inner class giu this$0 -> giu luon hugeBuffer\n    class Cleaner implements Runnable {\n        @Override public void run() { /* khong dung gi cua outer */ }\n    }\n\n    // RO RI: lambda cham vao field instance -> capture this\n    Runnable leaky() {\n        return () -> System.out.println(\"size=\" + hugeBuffer.length);\n    }\n\n    // SUA: static nested class, truyen tuong minh cai can dung\n    static class SafeCleaner implements Runnable {\n        private final int size;\n        SafeCleaner(int size) { this.size = size; }\n        @Override public void run() { System.out.println(\"size=\" + size); }\n    }\n\n    // SUA: copy ra bien local truoc, lambda chi capture gia tri do\n    Runnable safe() {\n        int size = hugeBuffer.length;\n        return () -> System.out.println(\"size=\" + size);\n    }\n}",
+      "exampleTitle": "Ba đường rò rỉ và cách chặn",
+      "keyPoints": [
+        "Inner class giữ tham chiếu ẩn this$0 tới instance bao ngoài; static nested class thì không.",
+        "Cả static nested và inner class đều truy cập được thành viên private của class ngoài — đó không phải điểm khác biệt.",
+        "Object inner class sống lâu hơn outer sẽ giữ outer không cho GC thu hồi; mặc định nên khai báo static.",
+        "Biến local được capture phải effectively final vì giá trị bị copy vào field tổng hợp, không phải chia sẻ.",
+        "Lambda dùng invokedynamic, không sinh class riêng, và this trong lambda là instance bao ngoài chứ không phải object lambda.",
+        "Lambda có đụng field instance vẫn capture this và rò rỉ y hệt inner class; copy ra biến local để tránh."
+      ],
+      "trap": "Câu vặn: 'lambda có phải cách viết ngắn của anonymous class không?'. Trả lời có là trượt. Hai khác biệt phải nêu được: lambda không sinh file .class riêng mà dùng invokedynamic dựng lúc chạy, và this trong lambda là instance bao ngoài trong khi this trong anonymous class là chính object ẩn danh đó.",
+      "followUp": [
+        "Vì sao biến local được capture bắt buộc phải effectively final còn field instance thì không?",
+        "Đổi một listener từ anonymous class sang lambda có tự động hết rò rỉ bộ nhớ không?",
+        "Khi nào bạn thật sự cần inner class thay vì static nested class?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-18-14",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code dưới đây in ra gì?",
+      "code": "BlockingQueue<String> q = new ArrayBlockingQueue<>(1);\n\nSystem.out.println(q.offer(\"a\"));\nSystem.out.println(q.offer(\"b\"));\nSystem.out.println(q.offer(\"c\", 100, TimeUnit.MILLISECONDS));\ntry {\n    q.add(\"d\");\n} catch (IllegalStateException e) {\n    System.out.println(\"IllegalStateException\");\n}\nSystem.out.println(q.size());",
+      "choices": [
+        "true, true, true, IllegalStateException, 3",
+        "true, rồi chương trình treo vĩnh viễn ở lời gọi offer thứ hai vì hàng đợi đã đầy",
+        "true, false, false, IllegalStateException, 1",
+        "true, false, true, IllegalStateException, 2"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Hàng đợi có sức chứa 1 nên chỉ phần tử đầu vào được. offer() không chặn: đầy thì trả về false ngay. offer() có timeout chờ tối đa 100ms rồi cũng trả về false vì không có consumer nào lấy phần tử ra để giải phóng chỗ. add() thuộc nhóm ném exception nên báo IllegalStateException. Cuối cùng size vẫn là 1. Nhớ bốn nhóm method của BlockingQueue: add/remove ném exception, offer/poll trả giá trị đặc biệt ngay, put/take chặn vô hạn, offer/poll có timeout chặn có hạn.",
+      "whyWrong": [
+        "offer chỉ trả true khi thật sự chèn được; hàng đợi sức chứa 1 đã đầy sau phần tử đầu tiên nên hai lời gọi sau đều false và size không thể là 3.",
+        "offer là biến thể KHÔNG chặn — chỉ put() mới chặn khi hàng đợi đầy. Nhầm offer với put là lỗi rất phổ biến.",
+        "",
+        "offer có timeout vẫn trả false vì trong 100ms đó không có thread nào gọi take/poll để giải phóng chỗ; timeout chỉ là thời gian chờ tối đa chứ không tạo thêm sức chứa."
+      ]
+    },
+    {
+      "id": "d-18-15",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code chạy trên đúng một thread (thread main). Console in ra gì?",
+      "code": "Thread.currentThread().interrupt();\n\nSystem.out.println(Thread.currentThread().isInterrupted());\nSystem.out.println(Thread.interrupted());\nSystem.out.println(Thread.interrupted());",
+      "choices": [
+        "true, true, true",
+        "true, true, false",
+        "true, false, false",
+        "false, false, false — một thread không tự interrupt chính mình được"
+      ],
+      "correctAnswer": 1,
+      "explanation": "interrupt() chỉ bật một cờ boolean trên thread, hoàn toàn hợp lệ khi thread tự gọi trên chính mình. isInterrupted() là method instance, chỉ ĐỌC cờ và không đổi trạng thái, nên in true. Thread.interrupted() là method static, luôn thao tác trên thread hiện tại và ĐỌC-RỒI-XOÁ cờ, nên lần đầu in true và lần thứ hai in false. Quy tắc thực tế: dùng isInterrupted() để kiểm tra trong vòng lặp, chỉ dùng Thread.interrupted() khi bạn thật sự muốn tiêu thụ và xoá tín hiệu.",
+      "whyWrong": [
+        "Thread.interrupted() xoá cờ sau khi đọc, nên không thể trả về true hai lần liên tiếp khi giữa hai lời gọi không có ai interrupt lại.",
+        "",
+        "isInterrupted() không xoá cờ nên nó không ảnh hưởng tới lời gọi Thread.interrupted() ngay sau đó; lời gọi đó vẫn thấy cờ đang bật và trả về true.",
+        "Một thread hoàn toàn có thể tự interrupt chính mình — đó chính là cách chuẩn để khôi phục cờ sau khi bắt InterruptedException."
+      ]
+    },
+    {
+      "id": "d-18-16",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Task được lên lịch chạy mỗi 100ms, chương trình ngủ 1 giây rồi in tổng số lần chạy. Console in ra gì?",
+      "code": "ScheduledExecutorService s = Executors.newScheduledThreadPool(1);\nAtomicInteger n = new AtomicInteger();\n\ns.scheduleAtFixedRate(() -> {\n    int i = n.incrementAndGet();\n    System.out.println(\"run \" + i);\n    if (i == 2) throw new RuntimeException(\"boom\");\n}, 0, 100, TimeUnit.MILLISECONDS);\n\nThread.sleep(1000);\nSystem.out.println(\"total = \" + n.get());",
+      "choices": [
+        "run 1 tới run 10 rồi total = 10 — exception chỉ ảnh hưởng đúng lần chạy đó",
+        "run 1, run 2, in stack trace của RuntimeException, rồi tiếp tục tới run 10 và total = 10",
+        "run 1, run 2, total = 2, kèm một stack trace của RuntimeException in ra stderr",
+        "run 1, run 2, total = 2 — không có stack trace nào, task bị huỷ vĩnh viễn trong im lặng"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Đây là một trong những bẫy production nguy hiểm nhất của java.util.concurrent. Khi một exception thoát ra khỏi Runnable của scheduleAtFixedRate (hoặc scheduleWithFixedDelay), tác vụ định kỳ bị huỷ vĩnh viễn: không có lần chạy nào nữa. Tệ hơn, exception không được in ra đâu cả — nó bị gói vào ScheduledFuture và chỉ lộ ra nếu ai đó gọi future.get() và nhận ExecutionException. Hệ quả thực tế là một job đồng bộ hay job dọn dẹp chết lặng lẽ mà log hoàn toàn sạch sẽ. Cách phòng duy nhất là bọc toàn bộ thân task trong try/catch (Throwable) và tự log.",
+      "whyWrong": [
+        "Ngược hẳn với hành vi thật: exception không chỉ ảnh hưởng lần chạy đó mà chấm dứt luôn toàn bộ lịch chạy sau này.",
+        "Không có stack trace nào được in, và task cũng không chạy tiếp — đây là kết hợp của hai hiểu nhầm cùng lúc.",
+        "Số lần chạy đúng nhưng phần stack trace sai: giống submit(), exception bị nuốt vào Future chứ không đi tới UncaughtExceptionHandler nên không có gì in ra stderr.",
+        ""
+      ]
+    },
+    {
+      "id": "d-18-17",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Class dưới đây có tất cả field đều là final. Vì sao chia sẻ object Holder giữa nhiều thread vẫn không an toàn?",
+      "code": "public final class Holder {\n    private static final List<Holder> REGISTRY = new CopyOnWriteArrayList<>();\n\n    private final int[] data;\n\n    public Holder() {\n        REGISTRY.add(this);\n        this.data = new int[] { 1, 2, 3 };\n    }\n\n    public int first() { return data[0]; }\n}\n\n// Thread khac: REGISTRY.get(0).first();",
+      "choices": [
+        "Constructor cho this thoát ra REGISTRY trước khi kết thúc, nên thread khác có thể lấy được Holder ở trạng thái chưa construct xong và đọc data ra null; bảo đảm của final field chỉ có hiệu lực từ thời điểm constructor kết thúc",
+        "Vì REGISTRY là static nên nó không được đồng bộ; chuyển REGISTRY thành field instance là hết vấn đề",
+        "Vì mảng data chưa được khai báo volatile; thêm volatile vào field data là đủ để an toàn",
+        "Không có vấn đề gì: mọi field đều final nên Java Memory Model bảo đảm mọi thread luôn nhìn thấy giá trị đúng"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Bảo đảm final field freeze của JMM chỉ nói rằng thread nào nhìn thấy tham chiếu SAU KHI constructor kết thúc thì thấy final field đúng. Ở đây constructor tự tay đẩy this vào một registry tĩnh trước khi gán data, nên thread khác hoàn toàn có thể đọc được phần tử từ REGISTRY và gọi first() trong lúc data vẫn là null, dẫn tới NullPointerException. Việc CopyOnWriteArrayList là thread-safe không cứu được, vì cạnh happens-before mà nó tạo ra nằm TRƯỚC lệnh gán data. Đây chính là this escape; cách sửa là để constructor private và đăng ký trong một static factory sau khi object đã construct xong.",
+      "whyWrong": [
+        "",
+        "REGISTRY đã là CopyOnWriteArrayList nên bản thân nó thread-safe; đổi thành field instance không liên quan gì tới thời điểm this bị lộ ra ngoài.",
+        "volatile trên tham chiếu data không sửa được vấn đề gốc là object bị công bố trước khi constructor kết thúc — thread khác vẫn có thể quan sát data ở giá trị mặc định null.",
+        "Bảo đảm của final field có điều kiện: object phải được construct xong rồi mới được công bố. This escape phá đúng điều kiện đó."
+      ]
+    },
+    {
+      "id": "d-18-18",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code dưới đây in ra gì?",
+      "code": "CountDownLatch latch = new CountDownLatch(2);\n\nlatch.countDown();\nlatch.countDown();\nlatch.countDown();\n\nSystem.out.println(latch.getCount());\nlatch.await();\nSystem.out.println(\"qua await\");\nlatch.await(1, TimeUnit.SECONDS);\nSystem.out.println(\"xong\");",
+      "choices": [
+        "2, rồi chương trình treo vĩnh viễn tại latch.await()",
+        "Lời gọi countDown() thứ ba ném IllegalStateException vì số đếm đã về 0",
+        "0, qua await, xong — chương trình kết thúc ngay lập tức",
+        "-1, qua await, xong"
+      ],
+      "correctAnswer": 2,
+      "explanation": "countDown() khi số đếm đã bằng 0 là một no-op hoàn toàn im lặng: không ném exception và số đếm không bao giờ xuống dưới 0, nên getCount() in ra 0. Khi số đếm đã về 0 thì latch mở vĩnh viễn, mọi await() sau đó trả về ngay lập tức, kể cả bản có timeout. Đây là điểm phân biệt cốt lõi với CyclicBarrier: CountDownLatch là cổng một chiều dùng đúng một lần và không có API nào reset lại được. Cần một điểm hẹn tái sử dụng qua nhiều vòng thì phải dùng CyclicBarrier hoặc Phaser.",
+      "whyWrong": [
+        "Số đếm đã giảm ba lần nên không thể còn 2; và khi đã về 0 thì await() trả về ngay chứ không chặn.",
+        "CountDownLatch cố tình không kiểm tra chuyện countDown() thừa; nó chỉ đơn giản không làm gì thêm.",
+        "",
+        "Số đếm của CountDownLatch bị chặn dưới ở 0, cài đặt trong AbstractQueuedSynchronizer từ chối CAS khi state đã bằng 0 nên không bao giờ có giá trị âm."
+      ]
+    },
+    {
+      "id": "d-18-19",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code chạy trên một thread duy nhất. In ra gì?",
+      "code": "StampedLock lock = new StampedLock();\n\nlong w = lock.writeLock();\nlong s = lock.tryOptimisticRead();\nSystem.out.println(s);\nSystem.out.println(lock.validate(s));\n\nlock.unlockWrite(w);\n\nlong s2 = lock.tryOptimisticRead();\nSystem.out.println(s2 != 0);\nSystem.out.println(lock.validate(s2));",
+      "choices": [
+        "Chương trình treo tại tryOptimisticRead() vì write lock đang được giữ",
+        "0, false, true, true",
+        "0, true, true, true",
+        "một stamp khác 0, true, true, true"
+      ],
+      "correctAnswer": 1,
+      "explanation": "tryOptimisticRead() không hề khoá gì cả — nó chỉ chụp lại một stamp và trả về ngay, nên không thể treo. Khi đang có write lock, nó trả về stamp 0, và theo hợp đồng validate(0) luôn là false. Sau khi nhả write lock, tryOptimisticRead() trả về một stamp khác 0 và validate() ngay sau đó là true vì chưa có lệnh ghi nào xen vào. Đây chính là mô hình đọc lạc quan: lấy stamp, đọc field vào biến cục bộ, rồi validate; nếu false thì phải làm lại bằng readLock() thật. Nhớ thêm hai điểm hay bị vặn: StampedLock KHÔNG reentrant (tự khoá lại là deadlock) và không hỗ trợ Condition, nên nó không phải bản thay thế thả vào chỗ của ReentrantReadWriteLock.",
+      "whyWrong": [
+        "tryOptimisticRead() theo thiết kế là không chặn: nó luôn trả về ngay, chỉ khác nhau ở chỗ trả stamp hợp lệ hay trả 0.",
+        "",
+        "validate(0) được đặc tả là luôn trả về false; stamp 0 chính là tín hiệu 'không lấy được lượt đọc lạc quan'.",
+        "Khi write lock đang được giữ thì không thể có lượt đọc lạc quan nào hợp lệ, nên stamp bắt buộc là 0."
+      ]
+    },
+    {
+      "id": "d-18-20",
+      "topicId": 18,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Một service chạy 64 thread; mỗi request tăng một AtomicLong đếm số lượt và lấy một số ngẫu nhiên từ một java.util.Random dùng chung khai báo static. Profiler cho thấy CPU gần chạm trần nhưng throughput lại thấp hơn khi chạy 8 thread. Chẩn đoán và cách sửa đúng nhất là gì?",
+      "choices": [
+        "AtomicLong và Random đều không thread-safe, phải bọc synchronized quanh cả hai lời gọi",
+        "Đổi AtomicLong sang volatile long để bỏ hẳn chi phí CAS",
+        "Nguyên nhân thuần tuý là context switch do quá nhiều thread; giảm pool xuống bằng số core là đủ",
+        "Cả hai đều là điểm nóng CAS trên cùng một biến: java.util.Random giữ seed trong một AtomicLong dùng chung nên mọi lần nextInt() đều là một vòng CAS tranh chấp — thay bằng ThreadLocalRandom, và đổi bộ đếm sang LongAdder để phân tán lệnh ghi ra nhiều cell"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Cả AtomicLong lẫn java.util.Random đều thread-safe, nhưng thread-safe không có nghĩa là scale. Cả hai cập nhật đúng một biến bằng vòng lặp compare-and-swap; với 64 thread, phần lớn lần CAS thất bại và phải thử lại, cache line chứa biến đó bị bật qua lại giữa các core (cache line ping-pong), nên CPU bận rộn mà công việc hữu ích lại ít đi — càng thêm thread càng chậm. ThreadLocalRandom cho mỗi thread một seed riêng nên không còn tranh chấp; LongAdder tách bộ đếm thành nhiều cell và chỉ cộng lại khi gọi sum(), đổi độ chính xác tức thời lấy khả năng scale. Phần đệm giữa các cell của LongAdder chính là kỹ thuật chống false sharing; annotation @Contended đứng sau nó là API nội bộ của JDK (sun.misc.Contended ở Java 8, jdk.internal.vm.annotation.Contended từ Java 9) và không dành cho code ứng dụng.",
+      "whyWrong": [
+        "Cả hai đều đã thread-safe sẵn; thêm synchronized chỉ biến tranh chấp CAS thành tranh chấp lock, thường còn chậm hơn.",
+        "volatile long không có phép tăng nguyên tử — đổi như vậy sẽ mất số đếm. volatile chỉ bảo đảm visibility chứ không bảo đảm atomicity.",
+        "Giảm số thread có thể giúp một phần nhưng không chạm tới nguyên nhân gốc; điểm nóng CAS trên một biến dùng chung vẫn giới hạn throughput ngay cả khi số thread bằng số core.",
+        ""
+      ]
+    },
+    {
+      "id": "d-2-10",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code dưới đây in ra gì?",
+      "code": "class Config {\n    final List<String> hosts = new ArrayList<>();\n    final int port = 8080;\n}\n\nConfig c = new Config();\nc.hosts.add(\"db1\");\nc.hosts.add(\"db2\");\n\nSystem.out.println(c.hosts.size() + \" \" + c.port);",
+      "choices": [
+        "2 8080",
+        "Lỗi biên dịch: không được gọi add() trên một field final",
+        "0 8080 — final làm danh sách trở thành bất biến nên add() bị bỏ qua",
+        "Ném UnsupportedOperationException tại lời gọi add() đầu tiên"
+      ],
+      "correctAnswer": 0,
+      "explanation": "final khoá tham chiếu chứ không khoá state mà tham chiếu trỏ tới. Bạn không thể viết c.hosts = new ArrayList<>() (lỗi biên dịch), nhưng gọi method làm thay đổi nội dung của chính object đó thì hoàn toàn hợp lệ. Nhớ ba nghĩa của final: class final thì không kế thừa được, method final thì không override được, biến final thì chỉ gán được đúng một lần. Muốn danh sách thật sự bất biến phải bọc bằng Collections.unmodifiableList quanh một bản sao (Java 8) hoặc List.copyOf từ Java 10.",
+      "whyWrong": [
+        "",
+        "final chỉ cấm gán lại tham chiếu; lời gọi method trên object được tham chiếu không bị ràng buộc gì và biên dịch bình thường.",
+        "final không hề tạo ra tính bất biến cho object bên trong; ArrayList vẫn nhận add() và kích thước tăng lên 2.",
+        "UnsupportedOperationException chỉ đến từ các view không sửa được như Collections.unmodifiableList hay List.of, còn đây là ArrayList thật."
+      ]
+    },
+    {
+      "id": "d-2-11",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Khác biệt QUAN TRỌNG NHẤT giữa static nested class và inner class (non-static) trong Java là gì?",
+      "choices": [
+        "static nested class không truy cập được thành viên private của class bao ngoài, còn inner class thì truy cập được",
+        "inner class biên dịch gọn hơn vì không sinh file .class riêng, còn static nested class thì có",
+        "static nested class chỉ được chứa thành viên static",
+        "inner class giữ một tham chiếu ẩn tới instance của class bao ngoài (field tổng hợp this$0), nên phải có instance outer mới tạo được và nó giữ outer sống trong bộ nhớ; static nested class thì không"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Điểm khác biệt cốt lõi là tham chiếu ẩn this$0 mà compiler thêm vào inner class. Nó tạo ra ba hệ quả: cú pháp khởi tạo phải là outer.new Inner(), inner class truy cập được state của instance outer qua Outer.this, và quan trọng nhất là mọi inner class sống lâu (listener, task trong executor, entry trong cache tĩnh) đều giữ luôn object outer không cho GC thu hồi. Vì vậy khuyến nghị mặc định là khai báo static cho nested class và chỉ bỏ static khi thật sự cần truy cập state của outer.",
+      "whyWrong": [
+        "Cả hai loại đều truy cập được thành viên private của class bao ngoài — trước Java 11 thông qua synthetic accessor method, từ Java 11 thông qua cơ chế nestmates của JVM.",
+        "Ngược lại: cả hai đều sinh file .class riêng (dạng Outer$Inner). Chính lambda mới là thứ không sinh class riêng lúc biên dịch.",
+        "static nested class chứa được cả thành viên instance lẫn static; chữ static chỉ nói về quan hệ của chính class đó với instance bao ngoài.",
+        ""
+      ]
+    },
+    {
+      "id": "d-2-12",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code dưới đây in ra gì?",
+      "code": "Set<BigDecimal> hash = new HashSet<>();\nhash.add(new BigDecimal(\"1.0\"));\nhash.add(new BigDecimal(\"1.00\"));\n\nSet<BigDecimal> tree = new TreeSet<>();\ntree.add(new BigDecimal(\"1.0\"));\ntree.add(new BigDecimal(\"1.00\"));\n\nSystem.out.println(hash.size() + \" \" + tree.size());",
+      "choices": [
+        "1 1",
+        "2 1",
+        "2 2",
+        "1 2"
+      ],
+      "correctAnswer": 1,
+      "explanation": "BigDecimal.equals() so sánh cả giá trị lẫn scale nên 1.0 và 1.00 KHÔNG bằng nhau, vì thế HashSet giữ hai phần tử. Ngược lại compareTo() chỉ so giá trị số học nên trả về 0, và TreeSet xác định trùng nhau hoàn toàn bằng compareTo chứ không bao giờ gọi equals hay hashCode — nên nó chỉ giữ một. Đây là ví dụ chuẩn cho khái niệm 'compareTo không nhất quán với equals', được ghi thẳng trong javadoc của BigDecimal. Bài học thực tế: chọn HashSet hay TreeSet là chọn luôn định nghĩa 'bằng nhau', và nếu cần so sánh BigDecimal theo giá trị thì phải dùng compareTo() == 0 chứ đừng dùng equals().",
+      "whyWrong": [
+        "HashSet dùng equals/hashCode, mà BigDecimal.equals so cả scale nên hai object này khác nhau và cả hai đều được giữ.",
+        "",
+        "TreeSet không dùng equals; compareTo giữa 1.0 và 1.00 trả về 0 nên phần tử thứ hai bị coi là trùng và bị loại.",
+        "Đảo ngược hoàn toàn hành vi thật của hai collection."
+      ]
+    },
+    {
+      "id": "d-2-13",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code dưới đây in ra gì?",
+      "code": "class Team implements Cloneable {\n    String name;\n    List<String> members = new ArrayList<>();\n\n    @Override public Team clone() throws CloneNotSupportedException {\n        return (Team) super.clone();\n    }\n}\n\nTeam t1 = new Team();\nt1.name = \"A\";\nt1.members.add(\"an\");\n\nTeam t2 = t1.clone();\nt2.name = \"B\";\nt2.members.add(\"binh\");\n\nSystem.out.println(t1.name + \" \" + t1.members.size() + \" \" + t2.members.size());",
+      "choices": [
+        "A 1 2",
+        "B 1 2",
+        "A 2 2",
+        "Ném CloneNotSupportedException vì class con không được nới quyền truy cập của clone() thành public"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Object.clone() thực hiện shallow copy: nó copy giá trị của từng field theo bit. Field name là tham chiếu String, gán t2.name = \"B\" chỉ trỏ tham chiếu của t2 sang chỗ khác nên t1.name vẫn là A. Nhưng field members được copy tham chiếu, nghĩa là t1.members và t2.members là CÙNG một ArrayList — thêm phần tử qua t2 thì t1 cũng thấy, cả hai đều in ra 2. Đây là bug im lặng kinh điển của clone(). Muốn deep copy phải tự tay copy từng field mutable, và khi đó copy constructor gọn hơn hẳn: nó gọi constructor thật nên gán được cả field final và kiểm tra được invariant.",
+      "whyWrong": [
+        "Chỉ đúng nếu clone là deep copy; nhưng members được dùng chung nên t1.members.size() cũng là 2.",
+        "Sai cả hai phần: name của t1 không đổi vì String là immutable và phép gán chỉ đổi tham chiếu của t2, còn members thì bị dùng chung.",
+        "",
+        "Nới quyền truy cập khi override là hoàn toàn hợp lệ (protected lên public), và Team đã implements Cloneable nên super.clone() chạy bình thường."
+      ]
+    },
+    {
+      "id": "d-2-14",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code dưới đây in ra hai dòng nào?",
+      "code": "public class Outer {\n    String name = \"Outer\";\n\n    Runnable anonymous() {\n        return new Runnable() {\n            public void run() { System.out.println(this.getClass().getName()); }\n        };\n    }\n\n    Runnable lambda() {\n        return () -> System.out.println(this.getClass().getName());\n    }\n\n    public static void main(String[] a) {\n        Outer o = new Outer();\n        o.anonymous().run();\n        o.lambda().run();\n    }\n}",
+      "choices": [
+        "Outer$1 rồi Outer",
+        "Outer rồi Outer",
+        "Outer$1 rồi Outer$2",
+        "Outer$1 rồi một tên dạng Outer$$Lambda..."
+      ],
+      "correctAnswer": 0,
+      "explanation": "Trong anonymous class, this trỏ tới chính object ẩn danh, và compiler đã sinh cho nó một class thật mang tên Outer$1 (quy ước đặt tên của javac). Trong lambda thì khác hẳn: lambda không tạo scope riêng cho this, this có phạm vi từ vựng và chính là instance Outer bao ngoài, nên getClass() trả về Outer. Đây là bằng chứng cụ thể cho việc lambda KHÔNG phải cách viết ngắn của anonymous class: thân lambda được biên dịch thành một method tổng hợp private của Outer và được LambdaMetafactory dựng lúc chạy qua invokedynamic. Hệ quả thực tế: lambda không tự tham chiếu chính nó được, và trong lambda bạn không khai báo được biến trùng tên với biến của scope bao ngoài.",
+      "whyWrong": [
+        "",
+        "Nếu dòng đầu là Outer thì có nghĩa this trong anonymous class trỏ tới object bao ngoài — sai; anonymous class có this của riêng nó.",
+        "Trong file chỉ có một anonymous class nên chỉ tồn tại Outer$1; lambda không sinh class thứ hai lúc biên dịch.",
+        "Đây đúng là hiểu nhầm phổ biến nhất. Lambda có sinh một class ẩn lúc chạy nhưng this bên trong lambda không trỏ tới nó — this là instance Outer, nên getClass() in ra Outer."
+      ]
+    },
+    {
+      "id": "d-2-15",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code dưới đây in ra gì, và nó vi phạm tính chất nào của hợp đồng equals?",
+      "code": "class Point {\n    final int x, y;\n    Point(int x, int y) { this.x = x; this.y = y; }\n\n    @Override public boolean equals(Object o) {\n        if (!(o instanceof Point)) return false;\n        Point p = (Point) o;\n        return p.x == x && p.y == y;\n    }\n    @Override public int hashCode() { return 31 * x + y; }\n}\n\nclass ColorPoint extends Point {\n    final String color;\n    ColorPoint(int x, int y, String c) { super(x, y); color = c; }\n\n    @Override public boolean equals(Object o) {\n        if (!(o instanceof ColorPoint)) return false;\n        return super.equals(o) && ((ColorPoint) o).color.equals(color);\n    }\n    @Override public int hashCode() { return super.hashCode() * 31 + color.hashCode(); }\n}\n\nPoint p = new Point(1, 2);\nColorPoint cp = new ColorPoint(1, 2, \"do\");\n\nSystem.out.println(p.equals(cp));\nSystem.out.println(cp.equals(p));\nSystem.out.println(Arrays.asList((Point) cp).contains(p));",
+      "choices": [
+        "true, true, true — không vi phạm gì cả",
+        "false, false, false — ColorPoint không bao giờ bằng Point",
+        "true, false, false — vi phạm tính bắc cầu",
+        "true, false, true — vi phạm tính đối xứng, và vì thế kết quả của contains() phụ thuộc vào việc object nào đứng bên trái phép so sánh"
+      ],
+      "correctAnswer": 3,
+      "explanation": "p.equals(cp) chạy bản của Point: cp là một Point nên chỉ so x và y, ra true. cp.equals(p) chạy bản của ColorPoint: p không phải ColorPoint nên trả về false ngay. Đối xứng bị phá vỡ. Dòng thứ ba lộ ra hậu quả thực tế: List.contains(o) được cài đặt bằng o.equals(phần tử), tức p.equals(cp), nên trả về true dù danh sách chỉ chứa ColorPoint — cùng một cặp object mà đảo vai trò lại cho kết quả khác. Đổi sang getClass() thay cho instanceof thì lấy lại được đối xứng nhưng lại phá nguyên lý thay thế Liskov. Không có cách nào vừa mở rộng class có state vừa thêm field mà giữ nguyên hợp đồng equals — đó là lập luận mạnh nhất cho việc dùng composition, hoặc dùng record vốn là final.",
+      "whyWrong": [
+        "cp.equals(p) không thể ra true vì kiểm tra instanceof ColorPoint thất bại với một Point thuần.",
+        "p.equals(cp) chạy bản của Point và ColorPoint thoả instanceof Point, nên nó ra true.",
+        "Đúng hai giá trị đầu nhưng sai giá trị thứ ba và sai tên tính chất: contains gọi p.equals(cp) nên ra true, và cái bị vi phạm ở đây là tính đối xứng chứ không phải bắc cầu.",
+        ""
+      ]
+    },
+    {
+      "id": "d-2-16",
+      "topicId": 2,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code dưới đây in ra gì?",
+      "code": "interface Greeter {\n    default String hi() { return \"interface\"; }\n}\n\nclass Base {\n    public String hi() { return \"class\"; }\n}\n\nclass Child extends Base implements Greeter { }\n\nSystem.out.println(new Child().hi());",
+      "choices": [
+        "interface",
+        "class",
+        "Lỗi biên dịch: Child buộc phải override hi() để giải quyết xung đột",
+        "Lỗi biên dịch: một class không được implement interface có default method trùng chữ ký với method kế thừa từ class cha"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Quy tắc phân giải của Java có ba bậc theo đúng thứ tự: (1) method kế thừa từ superclass luôn thắng default method của interface — thường gọi là 'class wins'; (2) nếu chỉ có các interface thì interface cụ thể hơn thắng (B extends A thì bản của B được chọn); (3) nếu hai bản không có quan hệ kế thừa thì compiler báo lỗi và buộc phải override. Ở đây bậc một áp dụng nên in ra class. Đây là bẫy thật khi tiến hoá API: thêm một default method vào interface có thể bị vô hiệu hoá hoàn toàn trong im lặng chỉ vì một class cha cũ tình cờ có method cùng chữ ký. Điểm vặn tiếp: nếu Base khai báo hi() là abstract thì default method của Greeter vẫn KHÔNG được dùng để lấp chỗ trống — Child sẽ không biên dịch được vì thiếu implementation.",
+      "whyWrong": [
+        "default method chỉ được dùng khi class không thừa hưởng được method nào cùng chữ ký từ cây class; ở đây Base đã cung cấp bản cài đặt.",
+        "",
+        "Xung đột buộc override chỉ xảy ra giữa hai interface không có quan hệ kế thừa với nhau, không xảy ra giữa class và interface.",
+        "Không có luật nào cấm điều này; đây chính là tình huống mà quy tắc class wins sinh ra để xử lý."
+      ]
+    }
+  ]
+}

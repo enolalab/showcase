@@ -1,0 +1,506 @@
+{
+  "tutorials": [
+    {
+      "id": "t-3-6",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "title": "LinkedHashMap: thứ tự duyệt, access-order và LRU cache viết trong 5 dòng",
+      "summary": "Vì sao LinkedHashMap giữ được thứ tự mà HashMap không giữ, và cách biến nó thành LRU cache chỉ bằng một method override.",
+      "sections": [
+        "<b>Cấu trúc bên trong.</b> <code>LinkedHashMap</code> kế thừa <code>HashMap</code> và giữ nguyên toàn bộ cơ chế hash, bucket, resize, treeify — nó chỉ thay <code>Node</code> bằng <code>Entry</code> có thêm hai tham chiếu <code>before</code>/<code>after</code>, tạo thành một danh sách liên kết đôi xuyên qua mọi entry. Cái giá là mỗi entry tốn thêm hai ô tham chiếu; đổi lại thứ tự duyệt trở nên xác định.",
+        "<b>Duyệt nhanh hơn HashMap, nghe phản trực giác nhưng đúng.</b> Duyệt <code>HashMap</code> phải quét toàn bộ mảng bucket, kể cả bucket rỗng, nên chi phí là O(capacity + n). Duyệt <code>LinkedHashMap</code> chỉ đi theo danh sách liên kết nên là O(n) theo số phần tử thật. Với một map từng chứa một triệu phần tử rồi bị xoá gần hết (capacity không bao giờ co lại), khác biệt này là thật và đo được.",
+        "<b>Hai chế độ thứ tự.</b> Constructor ba tham số <code>LinkedHashMap(initialCapacity, loadFactor, accessOrder)</code> quyết định tất cả. Với <code>accessOrder = false</code> (mặc định) là insertion-order: <code>put</code> lại một key đã tồn tại chỉ cập nhật value chứ KHÔNG đưa nó về cuối. Với <code>accessOrder = true</code>, mỗi <code>get</code>, <code>put</code>, <code>getOrDefault</code>, <code>merge</code>, <code>compute</code> đều đưa entry vừa chạm về cuối danh sách — nên phần tử ở đầu chính là phần tử lâu nhất chưa được dùng.",
+        "<b>removeEldestEntry: móc nối duy nhất bạn cần.</b> Sau mỗi lần chèn một entry mới, <code>afterNodeInsertion</code> gọi <code>removeEldestEntry(eldest)</code> với eldest là entry ở đầu danh sách; mặc định trả <code>false</code>. Chỉ cần override thành <code>return size() &gt; capacity;</code> là bạn có một LRU cache đầy đủ. Lưu ý: đừng tự gọi <code>remove()</code> bên trong method này — nó chỉ trả về boolean, phần xoá do HashMap tự làm, tự xoá thêm sẽ gây hỏng cấu trúc.",
+        "<b>Bẫy: với access-order, get() cũng là structural modification.</b> Khi <code>accessOrder = true</code>, <code>get()</code> di chuyển node trong danh sách và tăng <code>modCount</code>. Hệ quả là gọi <code>map.get(k)</code> trong lúc đang duyệt <code>keySet()</code> sẽ ném <code>ConcurrentModificationException</code> — dù bạn cảm giác mình chỉ đang đọc. Đây là câu hỏi vặn khá phổ biến: 'chỉ đọc thôi mà sao lại CME?'.",
+        "<b>Thread-safety và khi nào nên dùng thư viện.</b> LinkedHashMap không đồng bộ, và với access-order thì ngay cả thao tác đọc cũng ghi vào danh sách liên kết, nên không có chuyện 'nhiều thread đọc song song mà không cần lock'. Bọc <code>Collections.synchronizedMap</code> là đúng nhưng biến cache thành điểm nghẽn một lock toàn cục. Cần TTL, giới hạn theo weight, refresh bất đồng bộ hay thống kê hit-rate thì nên dùng Caffeine/Guava Cache thay vì tự viết. LinkedHashMap-LRU hợp cho cache nhỏ, trong một thread, hoặc khi bạn muốn thứ tự lặp ổn định để serialize và so sánh trong test."
+      ],
+      "example": "// LRU cache dung lượng cố định, hoạt động từ Java 8 trở đi\nclass LruCache<K, V> extends LinkedHashMap<K, V> {\n    private final int capacity;\n\n    LruCache(int capacity) {\n        super(16, 0.75f, true);   // tham số thứ ba: accessOrder = true\n        this.capacity = capacity;\n    }\n\n    @Override\n    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {\n        return size() > capacity;  // CHỈ trả boolean, không tự gọi remove()\n    }\n}\n\nLruCache<String, Integer> cache = new LruCache<>(3);\ncache.put(\"a\", 1);\ncache.put(\"b\", 2);\ncache.put(\"c\", 3);\ncache.get(\"a\");            // \"a\" được đẩy về cuối -> b, c, a\ncache.put(\"d\", 4);         // vượt 3 -> loại bỏ \"b\" (đầu danh sách)\nSystem.out.println(cache.keySet());   // [c, a, d]\n\n// Insertion-order thuần: constructor mặc định\nMap<String, Integer> ordered = new LinkedHashMap<>();\nordered.put(\"x\", 1);\nordered.put(\"y\", 2);\nordered.put(\"x\", 9);       // KHÔNG đẩy \"x\" về cuối -> vẫn là [x, y]",
+      "exampleTitle": "LRU cache bằng LinkedHashMap và khác biệt hai chế độ thứ tự",
+      "keyPoints": [
+        "LinkedHashMap = HashMap + danh sách liên kết đôi qua mọi entry; giữ nguyên cơ chế hash và treeify",
+        "Duyệt LinkedHashMap là O(n) theo số phần tử, còn HashMap là O(capacity + n) vì phải quét cả bucket rỗng",
+        "accessOrder = false (mặc định) là insertion-order và put lại key cũ KHÔNG đổi vị trí",
+        "accessOrder = true đưa entry vừa truy cập về cuối; đầu danh sách là entry lâu nhất chưa dùng",
+        "Override removeEldestEntry trả về size() > capacity là có LRU; không được tự gọi remove() bên trong",
+        "Với accessOrder = true, get() tăng modCount nên gọi get trong lúc duyệt sẽ ném ConcurrentModificationException",
+        "Không thread-safe; cache thật cần TTL/weight/thống kê thì dùng Caffeine hoặc Guava"
+      ],
+      "trap": "Tưởng rằng put lại một key đã có sẽ đưa nó về cuối trong chế độ insertion-order. Không: chỉ value được cập nhật, vị trí giữ nguyên. Ngược lại, ở chế độ access-order thì cả put lẫn get đều đẩy entry về cuối — trộn lẫn hai luật này là lỗi hay gặp khi tự viết cache.",
+      "followUp": [
+        "Nếu tôi muốn cache theo LFU thay vì LRU thì LinkedHashMap còn dùng được không?",
+        "Vì sao get() trong chế độ access-order lại làm iterator ném ConcurrentModificationException?",
+        "Bọc Collections.synchronizedMap quanh LRU cache này thì còn vấn đề gì về hiệu năng?"
+      ]
+    },
+    {
+      "id": "t-3-7",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "title": "TreeMap và NavigableMap: điều hướng, view theo khoảng và hợp đồng Comparator",
+      "summary": "Khi nào đánh đổi O(1) của HashMap lấy O(log n) của TreeMap, và vì sao headMap/subMap là view chứ không phải bản sao.",
+      "sections": [
+        "<b>Cây đỏ-đen, không phải bảng băm.</b> <code>TreeMap</code> lưu entry trong một cây nhị phân tìm kiếm tự cân bằng: <code>get</code>, <code>put</code>, <code>remove</code> đều O(log n) — chậm hơn HashMap về hằng số lẫn về bậc. Đổi lại bạn có hai thứ HashMap không bao giờ cho: duyệt theo thứ tự khoá, và truy vấn theo khoảng. Nếu bài toán không cần hai thứ đó thì chọn TreeMap là chọn sai.",
+        "<b>Bộ method điều hướng và cái bẫy floor/lower.</b> <code>floorKey(k)</code> trả khoá lớn nhất mà <b>&lt;=</b> k, còn <code>lowerKey(k)</code> yêu cầu <b>&lt;</b> k (loại trừ chính k). Đối xứng: <code>ceilingKey</code> là &gt;= còn <code>higherKey</code> là &gt;. Thêm <code>firstEntry</code>/<code>lastEntry</code>/<code>pollFirstEntry</code>/<code>pollLastEntry</code>/<code>descendingMap</code>. Người phỏng vấn rất hay vặn đúng cặp floor/lower vì trong bài toán tra bảng giá theo mốc thời gian, chọn nhầm một trong hai làm lệch nguyên một mốc.",
+        "<b>headMap/tailMap/subMap là VIEW, không phải bản sao.</b> Chúng trả về một cửa sổ soi vào chính map gốc: sửa map gốc thì view thấy ngay, ghi vào view là ghi thẳng vào map gốc, và <code>put</code> một khoá nằm ngoài khoảng sẽ ném <code>IllegalArgumentException</code>. Nguyên tắc này lặp lại khắp Collections Framework — <code>List.subList</code>, <code>Map.keySet</code>/<code>values</code>/<code>entrySet</code>, <code>Collections.unmodifiableList</code>, <code>Arrays.asList</code> đều là view. Muốn bản sao độc lập thì phải nói rõ: <code>new TreeMap&lt;&gt;(m.headMap(k))</code>.",
+        "<b>Cận đóng và cận mở bất đối xứng có chủ ý.</b> <code>headMap(k)</code> mặc định KHÔNG chứa k, còn <code>tailMap(k)</code> mặc định CÓ chứa k. Thiết kế này để <code>headMap(k)</code> và <code>tailMap(k)</code> ghép lại phủ đúng một lần mỗi khoá, không trùng không sót — giống quy ước nửa mở của <code>subList(from, to)</code>. Bản hai tham số <code>headMap(k, true)</code>, <code>subMap(lo, false, hi, true)</code> cho bạn chỉ định rõ ràng khi cần.",
+        "<b>Comparator phải nhất quán với equals.</b> Đây là chi tiết đắt giá nhất của bài này: <code>TreeMap</code> và <code>TreeSet</code> xác định hai phần tử có trùng nhau hay không bằng <code>compare(a, b) == 0</code>, hoàn toàn KHÔNG gọi <code>equals</code>. Nếu bạn đưa vào một comparator so sánh theo độ dài chuỗi, thì <code>&quot;aa&quot;</code> và <code>&quot;bb&quot;</code> bị coi là cùng một phần tử: TreeSet nuốt mất phần tử thứ hai, và <code>contains(&quot;zz&quot;)</code> trả <code>true</code> dù &quot;zz&quot; chưa từng được thêm. Cấu trúc vẫn chạy, không ném gì cả — chỉ là nó không còn là một Set đúng nghĩa nữa. Javadoc gọi đây là 'well-defined but violates the general contract'.",
+        "<b>null và chuỗi Comparator.</b> TreeMap dùng natural ordering ném <code>NullPointerException</code> khi <code>put(null, v)</code>, kể cả lúc map đang rỗng (từ Java 7 nó kiểm tra ngay để fail sớm). Khi so sánh nhiều tiêu chí, dùng <code>Comparator.comparing(Person::getName, Comparator.nullsFirst(Comparator.naturalOrder())).thenComparing(Person::getAge)</code>: <code>nullsFirst</code>/<code>nullsLast</code> bọc một comparator khác chứ không đứng một mình, và nhớ rằng <code>reversed()</code> đảo NGƯỢC toàn bộ chuỗi đứng trước nó chứ không chỉ tiêu chí cuối."
+      ],
+      "example": "TreeMap<Integer, String> m = new TreeMap<>();\nm.put(10, \"a\");\nm.put(20, \"b\");\nm.put(30, \"c\");\n\nm.floorKey(25);      // 20  (<= 25)\nm.lowerKey(20);      // 10  (<  20, loại trừ chính 20)\nm.ceilingKey(25);    // 30  (>= 25)\nm.higherKey(20);     // 30  (>  20)\n\nm.headMap(20);            // {10=a}          - loại trừ 20\nm.headMap(20, true);      // {10=a, 20=b}\nm.subMap(10, false, 30, true);  // {20=b, 30=c}\n\n// View: sửa map gốc thì view thấy ngay\nSortedMap<Integer, String> view = m.headMap(25);\nm.put(15, \"x\");\nSystem.out.println(view);      // {10=a, 15=x, 20=b}\n// view.put(99, \"z\");          // IllegalArgumentException: key out of range\nMap<Integer, String> copy = new TreeMap<>(view);   // muốn bản sao thì phải nói rõ\n\n// Comparator KHÔNG nhất quán với equals -> Set sai ngữ nghĩa\nSet<String> bad = new TreeSet<>(Comparator.comparingInt(String::length));\nbad.add(\"aa\");\nbad.add(\"bb\");                 // bị coi là trùng \"aa\" -> không được thêm\nSystem.out.println(bad);       // [aa]\nSystem.out.println(bad.contains(\"zz\"));  // true (!)",
+      "exampleTitle": "Điều hướng, view theo khoảng và bẫy Comparator",
+      "keyPoints": [
+        "TreeMap là cây đỏ-đen: mọi thao tác O(log n), đổi tốc độ lấy thứ tự và truy vấn theo khoảng",
+        "floor/ceiling bao gồm chính khoá đó; lower/higher loại trừ nó",
+        "headMap mặc định loại trừ cận trên, tailMap mặc định bao gồm cận dưới",
+        "headMap/tailMap/subMap là view backed by map gốc; ghi ngoài khoảng ném IllegalArgumentException",
+        "TreeMap/TreeSet coi hai phần tử trùng nhau khi compare() == 0, không hề gọi equals",
+        "Comparator không nhất quán với equals làm Set/Map mất ngữ nghĩa mà không ném exception nào",
+        "TreeMap natural ordering ném NullPointerException khi put null key, kể cả khi map rỗng"
+      ],
+      "trap": "Coi headMap/subMap là bản sao rồi vô tư sửa nó, hoặc lưu nó lại lâu dài và ngạc nhiên vì nội dung tự đổi. Bẫy nặng hơn là dùng comparator chỉ so một phần trạng thái (theo tuổi, theo độ dài) cho TreeSet: dữ liệu bị nuốt mất âm thầm, không có exception nào để lần ra.",
+      "followUp": [
+        "Vì sao TreeSet dùng compare() thay vì equals() để xác định phần tử trùng?",
+        "Khi nào bạn chọn TreeMap thay vì HashMap rồi sort lại danh sách khoá?",
+        "ConcurrentSkipListMap khác TreeMap ở điểm nào ngoài chuyện thread-safe?"
+      ]
+    },
+    {
+      "id": "t-3-8",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "title": "Chọn đúng collection: ArrayDeque thay Stack, và bộ ba EnumMap / IdentityHashMap / WeakHashMap",
+      "summary": "Bốn cấu trúc mà ứng viên hiếm khi nhắc tới nhưng người phỏng vấn dùng để phân biệt người đọc Javadoc với người chỉ học thuộc ArrayList và HashMap.",
+      "sections": [
+        "<b>Stack và Vector là di sản, không phải lựa chọn.</b> Cả hai có từ JDK 1.0, <code>synchronized</code> trên mọi method nên chậm mà vẫn không đủ an toàn: một chuỗi <code>if (!s.isEmpty()) s.pop();</code> vẫn cần lock ở tầng ngoài. Vấn đề nặng hơn là thiết kế: <code>Stack</code> kế thừa <code>Vector</code> nên nó phơi ra <code>get(0)</code>, <code>insertElementAt</code>, <code>remove(i)</code> — phá vỡ hoàn toàn ngữ nghĩa LIFO. Và iterator của Stack duyệt từ ĐÁY lên đỉnh, ngược với thứ tự pop, nên log nội dung stack ra là thấy thứ tự đảo so với thực tế xử lý.",
+        "<b>ArrayDeque là câu trả lời cho cả stack lẫn queue.</b> Nó là mảng vòng: không tạo node, không tốn header object cho từng phần tử, và truy cập tuần tự thân thiện với cache. <code>push</code> chính là <code>addFirst</code> và <code>pop</code> là <code>removeFirst</code>, nên <code>toString</code> và iterator đi từ đỉnh xuống — khớp đúng thứ tự bạn sẽ pop ra. Javadoc của chính lớp này nói thẳng: nhanh hơn <code>Stack</code> khi làm stack và nhanh hơn <code>LinkedList</code> khi làm queue. Ràng buộc duy nhất cần nhớ: ArrayDeque KHÔNG cho phép phần tử null, vì null được dùng làm giá trị sentinel bên trong.",
+        "<b>EnumMap và EnumSet: nhanh hơn hash, luôn nên dùng khi khoá là enum.</b> <code>EnumMap</code> bên trong chỉ là một mảng <code>Object[]</code> đánh chỉ số theo <code>ordinal()</code>: không băm, không va chạm, không resize, tra cứu là một phép truy cập mảng. Thứ tự duyệt là thứ tự khai báo hằng enum — luôn xác định. <code>EnumSet</code> còn gọn hơn: với enum có tối đa 64 hằng nó là một biến <code>long</code> duy nhất (<code>RegularEnumSet</code>), phép hợp/giao trở thành phép bit. Thấy <code>Map&lt;SomeEnum, X&gt;</code> khai báo là <code>HashMap</code> trong code review là một điểm nên góp ý ngay.",
+        "<b>IdentityHashMap: cố tình vi phạm hợp đồng Map.</b> Nó so khoá bằng <code>==</code> và băm bằng <code>System.identityHashCode</code>, tức bỏ qua <code>equals</code>/<code>hashCode</code> của bạn. Javadoc nói rõ đây là hành vi có chủ đích và lớp này không phải Map đa dụng. Chỗ dùng đúng là khi bạn cần theo dõi <i>từng object cụ thể</i>: phát hiện chu trình khi serialize đồ thị object, ánh xạ object gốc sang bản sao trong deep-copy, hoặc lưu metadata gắn với instance. Dùng nó để 'chạy nhanh hơn HashMap' là sai — hai chuỗi bằng nhau về nội dung sẽ trở thành hai khoá khác nhau.",
+        "<b>WeakHashMap: không phải cache, mà là bảng metadata theo vòng đời.</b> Khoá được giữ bằng <code>WeakReference</code>, nên khi không còn tham chiếu mạnh nào tới khoá thì entry sẽ biến mất sau một chu kỳ GC. Ba cái bẫy phải nhớ: (1) nếu <b>value</b> trỏ ngược về key thì khoá không bao giờ yếu đi và entry không bao giờ bị dọn — đây là rò rỉ bộ nhớ kinh điển; (2) nếu khoá là String literal hoặc Integer trong cache của Integer.valueOf thì nó đã bị giữ mạnh sẵn, entry sống mãi; (3) thời điểm dọn phụ thuộc GC nên <code>size()</code> có thể đổi giữa hai lần gọi liên tiếp mà bạn không làm gì cả. WeakHashMap không có TTL, không giới hạn dung lượng — nó không thay thế được một cache thật.",
+        "<b>Quy tắc chọn nhanh trong phỏng vấn.</b> Cần LIFO hay FIFO thì <code>ArrayDeque</code>. Khoá là enum thì <code>EnumMap</code>/<code>EnumSet</code>. Cần phân biệt instance chứ không phải giá trị thì <code>IdentityHashMap</code>. Cần gắn dữ liệu phụ vào object mà không muốn giữ nó sống thì <code>WeakHashMap</code>. Cần cache có kiểm soát thì thư viện chuyên dụng. Nêu được cả tiêu chí chọn lẫn lý do loại các phương án khác quan trọng hơn nhiều so với việc kể tên đúng lớp."
+      ],
+      "example": "// Stack đúng cách: Deque + ArrayDeque\nDeque<String> stack = new ArrayDeque<>();\nstack.push(\"a\");\nstack.push(\"b\");\nstack.push(\"c\");\nSystem.out.println(stack);       // [c, b, a] - khớp thứ tự pop\nSystem.out.println(stack.pop()); // c\n// stack.push(null);             // NullPointerException: ArrayDeque cấm null\n\n// Queue cũng chính lớp đó\nDeque<String> queue = new ArrayDeque<>();\nqueue.addLast(\"job1\");\nqueue.addLast(\"job2\");\nqueue.pollFirst();               // job1\n\n// EnumMap: mảng theo ordinal, duyệt theo thứ tự khai báo\nenum Level { DEBUG, INFO, WARN, ERROR }\nMap<Level, Integer> counts = new EnumMap<>(Level.class);\ncounts.put(Level.ERROR, 3);\ncounts.put(Level.DEBUG, 10);\nSystem.out.println(counts);      // {DEBUG=10, ERROR=3} - theo thứ tự enum\nSet<Level> noisy = EnumSet.of(Level.DEBUG, Level.INFO);\n\n// IdentityHashMap: so bằng ==, KHÔNG dùng equals\nString k1 = new String(\"key\");\nString k2 = new String(\"key\");\nMap<String, Integer> id = new IdentityHashMap<>();\nid.put(k1, 1);\nid.put(k2, 2);\nSystem.out.println(id.size());   // 2 (HashMap sẽ cho 1)\n\n// WeakHashMap: value KHÔNG được trỏ ngược về key\nMap<Object, String> meta = new WeakHashMap<>();",
+      "exampleTitle": "ArrayDeque, EnumMap, IdentityHashMap, WeakHashMap trong một trang",
+      "keyPoints": [
+        "Stack kế thừa Vector nên phơi ra API phá vỡ LIFO, và iterator duyệt từ đáy lên đỉnh",
+        "ArrayDeque là mảng vòng, push = addFirst nên toString/iterator khớp thứ tự pop; cấm phần tử null",
+        "EnumMap là mảng theo ordinal, không băm, duyệt theo thứ tự khai báo enum",
+        "EnumSet với enum tối đa 64 hằng chỉ là một long, phép tập hợp thành phép bit",
+        "IdentityHashMap so khoá bằng == và System.identityHashCode, cố tình vi phạm hợp đồng Map",
+        "WeakHashMap giữ khoá bằng WeakReference; value trỏ ngược về key làm entry không bao giờ bị dọn",
+        "WeakHashMap không có TTL, không giới hạn size, thời điểm dọn phụ thuộc GC nên không phải cache"
+      ],
+      "trap": "Trả lời 'dùng Stack cho bài toán LIFO'. Người phỏng vấn sẽ hỏi lại vì sao Javadoc khuyên dùng Deque, và nếu bạn không nói được chuyện Stack kế thừa Vector cùng thứ tự iterator ngược thì câu trả lời lộ ra là học thuộc. Bẫy thứ hai là mô tả WeakHashMap như một cache — nó không kiểm soát được dung lượng lẫn thời điểm dọn.",
+      "followUp": [
+        "Vì sao ArrayDeque không cho phép phần tử null trong khi LinkedList thì cho?",
+        "EnumMap nhanh hơn HashMap ở điểm nào, và nó có phải thread-safe không?",
+        "Nếu value của WeakHashMap trỏ về key thì chuyện gì xảy ra, và cách sửa là gì?"
+      ]
+    },
+    {
+      "id": "t-4-6",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "title": "split() là regex: chuỗi rỗng ở cuối, tham số limit và ký tự đặc biệt",
+      "summary": "Vì sao \"1.2.3\".split(\".\") trả về mảng rỗng và vì sao split(\",\") làm mất cột cuối cùng của file CSV.",
+      "sections": [
+        "<b>Đối số của split là biểu thức chính quy, không phải chuỗi thường.</b> Chữ ký là <code>String[] split(String regex)</code> — chữ 'regex' nằm ngay trong tên tham số nhưng rất nhiều người đọc thành 'dấu phân cách'. <code>&quot;1.2.3&quot;.split(&quot;.&quot;)</code> không trả về ba phần: <code>.</code> khớp MỌI ký tự, nên mọi token đều rỗng, và tất cả bị cắt hết — kết quả là mảng có <code>length == 0</code>. Nhóm ký tự phải escape gồm <code>. | ( ) [ ] { } ^ $ * + ? \\</code>. Cách đúng là <code>split(&quot;\\\\.&quot;)</code> hoặc <code>split(Pattern.quote(sep))</code> khi dấu phân cách đến từ cấu hình.",
+        "<b>Trường hợp khó chịu nhất: dấu gạch đứng.</b> <code>&quot;a|b&quot;.split(&quot;|&quot;)</code> không ném gì, không trả về hai phần — nó trả về <code>[a, |, b]</code>. Lý do: <code>|</code> là toán tử 'hoặc' với hai vế đều rỗng, tức một pattern khớp chuỗi rỗng tại mọi vị trí, nên chuỗi bị cắt thành từng ký tự. Đây là loại bug chạy im lặng và chỉ lộ ra khi dữ liệu thật đi qua.",
+        "<b>Chuỗi rỗng ở CUỐI bị loại, ở ĐẦU thì giữ.</b> Bản một tham số tương đương <code>split(regex, 0)</code>, và limit bằng 0 nghĩa là 'cắt bỏ mọi phần tử rỗng ở đuôi mảng'. Vì thế <code>&quot;a,b,,c,,&quot;.split(&quot;,&quot;)</code> cho <code>[a, b, , c]</code> với <code>length == 4</code>, không phải 6: phần rỗng ở giữa được giữ, hai phần rỗng ở cuối biến mất. Ngược lại <code>&quot;,a,b&quot;.split(&quot;,&quot;)</code> vẫn cho <code>[&quot;&quot;, &quot;a&quot;, &quot;b&quot;]</code> với length 3. Khi parse dữ liệu dạng bảng, mất cột cuối vì nó rỗng là một trong những bug âm thầm hay gặp nhất.",
+        "<b>limit âm và limit dương.</b> <code>split(regex, -1)</code> giữ nguyên mọi phần rỗng, kể cả ở cuối — đây gần như luôn là thứ bạn muốn khi parse dữ liệu. <code>split(regex, n)</code> với n dương cắt tối đa n phần và để nguyên phần đuôi chưa tách: <code>&quot;a,b,,c,,&quot;.split(&quot;,&quot;, 3)</code> cho <code>[a, b, ,c,,]</code>. Ứng dụng rất thực tế là tách cặp khoá-giá trị khi giá trị có thể chứa chính dấu phân cách: <code>line.split(&quot;=&quot;, 2)</code>.",
+        "<b>Một thay đổi hành vi thật giữa Java 7 và Java 8.</b> Từ Java 8, nếu pattern khớp một chuỗi rỗng ngay tại vị trí 0 thì phần rỗng đầu tiên không được đưa vào kết quả. Cụ thể <code>&quot;abc&quot;.split(&quot;&quot;)</code> trả <code>[a, b, c]</code> ở Java 8+, còn ở Java 7 nó trả <code>[&quot;&quot;, a, b, c]</code>. Đây là một trong số ít khác biệt hành vi String thực sự tồn tại giữa các bản, đáng nhớ vì nó phá code cũ khi nâng cấp.",
+        "<b>Hiệu năng: fast path và Pattern biên dịch sẵn.</b> <code>String.split</code> có một đường tắt: nếu regex chỉ là một ký tự thường không phải metacharacter (hoặc hai ký tự dạng <code>\\\\x</code> escape một metacharacter), nó tách trực tiếp bằng <code>indexOf</code> mà không đụng tới regex engine. Ngoài đường tắt đó, MỖI lời gọi <code>split</code> đều biên dịch lại Pattern. Với vòng lặp đọc hàng triệu dòng, hãy khai báo <code>private static final Pattern SEP = Pattern.compile(...)</code> rồi gọi <code>SEP.split(line)</code>. Và với CSV thật — có dấu ngoặc kép, ký tự escape, xuống dòng bên trong ô — thì split không bao giờ đúng, phải dùng thư viện parser."
+      ],
+      "example": "// 1. split nhận REGEX\n\"1.2.3\".split(\".\").length;        // 0  (!) - \".\" khớp mọi ký tự\n\"1.2.3\".split(\"\\\\.\").length;      // 3\n\"a|b\".split(\"|\");                 // [a, |, b]  (!) - \"|\" là toán tử OR rỗng\n\"a|b\".split(Pattern.quote(\"|\"));  // [a, b]\n\n// 2. Chuỗi rỗng ở cuối bị cắt, ở đầu thì giữ\n\"a,b,,c,,\".split(\",\");            // [a, b, , c]      length = 4\n\"a,b,,c,,\".split(\",\", -1);        // [a, b, , c, , ]  length = 6\n\",a,b\".split(\",\");                // [, a, b]         length = 3\n\n// 3. limit dương: giữ nguyên phần đuôi\n\"a,b,,c,,\".split(\",\", 3);         // [a, b, ,c,,]\n\"key=a=b=c\".split(\"=\", 2);        // [key, a=b=c]  <- dùng cho cặp key/value\n\n// 4. Trong vòng lặp nóng: biên dịch Pattern một lần\nprivate static final Pattern TAB = Pattern.compile(\"\\\\t\");\n// ...\nString[] cols = TAB.split(line);",
+      "exampleTitle": "Bốn cái bẫy của split trong một khối",
+      "keyPoints": [
+        "split nhận regex: \".\" \"|\" \"(\" \"[\" \"$\" ... phải escape hoặc bọc Pattern.quote",
+        "\"1.2.3\".split(\".\") trả về mảng độ dài 0, không ném exception nào",
+        "\"a|b\".split(\"|\") trả về [a, |, b] vì | là toán tử OR với hai vế rỗng",
+        "limit = 0 (mặc định) cắt bỏ mọi phần tử rỗng ở CUỐI mảng, phần rỗng ở giữa và ở đầu vẫn giữ",
+        "split(regex, -1) giữ toàn bộ phần rỗng; split(regex, n) dương giữ nguyên phần đuôi chưa tách",
+        "Từ Java 8, \"abc\".split(\"\") trả [a, b, c]; Java 7 trả thêm một chuỗi rỗng ở đầu",
+        "Ngoài fast path một ký tự, mỗi lần gọi split biên dịch lại Pattern; vòng lặp nóng nên dùng static final Pattern"
+      ],
+      "trap": "Dùng split(\",\") để parse CSV rồi kiểm tra parts.length để xác thực số cột. Dòng cuối có cột rỗng sẽ cho length nhỏ hơn mong đợi và bị loại nhầm là dữ liệu hỏng. Bẫy song song là split(\".\") hoặc split(\"|\") với dấu phân cách lấy từ file cấu hình — người dùng nhập một metacharacter là toàn bộ logic tách vỡ mà không có exception nào.",
+      "followUp": [
+        "Vì sao split mặc định lại cắt các chuỗi rỗng ở cuối mà không cắt ở đầu?",
+        "Khi dấu phân cách đến từ cấu hình người dùng, bạn xử lý thế nào cho an toàn?",
+        "Khi nào bạn thay split bằng indexOf và substring?"
+      ]
+    },
+    {
+      "id": "t-4-7",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "title": "Regex trong String API: matches, replaceAll và Pattern biên dịch sẵn",
+      "summary": "Ba method của String âm thầm gọi regex engine, và cái giá phải trả khi chúng nằm trong vòng lặp nóng.",
+      "sections": [
+        "<b>matches() neo cả chuỗi, find() thì không.</b> <code>s.matches(r)</code> tương đương <code>Pattern.matches(r, s)</code> và yêu cầu pattern khớp TOÀN BỘ chuỗi, như thể có <code>^</code> và <code>$</code> vô hình bao quanh. Vì thế <code>&quot;hello123&quot;.matches(&quot;\\\\d+&quot;)</code> trả <code>false</code> chứ không phải true. Muốn hỏi 'có chứa số không' thì viết <code>&quot;.*\\\\d+.*&quot;</code> hoặc — tốt hơn nhiều — dùng <code>Pattern.compile(&quot;\\\\d+&quot;).matcher(s).find()</code>. Nhầm lẫn matches/find là lỗi validate dữ liệu phổ biến bậc nhất.",
+        "<b>replace là literal, replaceAll là regex.</b> <code>replace(CharSequence, CharSequence)</code> thay theo nghĩa đen. <code>replaceAll</code> và <code>replaceFirst</code> nhận regex. Hệ quả trực tiếp: <code>&quot;1.2.3&quot;.replace(&quot;.&quot;, &quot;-&quot;)</code> cho <code>1-2-3</code> nhưng <code>&quot;1.2.3&quot;.replaceAll(&quot;.&quot;, &quot;-&quot;)</code> cho <code>-----</code> (năm dấu gạch, vì <code>.</code> khớp cả dấu chấm lẫn chữ số). Rất nhiều bug sinh ra đúng lúc lập trình viên đổi <code>replace</code> thành <code>replaceAll</code> vì tưởng tên dài hơn thì 'triệt để hơn'.",
+        "<b>Chuỗi thay thế cũng có cú pháp riêng.</b> Trong <code>replaceAll</code>/<code>replaceFirst</code>, tham số thứ hai KHÔNG phải chuỗi thuần: <code>$1</code>, <code>$2</code> tham chiếu nhóm bắt và <code>\\</code> là ký tự escape. Nên <code>&quot;a&quot;.replaceAll(&quot;a&quot;, &quot;$&quot;)</code> ném <code>IllegalArgumentException</code>, và thay bằng một đường dẫn Windows chứa <code>\\</code> hay một chuỗi tiền tệ chứa <code>$</code> sẽ vỡ hoặc chèn sai. Khi phần thay thế là dữ liệu chứ không phải hằng, luôn bọc <code>Matcher.quoteReplacement(x)</code>.",
+        "<b>Chi phí biên dịch là hotspot bị bỏ quên.</b> Mỗi lời gọi <code>matches</code>, <code>replaceAll</code>, <code>replaceFirst</code> và (ngoài fast path) <code>split</code> đều tạo một <code>Pattern</code> mới: phân tích cú pháp regex và dựng cây node — tốn hơn hẳn việc chạy pattern đó. Trong vòng lặp xử lý hàng triệu bản ghi, đây thường là điểm nóng số một trong profiler. Chuẩn công nghiệp là <code>private static final Pattern P = Pattern.compile(...)</code>. Lưu ý phân chia trách nhiệm: <code>Pattern</code> bất biến và thread-safe nên chia sẻ được ở mức static, còn <code>Matcher</code> mang trạng thái nên phải tạo cục bộ trong mỗi lần gọi (hoặc giữ trong ThreadLocal nếu thật sự cần).",
+        "<b>Catastrophic backtracking và ReDoS.</b> <code>java.util.regex</code> là backtracking engine, không phải automaton tuyến tính. Một pattern có nhóm lặp lồng nhau như <code>(a+)+$</code> chạy trên một chuỗi dài toàn ký tự 'a' không khớp sẽ có số đường thử tăng theo hàm mũ và treo một core CPU trong nhiều phút. Nếu regex đến từ người dùng, hoặc nếu regex của bạn có lặp lồng lặp, hãy viết lại hoặc dùng possessive quantifier (<code>a++</code>) để chặn backtracking.",
+        "<b>Khi nào ĐỪNG dùng regex.</b> <code>startsWith</code>, <code>endsWith</code>, <code>contains</code>, <code>indexOf</code> nhanh hơn nhiều lần và dễ đọc hơn hẳn; <code>strip()</code>/<code>isBlank()</code> (Java 11) thay được các pattern khoảng trắng. Nguyên tắc nên nói trong phỏng vấn: regex là công cụ cuối cùng chứ không phải đầu tiên, và mỗi khi dùng thì nên đưa Pattern ra thành hằng static để vừa nhanh vừa đặt được tên có nghĩa cho nó."
+      ],
+      "example": "// 1. matches neo cả chuỗi\n\"hello123\".matches(\"\\\\d+\");        // false  (!)\n\"hello123\".matches(\".*\\\\d+.*\");    // true\nPattern.compile(\"\\\\d+\").matcher(\"hello123\").find();  // true - cách nên dùng\n\n// 2. replace literal vs replaceAll regex\n\"1.2.3\".replace(\".\", \"-\");         // 1-2-3\n\"1.2.3\".replaceAll(\".\", \"-\");      // -----  (!)\n\"1.2.3\".replaceAll(\"\\\\.\", \"-\");    // 1-2-3\n\"1.2.3\".replaceFirst(\"\\\\.\", \"-\");  // 1-2.3\n\n// 3. Chuỗi thay thế có cú pháp riêng\n\"abc\".replaceAll(\"b\", \"$0$0\");     // abbc  - $0 là toàn bộ phần khớp\n// \"a\".replaceAll(\"a\", \"$\");       // IllegalArgumentException\n\"a\".replaceAll(\"a\", Matcher.quoteReplacement(\"$\"));  // $  - an toàn\n\n// 4. Biên dịch một lần, dùng nhiều lần\npublic final class LogParser {\n    private static final Pattern LEVEL = Pattern.compile(\"^\\\\[(\\\\w+)\\\\]\");\n\n    static String level(String line) {\n        Matcher m = LEVEL.matcher(line);   // Matcher tạo cục bộ, KHÔNG static\n        return m.find() ? m.group(1) : null;\n    }\n}",
+      "exampleTitle": "matches, replaceAll, quoteReplacement và Pattern static",
+      "keyPoints": [
+        "matches() phải khớp toàn bộ chuỗi; muốn khớp một phần thì dùng Matcher.find()",
+        "replace(CharSequence, CharSequence) là literal, replaceAll/replaceFirst là regex",
+        "\"1.2.3\".replaceAll(\".\", \"-\") cho ----- chứ không phải 1-2-3",
+        "Chuỗi thay thế hiểu $1 là nhóm bắt và \\ là escape; dữ liệu động phải bọc Matcher.quoteReplacement",
+        "Mỗi lần gọi matches/replaceAll biên dịch lại Pattern; dùng static final Pattern trong vòng lặp nóng",
+        "Pattern bất biến và thread-safe, Matcher mang trạng thái nên phải tạo cục bộ",
+        "Regex Java là backtracking engine: nhóm lặp lồng nhau có thể gây treo CPU theo hàm mũ (ReDoS)"
+      ],
+      "trap": "Viết if (input.matches(\"\\\\d+\")) để kiểm tra 'chuỗi có chứa số' rồi ngạc nhiên vì luôn false. Bẫy thứ hai nguy hiểm hơn trong code production: dùng replaceAll với phần thay thế lấy từ dữ liệu người dùng — một ký tự $ hoặc \\ là đủ để ném IllegalArgumentException hoặc chèn nội dung sai.",
+      "followUp": [
+        "Khác biệt giữa Pattern.matches, Matcher.matches, Matcher.find và Matcher.lookingAt là gì?",
+        "Vì sao Matcher không thread-safe trong khi Pattern thì có?",
+        "Bạn phát hiện và phòng ReDoS trong một service nhận regex từ người dùng bằng cách nào?"
+      ]
+    },
+    {
+      "id": "t-4-8",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "title": "Unicode, Locale và so sánh chuỗi: chars() vs codePoints(), chữ i Thổ Nhĩ Kỳ, dấu tiếng Việt",
+      "summary": "Vì sao length() không đếm đúng số ký tự, vì sao toLowerCase() có thể phá vỡ hệ thống, và vì sao hai chuỗi tiếng Việt trông y hệt lại không equals nhau.",
+      "sections": [
+        "<b>length() đếm đơn vị char UTF-16, không đếm ký tự.</b> Bên trong, String lưu chuỗi theo UTF-16 (từ Java 9 là <code>byte[]</code> với cờ coder, nhưng ngữ nghĩa char không đổi). Ký tự nằm ngoài Basic Multilingual Plane — emoji, một số chữ Hán mở rộng — chiếm HAI đơn vị char gọi là cặp surrogate. Vì vậy <code>&quot;a😀b&quot;.length()</code> là 4 chứ không phải 3, và <code>charAt(1)</code> trả về nửa cặp surrogate, một giá trị vô nghĩa nếu đứng riêng. Cắt <code>substring</code> ngay giữa cặp surrogate sinh ra ký tự hỏng trong dữ liệu.",
+        "<b>chars() và codePoints() không phải hai tên gọi của cùng một thứ.</b> Cả hai (Java 8) trả về <code>IntStream</code>, nhưng <code>chars()</code> phát ra từng đơn vị char (giá trị 0..65535, surrogate được phát riêng lẻ) còn <code>codePoints()</code> gộp cặp surrogate lại thành một code point duy nhất. Với <code>&quot;a😀b&quot;</code>: <code>chars().count()</code> là 4, <code>codePoints().count()</code> là 3. Quy tắc thực tế: đếm hoặc lặp qua 'ký tự' cho người dùng thì dùng <code>codePoints()</code>; chỉ dùng <code>chars()</code> khi bạn chắc chắn dữ liệu là ASCII.",
+        "<b>Dấu tiếng Việt: NFC và NFD.</b> Chữ 'ệ' có hai cách biểu diễn hợp lệ: một code point dựng sẵn (NFC) hoặc chữ 'e' cộng hai dấu tổ hợp (NFD). <code>&quot;Việt&quot;</code> dạng NFC có <code>length()</code> bằng 4, dạng NFD có <code>length()</code> bằng 6 — hai chuỗi hiển thị y hệt nhau nhưng <code>equals()</code> trả <code>false</code> và <code>hashCode()</code> khác nhau, nên tra HashMap sẽ trượt. Dữ liệu từ macOS, từ một số API iOS hoặc từ file zip cũ hay ở dạng NFD. Cách xử lý chuẩn: chuẩn hoá bằng <code>java.text.Normalizer.normalize(s, Normalizer.Form.NFC)</code> ngay tại biên hệ thống, trước khi lưu DB hoặc so sánh.",
+        "<b>toLowerCase() không tham số dùng Locale mặc định của JVM — và đó là bug chờ nổ.</b> Trong tiếng Thổ Nhĩ Kỳ, chữ i thường ứng với I có chấm, còn I không chấm ứng với ı. Trên một máy đặt <code>Locale</code> Thổ Nhĩ Kỳ, <code>&quot;TITLE&quot;.toLowerCase()</code> cho <code>&quot;tıtle&quot;</code> (chữ i không chấm), nên so sánh với hằng <code>&quot;title&quot;</code> trả <code>false</code>; và <code>&quot;i&quot;.toUpperCase()</code> cho <code>&quot;İ&quot;</code>. Lỗi này từng phá vỡ nhiều hệ thống thật khi so sánh tên HTTP header, đuôi file, mã lệnh. Quy tắc dứt khoát: chuỗi mang tính KỸ THUẬT thì luôn <code>toLowerCase(Locale.ROOT)</code>; chỉ chuỗi hiển thị cho người dùng mới dùng locale của người dùng.",
+        "<b>equalsIgnoreCase an toàn hơn nhưng vẫn không phải giải pháp vạn năng.</b> <code>equalsIgnoreCase</code> so từng ký tự qua <code>Character.toUpperCase</code> rồi <code>toLowerCase</code>, hoàn toàn không phụ thuộc Locale, nên nó KHÔNG dính bẫy Thổ Nhĩ Kỳ. Nhưng nó so theo từng code point độc lập nên vẫn không xử lý được dấu tổ hợp NFD, và không xử lý các trường hợp đổi độ dài khi chuyển hoa thường: <code>&quot;ß&quot;.equalsIgnoreCase(&quot;SS&quot;)</code> trả <code>false</code>. Muốn so sánh 'giống nhau về mặt ngôn ngữ' thì phải chuẩn hoá trước, hoặc dùng <code>Collator</code>.",
+        "<b>Sắp xếp: compareTo là thứ tự máy, không phải thứ tự người.</b> <code>String.compareTo</code> so theo giá trị số của từng char UTF-16, nên <code>&quot;Z&quot;.compareTo(&quot;a&quot;)</code> âm — mọi chữ hoa đứng trước mọi chữ thường. Với tiếng Việt còn tệ hơn: 'ă' là U+0103 nên nó đứng SAU 'z' hoàn toàn, khiến danh sách tên sắp xếp trông như hỏng. Cần thứ tự đúng theo cảm nhận người Việt thì dùng <code>java.text.Collator.getInstance(new Locale(&quot;vi&quot;, &quot;VN&quot;))</code> làm Comparator. Đây cũng là lý do sort trong ứng dụng và <code>ORDER BY</code> trong database có thể ra kết quả khác nhau nếu collation hai bên không khớp."
+      ],
+      "example": "String s = \"a😀b\";\ns.length();                 // 4  - emoji chiếm 2 đơn vị char (cặp surrogate)\ns.chars().count();          // 4  - đếm đơn vị char\ns.codePoints().count();     // 3  - đếm ký tự thật\n\n// Chuẩn hoá dấu tiếng Việt tại biên hệ thống\nString nfc = Normalizer.normalize(input, Normalizer.Form.NFC);\n// \"Việt\" dạng NFC: length 4; dạng NFD: length 6; equals() giữa hai dạng: false\n\n// Locale: dùng ROOT cho chuỗi kỹ thuật\nLocale tr = Locale.forLanguageTag(\"tr-TR\");\n\"TITLE\".toLowerCase(tr);          // \"tıtle\"  - i KHÔNG chấm\n\"TITLE\".toLowerCase(Locale.ROOT); // \"title\"\n\"TITLE\".equalsIgnoreCase(\"title\");// true - không phụ thuộc Locale\n\"ß\".equalsIgnoreCase(\"SS\");       // false - đổi hoa thường làm đổi độ dài\n\n// Sắp xếp tên tiếng Việt\nList<String> names = new ArrayList<>(Arrays.asList(\"Ánh\", \"An\", \"Bình\"));\nCollections.sort(names);                       // thứ tự theo mã UTF-16, sai\nnames.sort(Collator.getInstance(new Locale(\"vi\", \"VN\")));  // đúng",
+      "exampleTitle": "Đếm ký tự, chuẩn hoá dấu, Locale và sắp xếp",
+      "keyPoints": [
+        "length() đếm đơn vị char UTF-16; ký tự ngoài BMP chiếm 2 char nên \"a😀b\".length() là 4",
+        "chars() phát từng đơn vị char, codePoints() gộp cặp surrogate; đếm ký tự thật thì dùng codePoints()",
+        "Cùng một chuỗi tiếng Việt ở dạng NFC và NFD có length khác nhau và equals() trả false",
+        "Chuẩn hoá bằng Normalizer.normalize(s, Form.NFC) tại biên hệ thống trước khi lưu hoặc so sánh",
+        "toLowerCase() không tham số dùng Locale mặc định của JVM; locale Thổ Nhĩ Kỳ biến TITLE thành tıtle",
+        "Chuỗi kỹ thuật luôn dùng toLowerCase(Locale.ROOT); equalsIgnoreCase không phụ thuộc Locale",
+        "compareTo so theo mã UTF-16 nên tiếng Việt sắp sai; cần Collator theo locale vi-VN"
+      ],
+      "trap": "Viết header.toLowerCase().equals(\"content-type\") rồi triển khai lên một máy chủ đặt locale Thổ Nhĩ Kỳ — điều kiện luôn sai và không có exception nào để lần ra. Bẫy song song là dùng length() để giới hạn số ký tự người dùng nhập: một emoji tính là 2, và một chuỗi tiếng Việt dạng NFD tính gấp rưỡi số chữ thật.",
+      "followUp": [
+        "Vì sao equalsIgnoreCase không dính bẫy Thổ Nhĩ Kỳ trong khi toLowerCase() thì có?",
+        "Bạn chuẩn hoá dữ liệu Unicode ở tầng nào: khi nhận request, khi lưu DB, hay khi so sánh?",
+        "Nếu ORDER BY của database và sort trong Java cho thứ tự khác nhau thì bạn xử lý thế nào?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-3-10",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "Deque<String> stack = new ArrayDeque<>();\nstack.push(\"a\");\nstack.push(\"b\");\nstack.push(\"c\");\n\nSystem.out.println(stack);\nSystem.out.println(stack.pop());\nSystem.out.println(stack.peek());",
+      "choices": [
+        "[a, b, c] rồi a rồi b",
+        "[c, b, a] rồi c rồi b",
+        "[c, b, a] rồi a rồi b",
+        "[a, b, c] rồi c rồi b"
+      ],
+      "correctAnswer": 1,
+      "explanation": "push của Deque chính là addFirst, nên phần tử mới nhất nằm ở ĐẦU deque; iterator và toString đi từ đầu về cuối nên in [c, b, a] — đúng bằng thứ tự bạn sẽ pop ra. Đây chính là điểm khác biệt quan trọng với java.util.Stack: Stack kế thừa Vector nên toString và iterator duyệt từ ĐÁY lên đỉnh, in [a, b, c] dù pop trả về c trước. Rất nhiều bug sinh ra khi lập trình viên log nội dung Stack ra rồi suy luận thứ tự xử lý theo chiều ngược. Quy tắc: khai báo Deque<T> stack = new ArrayDeque<>() thay cho Stack, và nhớ ArrayDeque không cho phép phần tử null.",
+      "whyWrong": [
+        "Đó là thứ tự của java.util.Stack (duyệt từ đáy lên đỉnh). ArrayDeque.push chèn vào đầu nên toString in ngược lại.",
+        "",
+        "pop() lấy phần tử ở đầu deque, tức 'c' — phần tử vừa push cuối cùng, không phải 'a'.",
+        "toString của ArrayDeque bắt đầu từ đỉnh stack nên không thể là [a, b, c]; chỉ Stack mới in như vậy."
+      ]
+    },
+    {
+      "id": "d-3-11",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "beginner",
+      "question": "Nhận định nào mô tả đúng ba dòng in ra của đoạn code sau?",
+      "code": "PriorityQueue<Integer> pq = new PriorityQueue<>(Arrays.asList(5, 1, 4, 2, 3));\nSystem.out.println(pq);          // (1)\nSystem.out.println(pq.peek());   // (2)\n\nStringBuilder sb = new StringBuilder();\nwhile (!pq.isEmpty()) sb.append(pq.poll()).append(\" \");\nSystem.out.println(sb.toString().trim());   // (3)",
+      "choices": [
+        "(1) in [1, 2, 3, 4, 5]; (2) in 1; (3) in 1 2 3 4 5",
+        "(1) in một hoán vị KHÔNG được sắp xếp, ví dụ [1, 2, 4, 5, 3]; (2) in 1; (3) in 1 2 3 4 5",
+        "(1) in [5, 1, 4, 2, 3] đúng thứ tự chèn; (2) in 5; (3) in 1 2 3 4 5",
+        "(1) in một hoán vị không sắp xếp; (2) in 1; (3) in đúng hoán vị đó, không tăng dần"
+      ],
+      "correctAnswer": 1,
+      "explanation": "PriorityQueue là một binary heap lưu trong mảng, không phải cấu trúc sắp xếp. Bất biến duy nhất nó bảo đảm là mỗi node nhỏ hơn hoặc bằng hai con của nó, nên chỉ phần tử ở chỉ số 0 chắc chắn là nhỏ nhất — phần còn lại chỉ thoả tính chất heap chứ không theo thứ tự. toString, iterator, forEach và stream đều duyệt theo bố cục mảng nên cho ra một hoán vị không sắp xếp (với JDK hiện nay, constructor nhận Collection sẽ heapify tại chỗ và cho đúng [1, 2, 4, 5, 3], nhưng bố cục cụ thể là chi tiết cài đặt, đừng phụ thuộc vào nó). Chỉ poll() lặp lại mới cho thứ tự tăng dần. Quy tắc: muốn duyệt có thứ tự thì poll cạn hàng đợi, hoặc copy sang List rồi sort.",
+      "whyWrong": [
+        "PriorityQueue không giữ mảng ở trạng thái đã sắp xếp; heap chỉ bảo đảm quan hệ cha-con nên toString không thể in dãy tăng dần ở đây.",
+        "",
+        "Constructor nhận Collection sẽ heapify lại toàn bộ, nên bố cục không còn là thứ tự chèn, và peek() phải trả về phần tử nhỏ nhất là 1.",
+        "poll() luôn lấy ra phần tử nhỏ nhất rồi tái cân bằng heap, nên chuỗi poll chắc chắn tăng dần."
+      ]
+    },
+    {
+      "id": "d-3-12",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "List<String> base = new ArrayList<>(Arrays.asList(\"a\", \"b\"));\nList<String> ro = Collections.unmodifiableList(base);\n\nbase.add(\"c\");\nSystem.out.println(ro);\nSystem.out.println(ro.size());\n\ntry {\n    ro.add(\"d\");\n} catch (UnsupportedOperationException e) {\n    System.out.println(\"UnsupportedOperationException\");\n}",
+      "choices": [
+        "[a, b, c] rồi 3 rồi UnsupportedOperationException",
+        "[a, b] rồi 2 rồi UnsupportedOperationException",
+        "[a, b, c] rồi 3 rồi thêm được \"d\" bình thường",
+        "base.add(\"c\") ném UnsupportedOperationException ngay"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Collections.unmodifiableList trả về một VIEW chỉ-đọc chứ không phải bản sao: nó chỉ chặn các method ghi của chính nó, còn mọi thao tác đọc đều uỷ quyền xuống list gốc. Ai còn giữ tham chiếu tới base vẫn sửa được, và thay đổi đó hiện ra ngay trong ro. Đây là bẫy an ninh thật sự khi trả dữ liệu nội bộ ra ngoài: getter trả Collections.unmodifiableList(this.items) chỉ ngăn người gọi sửa, không ngăn nội bộ sửa dưới chân họ. Muốn bất biến thật thì phải copy: new ArrayList<>(base) rồi mới bọc, hoặc dùng List.copyOf(base) từ Java 10 (List.of / Collectors.toUnmodifiableList từ Java 9/10) — các API này tạo bản sao độc lập.",
+      "whyWrong": [
+        "",
+        "ro không chụp lại nội dung tại thời điểm bọc; nó đọc thẳng từ base nên thấy cả phần tử mới thêm.",
+        "View chỉ-đọc chặn mọi method ghi của chính nó (add, remove, set, sort, clear) bằng UnsupportedOperationException.",
+        "base là ArrayList bình thường và không hề bị đóng băng; việc bọc nó không làm nó bất biến."
+      ]
+    },
+    {
+      "id": "d-3-13",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "LinkedHashMap<String, Integer> cache =\n        new LinkedHashMap<String, Integer>(16, 0.75f, true) {\n    @Override\n    protected boolean removeEldestEntry(Map.Entry<String, Integer> eldest) {\n        return size() > 3;\n    }\n};\n\ncache.put(\"a\", 1);\ncache.put(\"b\", 2);\ncache.put(\"c\", 3);\ncache.get(\"a\");\ncache.put(\"d\", 4);\n\nSystem.out.println(cache.keySet());",
+      "choices": [
+        "[a, b, c, d]",
+        "[b, c, d]",
+        "[c, a, d]",
+        "[a, c, d]"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Tham số thứ ba true bật chế độ access-order: mỗi lần get hoặc put chạm vào một entry, entry đó bị đưa về CUỐI danh sách liên kết. Sau ba lần put thứ tự là a, b, c; lời gọi get(\"a\") đẩy a về cuối thành b, c, a; put(\"d\", 4) làm size thành 4 nên afterNodeInsertion gọi removeEldestEntry với eldest là phần tử đầu danh sách, tức b — và b bị loại. Kết quả còn lại là [c, a, d]. Đây đúng là ngữ nghĩa LRU: phần tử bị loại là phần tử lâu nhất chưa được truy cập, không phải phần tử được chèn sớm nhất. Lưu ý removeEldestEntry chỉ được trả về boolean; tự gọi remove() bên trong sẽ làm hỏng cấu trúc.",
+      "whyWrong": [
+        "removeEldestEntry trả true khi size() > 3 nên map không bao giờ giữ quá 3 entry.",
+        "Đó là kết quả nếu dùng insertion-order (tham số thứ ba là false): khi đó a bị loại. Ở đây get(\"a\") đã cứu a khỏi bị loại.",
+        "",
+        "c không phải phần tử bị loại: sau get(\"a\") thứ tự là b, c, a nên phần tử ở đầu danh sách là b."
+      ]
+    },
+    {
+      "id": "d-3-14",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "TreeMap<Integer, String> m = new TreeMap<>();\nm.put(10, \"a\");\nm.put(20, \"b\");\nm.put(30, \"c\");\n\nSystem.out.println(m.floorKey(25));\nSystem.out.println(m.ceilingKey(25));\nSystem.out.println(m.headMap(20));\nSystem.out.println(m.headMap(20, true));\nSystem.out.println(m.subMap(10, false, 30, true));",
+      "choices": [
+        "10, 30, {10=a}, {10=a, 20=b}, {20=b, 30=c}",
+        "20, 30, {10=a, 20=b}, {10=a, 20=b}, {10=a, 20=b, 30=c}",
+        "20, 20, {10=a}, {20=b}, {10=a, 20=b, 30=c}",
+        "20, 30, {10=a}, {10=a, 20=b}, {20=b, 30=c}"
+      ],
+      "correctAnswer": 3,
+      "explanation": "floorKey(25) tìm khoá lớn nhất mà nhỏ hơn hoặc bằng 25, tức 20; ceilingKey(25) tìm khoá nhỏ nhất mà lớn hơn hoặc bằng 25, tức 30. headMap(20) mặc định LOẠI TRỪ cận trên nên chỉ có {10=a}, còn headMap(20, true) bao gồm 20. subMap(10, false, 30, true) bỏ 10 và giữ 30 nên cho {20=b, 30=c}. Điểm cần thuộc lòng: floor/ceiling bao gồm chính khoá đó, còn lower/higher thì loại trừ nó; và headMap mặc định mở ở cận trên trong khi tailMap mặc định đóng ở cận dưới, để hai nửa ghép lại phủ đúng một lần mỗi khoá. Nhớ thêm rằng ba method này trả về VIEW backed by map gốc chứ không phải bản sao.",
+      "whyWrong": [
+        "floorKey(25) không thể là 10: 20 cũng nhỏ hơn 25 và lớn hơn 10, mà floor lấy khoá LỚN NHẤT thoả điều kiện.",
+        "headMap(20) mặc định loại trừ chính khoá 20, và subMap(10, false, ...) đã loại 10 nên không thể chứa cả ba khoá.",
+        "ceilingKey(25) phải trả khoá nhỏ nhất lớn hơn hoặc bằng 25, tức 30 chứ không phải 20; và headMap(20, true) phải chứa cả 10.",
+        ""
+      ]
+    },
+    {
+      "id": "d-3-15",
+      "topicId": 3,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "List<Integer> list = new ArrayList<>(Arrays.asList(1, 2, 3, 4, 5));\nList<Integer> sub = list.subList(1, 4);\n\nsub.set(0, 99);\nSystem.out.println(list);\n\nlist.add(6);\ntry {\n    System.out.println(sub);\n} catch (ConcurrentModificationException e) {\n    System.out.println(\"ConcurrentModificationException\");\n}",
+      "choices": [
+        "[1, 2, 3, 4, 5] rồi [2, 3, 4]",
+        "[1, 99, 3, 4, 5] rồi [99, 3, 4]",
+        "[1, 99, 3, 4, 5] rồi ConcurrentModificationException",
+        "sub.set(0, 99) ném UnsupportedOperationException"
+      ],
+      "correctAnswer": 2,
+      "explanation": "subList trả về một VIEW ghi đè trực tiếp lên mảng của list gốc, nên sub.set(0, 99) sửa phần tử ở chỉ số 1 của list và dòng đầu in [1, 99, 3, 4, 5]. Nhưng view này ghi nhớ modCount của list gốc tại thời điểm tạo; mọi thao tác trên view đều gọi checkForComodification, và list.add(6) làm modCount lệch. Vì thế ngay cả một thao tác thuần đọc như toString cũng ném ConcurrentModificationException. Javadoc nói rõ: ngữ nghĩa của subList trở nên không xác định nếu list gốc bị thay đổi cấu trúc theo cách khác. Quy tắc thực tế: dùng subList ngay lập tức rồi bỏ, hoặc copy ra new ArrayList<>(list.subList(a, b)); đừng bao giờ lưu subList lại như một field.",
+      "whyWrong": [
+        "subList không phải bản sao: set trên view ghi thẳng vào mảng của list gốc nên list đã đổi thành [1, 99, 3, 4, 5].",
+        "Sau khi list gốc bị thêm phần tử, modCount lệch so với modCount mà view đã ghi nhớ, nên đọc view sẽ ném exception chứ không in ra được.",
+        "",
+        "subList của ArrayList hỗ trợ đầy đủ set/add/remove và ghi xuyên xuống list gốc; UnsupportedOperationException chỉ xảy ra với các view chỉ-đọc như Collections.unmodifiableList."
+      ]
+    },
+    {
+      "id": "d-3-16",
+      "topicId": 3,
+      "versions": [21],
+      "difficulty": "advanced",
+      "question": "Với Java 21 (JEP 431 - SequencedCollection), đoạn code sau in ra gì?",
+      "code": "List<String> src = new ArrayList<>(List.of(\"a\", \"b\"));\nList<String> rev = src.reversed();\nsrc.add(\"c\");\nSystem.out.println(rev);\nSystem.out.println(src.getFirst());\n\nList<Integer> im = List.of(1, 2, 3);\nSystem.out.println(im.reversed());\ntry {\n    im.addFirst(0);\n} catch (UnsupportedOperationException e) {\n    System.out.println(\"UnsupportedOperationException\");\n}",
+      "choices": [
+        "[b, a], a, [3, 2, 1], UnsupportedOperationException",
+        "[c, b, a], a, [3, 2, 1], UnsupportedOperationException",
+        "[c, b, a], a, [3, 2, 1], rồi thêm được 0 vào đầu",
+        "Không biên dịch được vì List không có method reversed()"
+      ],
+      "correctAnswer": 1,
+      "explanation": "JEP 431 (Java 21) thêm interface SequencedCollection/SequencedSet/SequencedMap với getFirst, getLast, addFirst, addLast, removeFirst, removeLast và reversed, thống nhất cách truy cập hai đầu cho List, Deque, LinkedHashSet và LinkedHashMap. Điểm mấu chốt của câu này là reversed() trả về một VIEW đảo chiều chứ không phải bản sao: thêm \"c\" vào src sau đó thì rev nhìn thấy ngay và in [c, b, a]. Điểm thứ hai là các collection bất biến vẫn implement interface này — im.reversed() và im.getFirst() chạy bình thường, nhưng mọi method ghi như addFirst đều ném UnsupportedOperationException, đúng như hành vi vốn có của List.of.",
+      "whyWrong": [
+        "reversed() là view chứ không chụp lại nội dung tại thời điểm gọi, nên phần tử \"c\" thêm sau vẫn hiện ra ở đầu view.",
+        "",
+        "List.of tạo list bất biến; nó implement SequencedCollection nên có addFirst, nhưng method đó luôn ném UnsupportedOperationException.",
+        "Từ Java 21 List kế thừa SequencedCollection nên reversed(), getFirst(), addFirst() đều tồn tại và biên dịch được."
+      ]
+    },
+    {
+      "id": "d-4-10",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "String[] parts = \"a,b,,c,,\".split(\",\");\nSystem.out.println(parts.length);\nSystem.out.println(Arrays.toString(parts));\nSystem.out.println(\"a,b,,c,,\".split(\",\", -1).length);",
+      "choices": [
+        "6, [a, b, , c, , ], 6",
+        "4, [a, b, , c], 6",
+        "4, [a, b, , c], 4",
+        "5, [a, b, , c, ], 6"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Bản split một tham số tương đương split(regex, 0), và limit bằng 0 có nghĩa là cắt bỏ MỌI phần tử rỗng ở cuối mảng kết quả. Chuỗi \"a,b,,c,,\" tách ra sáu phần a, b, rỗng, c, rỗng, rỗng; hai phần rỗng ở đuôi bị loại nên chỉ còn 4 phần tử, trong đó phần rỗng ở GIỮA vẫn được giữ nguyên. Truyền limit âm (-1) thì không cắt gì cả và ta lấy lại đủ 6 phần. Đây là bug âm thầm kinh điển khi parse dữ liệu dạng bảng: dòng có cột cuối rỗng sẽ cho length nhỏ hơn số cột thật và bị coi nhầm là dữ liệu hỏng. Với dữ liệu, hầu như luôn nên viết split(sep, -1).",
+      "whyWrong": [
+        "Bản một tham số không giữ phần rỗng ở đuôi; muốn đủ 6 phần thì phải truyền limit âm.",
+        "",
+        "limit = -1 giữ lại toàn bộ phần rỗng ở cuối nên phải là 6 chứ không phải 4.",
+        "Cả HAI phần rỗng ở cuối đều bị cắt, không phải chỉ một; và phần rỗng ở giữa được giữ nên mảng là [a, b, , c]."
+      ]
+    },
+    {
+      "id": "d-4-11",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "System.out.println(\"1.2.3\".replace(\".\", \"-\"));\nSystem.out.println(\"1.2.3\".replaceAll(\".\", \"-\"));\nSystem.out.println(\"1.2.3\".replaceAll(\"\\\\.\", \"-\"));\nSystem.out.println(\"1.2.3\".replaceFirst(\"\\\\.\", \"-\"));",
+      "choices": [
+        "1-2-3, 1-2-3, 1-2-3, 1-2.3",
+        "1-2-3, -----, 1-2-3, 1-2.3",
+        "1-2-3, -----, 1-2-3, 1-2-3",
+        "-----, -----, 1-2-3, 1-2.3"
+      ],
+      "correctAnswer": 1,
+      "explanation": "replace(CharSequence, CharSequence) thay theo nghĩa đen nên dấu chấm chỉ là dấu chấm và kết quả là 1-2-3. Còn replaceAll và replaceFirst nhận REGEX: dấu chấm khớp mọi ký tự, nên mọi ký tự trong \"1.2.3\" đều bị thay và ta được năm dấu gạch. Escape thành \"\\\\.\" mới khớp đúng dấu chấm, cho 1-2-3; replaceFirst chỉ thay lần khớp đầu tiên nên cho 1-2.3. Bug hay gặp nhất trong nhóm này là đổi replace thành replaceAll vì tưởng tên dài hơn thì triệt để hơn — thực tế nó đổi hoàn toàn ngữ nghĩa. Khi mẫu cần thay đến từ dữ liệu hoặc cấu hình, hãy bọc Pattern.quote.",
+      "whyWrong": [
+        "replaceAll(\".\", \"-\") không thay chỉ dấu chấm: trong regex dấu chấm khớp mọi ký tự nên cả chữ số cũng bị thay.",
+        "",
+        "replaceFirst chỉ thay lần khớp ĐẦU TIÊN nên dấu chấm thứ hai vẫn còn, kết quả là 1-2.3.",
+        "replace(CharSequence, CharSequence) là thay theo nghĩa đen, không phải regex, nên nó chỉ thay đúng hai dấu chấm."
+      ]
+    },
+    {
+      "id": "d-4-12",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "System.out.println(\"a.b.c\".split(\".\").length);\nSystem.out.println(\"a.b.c\".split(\"\\\\.\").length);\nSystem.out.println(Arrays.toString(\"a|b\".split(\"|\")));",
+      "choices": [
+        "3, 3, [a, b]",
+        "1, 3, [a, |, b]",
+        "0, 3, [a, |, b]",
+        "0, 3, [a, b]"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Đối số của split là biểu thức chính quy. Dấu chấm khớp MỌI ký tự nên \"a.b.c\".split(\".\") tách ra toàn token rỗng, và vì limit mặc định cắt hết phần rỗng ở đuôi nên mảng kết quả có độ dài 0 — không exception, không cảnh báo. Escape thành \"\\\\.\" mới cho 3 phần. Trường hợp dấu gạch đứng còn khó chịu hơn: \"|\" là toán tử OR với hai vế đều rỗng, tức một pattern khớp chuỗi rỗng tại mọi vị trí, nên \"a|b\" bị cắt thành từng ký tự và cho [a, |, b]. Quy tắc: dấu phân cách đến từ cấu hình hay dữ liệu thì luôn bọc Pattern.quote(sep), còn hằng thì escape tay.",
+      "whyWrong": [
+        "\"a.b.c\".split(\".\") không cho 3 phần vì dấu chấm trong regex khớp mọi ký tự; và split(\"|\") không cho [a, b].",
+        "Mảng kết quả có độ dài 0 chứ không phải 1: mọi token đều rỗng nên bị luật cắt phần rỗng ở đuôi loại sạch.",
+        "",
+        "\"|\" là toán tử OR với hai nhánh rỗng nên nó khớp chuỗi rỗng ở mọi vị trí, tách chuỗi thành từng ký tự chứ không tách theo dấu gạch đứng."
+      ]
+    },
+    {
+      "id": "d-4-13",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì? (chuỗi \"Việt\" ở dạng chuẩn hoá NFC)",
+      "code": "String s = \"a😀b\";\nSystem.out.println(s.length());\nSystem.out.println(s.chars().count());\nSystem.out.println(s.codePoints().count());\nSystem.out.println(\"Việt\".length());",
+      "choices": [
+        "3, 3, 3, 4",
+        "4, 3, 3, 4",
+        "4, 4, 4, 4",
+        "4, 4, 3, 4"
+      ],
+      "correctAnswer": 3,
+      "explanation": "String lưu chuỗi theo UTF-16, và emoji nằm ngoài Basic Multilingual Plane nên chiếm hai đơn vị char (cặp surrogate): length() cho 4. chars() phát ra từng đơn vị char, kể cả hai nửa surrogate riêng lẻ, nên cũng đếm được 4. Chỉ codePoints() mới gộp cặp surrogate lại thành một code point và cho 3 — đúng số ký tự mà người dùng nhìn thấy. \"Việt\" ở dạng NFC có 4 code point Latin nên length() là 4; nhưng cũng chuỗi đó ở dạng NFD (e cộng dấu tổ hợp) sẽ cho 6 và không equals với bản NFC. Quy tắc: đếm hoặc cắt theo cảm nhận người dùng thì dùng codePoints và chuẩn hoá bằng Normalizer trước.",
+      "whyWrong": [
+        "length() đếm đơn vị char UTF-16 nên emoji tính là 2, tổng là 4 chứ không phải 3.",
+        "chars() phát ra từng đơn vị char kể cả hai nửa cặp surrogate nên nó cho 4, giống length(), chứ không gộp lại thành 3.",
+        "codePoints() gộp cặp surrogate thành một code point nên nó cho 3, khác với length() và chars().",
+        ""
+      ]
+    },
+    {
+      "id": "d-4-14",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "System.out.println(String.join(\"-\", \"a\", null, \"b\"));\n\nStringJoiner j = new StringJoiner(\", \", \"[\", \"]\");\nj.setEmptyValue(\"EMPTY\");\nSystem.out.println(j.toString());\nj.add(\"x\");\nSystem.out.println(j.toString());",
+      "choices": [
+        "a-null-b, EMPTY, [x]",
+        "a-b, EMPTY, [x]",
+        "NullPointerException ngay ở dòng đầu",
+        "a-null-b, [], [x]"
+      ],
+      "correctAnswer": 0,
+      "explanation": "String.join không bỏ qua phần tử null: nó chuyển từng phần tử qua String.valueOf nên null trở thành chuỗi bốn ký tự \"null\" và kết quả là a-null-b. Chỉ delimiter null mới ném NullPointerException. Muốn loại null thì phải lọc trước, ví dụ stream().filter(Objects::nonNull).collect(Collectors.joining(\"-\")). Về StringJoiner: setEmptyValue chỉ có tác dụng khi CHƯA có phần tử nào được add — lúc đó toString trả đúng chuỗi đó, không kèm prefix/suffix. Ngay khi có phần tử đầu tiên, prefix và suffix quay lại và ta được [x]. Đây chính là điểm StringJoiner hơn Collectors.joining: nó cho phép định nghĩa biểu diễn riêng cho trường hợp rỗng.",
+      "whyWrong": [
+        "",
+        "String.join không lọc null; nó gọi String.valueOf trên từng phần tử nên null xuất hiện thành chữ \"null\" trong kết quả.",
+        "Chỉ delimiter null mới gây NullPointerException; phần tử null hoàn toàn hợp lệ.",
+        "Khi joiner còn rỗng và đã setEmptyValue, toString trả về đúng giá trị rỗng đó chứ không trả prefix cộng suffix."
+      ]
+    },
+    {
+      "id": "d-4-15",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "Locale tr = Locale.forLanguageTag(\"tr-TR\");\n\nSystem.out.println(\"TITLE\".toLowerCase(tr));\nSystem.out.println(\"TITLE\".toLowerCase(Locale.ROOT));\nSystem.out.println(\"TITLE\".toLowerCase(tr).equals(\"title\"));\nSystem.out.println(\"TITLE\".equalsIgnoreCase(\"title\"));",
+      "choices": [
+        "title, title, true, true",
+        "tıtle, title, false, true",
+        "tıtle, title, false, false",
+        "title, title, false, true"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Trong tiếng Thổ Nhĩ Kỳ, I hoa không chấm chuyển thành ı thường không chấm (còn i thường ứng với İ hoa có chấm), nên \"TITLE\".toLowerCase(tr) cho \"tıtle\" và so sánh với hằng \"title\" trả false. Với Locale.ROOT thì đúng như mong đợi. Điều nguy hiểm là bản toLowerCase() KHÔNG tham số dùng Locale mặc định của JVM, tức hành vi của code phụ thuộc vào cấu hình máy chủ — lỗi này từng phá vỡ nhiều hệ thống thật khi so sánh tên HTTP header, đuôi file hay mã lệnh. equalsIgnoreCase thì an toàn ở đây vì nó so từng ký tự qua Character.toUpperCase rồi toLowerCase, hoàn toàn không phụ thuộc Locale. Quy tắc: chuỗi kỹ thuật luôn dùng toLowerCase(Locale.ROOT), chỉ chuỗi hiển thị mới dùng locale người dùng.",
+      "whyWrong": [
+        "Với locale Thổ Nhĩ Kỳ, chữ I hoa chuyển thành ı không chấm chứ không phải i thường, nên dòng đầu không thể là \"title\".",
+        "",
+        "equalsIgnoreCase so ký tự qua Character.toUpperCase/toLowerCase và không dùng Locale, nên nó vẫn trả true.",
+        "toLowerCase(tr) cho \"tıtle\" chứ không cho \"title\"; nếu dòng đầu là \"title\" thì phép so sánh phía sau đã phải trả true."
+      ]
+    },
+    {
+      "id": "d-4-16",
+      "topicId": 4,
+      "versions": [8, 11, 17, 21],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "System.out.println(String.valueOf((Object) null));\n\ntry {\n    System.out.println(String.valueOf(null));\n} catch (Exception e) {\n    System.out.println(e.getClass().getSimpleName());\n}",
+      "choices": [
+        "null rồi null",
+        "Không biên dịch được: lời gọi String.valueOf(null) nhập nhằng giữa các overload",
+        "null rồi NullPointerException",
+        "NullPointerException ngay ở dòng đầu"
+      ],
+      "correctAnswer": 2,
+      "explanation": "String.valueOf có cả overload nhận Object lẫn overload nhận char[]. Khi đối số là literal null, quy tắc phân giải overload của Java chọn method CỤ THỂ NHẤT áp dụng được — char[] là kiểu con của Object nên nó cụ thể hơn, và valueOf(char[]) được chọn. Method đó gọi new String(char[]) và ném NullPointerException lúc chạy. Ép kiểu tường minh (Object) null buộc compiler chọn valueOf(Object), method này kiểm tra null và trả chuỗi \"null\". Chi tiết liên quan hay bị hỏi kèm: System.out.println(null) thì lại KHÔNG biên dịch được, vì println có cả overload char[] lẫn String, hai kiểu này không phải kiểu con của nhau nên không có method nào cụ thể nhất và compiler báo ambiguous. Quy tắc thực tế: khi truyền null vào một method có overload, luôn ép kiểu tường minh.",
+      "whyWrong": [
+        "Dòng thứ hai không in ra \"null\": nó gọi valueOf(char[]) với mảng null và ném NullPointerException.",
+        "Không hề nhập nhằng: char[] cụ thể hơn Object nên compiler chọn được valueOf(char[]). Chỉ System.out.println(null) mới bị ambiguous vì char[] và String không phải kiểu con của nhau.",
+        "",
+        "Dòng đầu ép kiểu (Object) null nên gọi valueOf(Object); method này kiểm tra null và trả về chuỗi \"null\" một cách an toàn."
+      ]
+    }
+  ]
+}

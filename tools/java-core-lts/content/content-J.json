@@ -1,0 +1,700 @@
+{
+  "tutorials": [
+    {
+      "id": "t-9-6",
+      "topicId": 9,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "Downstream collector: mapping, filtering, flatMapping và groupingBy có thứ tự",
+      "summary": "groupingBy không chỉ đẻ ra List: tầng downstream mới là nơi quyết định kiểu Map, kiểu value, và cả việc một nhóm rỗng có xuất hiện hay không.",
+      "sections": [
+        "<b>Downstream không phải tham số phụ.</b> <code>Collectors.groupingBy(classifier)</code> chỉ là dạng rút gọn của <code>groupingBy(classifier, Collectors.toList())</code> — luôn có một collector thứ hai, chỉ là bạn không thấy nó. Hiểu điều này mở ra cả một tầng API: bất cứ thứ gì nhận được ở downstream cũng lại là một Collector, nên bạn có thể lồng <code>groupingBy</code> trong <code>groupingBy</code>, đặt <code>counting()</code>, <code>summingInt()</code>, <code>reducing()</code>, hoặc <code>toMap()</code> vào đó. Người phỏng vấn thường hỏi \"làm sao đếm số phần tử mỗi nhóm mà không tạo List trung gian\" — câu trả lời chính là downstream <code>counting()</code>.",
+        "<b>mapping: đổi phần tử SAU khi đã phân nhóm.</b> <code>Collectors.mapping(fn, downstream)</code> áp dụng <code>fn</code> lên từng phần tử rồi mới đẩy vào downstream. Khác biệt so với việc gọi <code>.map(fn)</code> trước <code>groupingBy</code> nằm ở chỗ classifier: nếu bạn map trước, classifier chỉ còn nhìn thấy giá trị đã biến đổi. Mẫu điển hình là nhóm theo một field của object rồi chỉ giữ lại một field khác: <code>groupingBy(Emp::getDept, mapping(Emp::getName, toList()))</code> cho <code>Map&lt;String, List&lt;String&gt;&gt;</code> chứ không phải <code>Map&lt;String, List&lt;Emp&gt;&gt;</code>.",
+        "<b>filtering (Java 9) KHÁC hoàn toàn .filter() đặt trước groupingBy.</b> Đây là bẫy đáng giá nhất trong nhóm này. <code>.filter(p)</code> đặt trước <code>groupingBy</code> loại phần tử ra khỏi pipeline, nên nhóm nào không còn phần tử nào sẽ <i>biến mất khỏi Map</i>. <code>Collectors.filtering(p, toList())</code> ngược lại: phần tử vẫn được classifier nhìn thấy và vẫn tạo ra khoá, chỉ bị chặn ở tầng downstream — kết quả là nhóm rỗng <i>vẫn nằm trong Map với value là list rỗng</i>. Với dữ liệu trong khối code bên dưới, một bên cho <code>{2=[an]}</code> còn bên kia cho <code>{2=[an], 3=[]}</code>. Chọn cái nào là quyết định nghiệp vụ: báo cáo cần hiển thị đủ mọi nhóm kể cả nhóm không có dữ liệu thì phải dùng <code>filtering</code>.",
+        "<b>flatMapping (Java 9): mỗi phần tử sinh ra nhiều giá trị.</b> Khi giá trị bạn muốn gom nằm trong một collection con của phần tử, <code>flatMapping(fn, downstream)</code> làm đúng việc mà <code>flatMap</code> làm ở tầng stream, nhưng ở bên trong từng nhóm. Ví dụ nhóm đơn hàng theo khách rồi gom mọi mã sản phẩm: <code>groupingBy(Order::getCustomer, flatMapping(o -&gt; o.getItems().stream(), toSet()))</code>. Trước Java 9 người ta phải gom ra <code>List&lt;Order&gt;</code> rồi duyệt lại lần hai — vừa dài vừa tốn một vòng lặp thừa.",
+        "<b>mapFactory: chọn kiểu Map thay vì chấp nhận HashMap.</b> Dạng ba tham số <code>groupingBy(classifier, mapFactory, downstream)</code> cho phép truyền <code>TreeMap::new</code> (khoá sắp xếp) hoặc <code>LinkedHashMap::new</code> (khoá theo thứ tự gặp lần đầu). Mặc định là <code>HashMap</code>, và <code>HashMap</code> <i>không đảm bảo bất kỳ thứ tự nào</i> — thứ tự bạn nhìn thấy khi in ra chỉ là hệ quả của hàm băm và có thể đổi giữa các phiên bản JDK. Rất nhiều bug \"báo cáo bị đảo thứ tự sau khi nâng JDK\" bắt nguồn từ việc dựa vào thứ tự của HashMap. Tương tự, <code>Collectors.toMap</code> cũng có dạng bốn tham số nhận <code>mapSupplier</code>.",
+        "<b>teeing (Java 12) và ràng buộc một-lần-duyệt.</b> Stream chỉ tiêu thụ được một lần, nên khi cần hai chỉ số trên cùng tập dữ liệu (ví dụ vừa đếm vừa tính tổng, hoặc vừa lấy min vừa lấy max) người ta hay phải <code>collect</code> ra List rồi duyệt lại. <code>Collectors.teeing(c1, c2, merger)</code> đẩy mỗi phần tử tới cả hai collector trong <i>một</i> lần duyệt rồi gộp hai kết quả bằng một <code>BiFunction</code>. Nếu mọi chỉ số bạn cần đều là số học thì <code>IntStream.summaryStatistics()</code> đã đủ và rẻ hơn; <code>teeing</code> dành cho khi hai nhánh là hai collector bất kỳ. Lưu ý phiên bản: <code>filtering</code>/<code>flatMapping</code> có từ Java 9, <code>teeing</code> từ Java 12 — code còn phải chạy trên Java 8 thì không dùng được nhóm này."
+      ],
+      "example": "List<String> ws = Arrays.asList(\"bo\", \"ca\", \"an\", \"duy\", \"em\");\n\n// mapping + TreeMap::new -> value da bien doi, khoa co thu tu\nMap<Integer, List<String>> a = ws.stream().collect(\n        Collectors.groupingBy(String::length, TreeMap::new,\n                Collectors.mapping(String::toUpperCase, Collectors.toList())));\nSystem.out.println(a);   // {2=[BO, CA, AN, EM], 3=[DUY]}\n\n// filtering (Java 9): nhom rong VAN duoc giu lai\nMap<Integer, List<String>> b = ws.stream().collect(\n        Collectors.groupingBy(String::length, TreeMap::new,\n                Collectors.filtering(s -> s.startsWith(\"a\"), Collectors.toList())));\nSystem.out.println(b);   // {2=[an], 3=[]}\n\n// filter dat TRUOC groupingBy: khoa 3 bien mat hoan toan\nMap<Integer, List<String>> c = ws.stream()\n        .filter(s -> s.startsWith(\"a\"))\n        .collect(Collectors.groupingBy(String::length, TreeMap::new, Collectors.toList()));\nSystem.out.println(c);   // {2=[an]}\n\n// dem theo nhom, khong tao List trung gian\nMap<Integer, Long> d = ws.stream()\n        .collect(Collectors.groupingBy(String::length, Collectors.counting()));\nSystem.out.println(d);   // {2=4, 3=1}",
+      "exampleTitle": "filtering vs filter, mapping và mapFactory (output đã chạy thật)",
+      "keyPoints": [
+        "groupingBy(classifier) chỉ là groupingBy(classifier, toList()) — downstream luôn tồn tại.",
+        "Collectors.filtering giữ lại nhóm rỗng; .filter() đặt trước groupingBy làm khoá của nhóm rỗng biến mất.",
+        "mapping đổi value sau khi phân nhóm, còn .map() trước groupingBy làm classifier chỉ thấy giá trị đã biến đổi.",
+        "flatMapping (Java 9) trải collection con bên trong từng nhóm mà không cần duyệt lại lần hai.",
+        "Mặc định groupingBy trả HashMap, không đảm bảo thứ tự; muốn thứ tự phải truyền TreeMap::new hoặc LinkedHashMap::new.",
+        "teeing (Java 12) cho phép lấy hai kết quả collector khác nhau trong một lần duyệt duy nhất."
+      ],
+      "trap": "Đổi Collectors.filtering(p, toList()) thành .filter(p) trước groupingBy (hoặc ngược lại) và tưởng là tương đương. Chúng chỉ giống nhau khi mọi nhóm đều còn ít nhất một phần tử; ngay khi có nhóm bị lọc sạch, một bên trả về khoá với list rỗng còn bên kia không trả về khoá đó.",
+      "followUp": [
+        "Nếu cần Map<String, Long> đếm theo nhóm và muốn khoá sắp xếp thì viết thế nào?",
+        "Khi nào nên dùng teeing thay vì summaryStatistics?",
+        "Vì sao dựa vào thứ tự lặp của HashMap trả về từ groupingBy là sai, kể cả khi chạy đúng trên máy bạn?"
+      ]
+    },
+    {
+      "id": "t-9-7",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Encounter order, tính ổn định của sorted, và cái giá thật của parallel",
+      "summary": "Thứ tự trong stream không do bạn quyết định mà do nguồn quyết định — và mọi chi phí bất ngờ của parallel đều bắt nguồn từ việc giữ đúng thứ tự đó.",
+      "sections": [
+        "<b>Encounter order là thuộc tính của NGUỒN.</b> Stream tạo từ <code>List</code>, mảng, <code>LinkedHashSet</code> hay <code>Stream.of(...)</code> có encounter order xác định. Stream tạo từ <code>HashSet</code> hoặc <code>HashMap.entrySet()</code> thì <i>không</i>: JDK không hứa gì về thứ tự, và thứ tự thực tế phụ thuộc hàm băm cùng dung lượng bảng. Trong một lần chạy thật, <code>new HashSet&lt;&gt;(Arrays.asList(\"delta\",\"alpha\",\"bravo\",\"charlie\",\"echo\"))</code> cho ra <code>[bravo, alpha, delta, echo, charlie]</code> — không phải thứ tự chèn, cũng không phải alphabet. Nếu code của bạn phụ thuộc thứ tự, hãy <code>sorted()</code> tường minh chứ đừng tin vào nguồn.",
+        "<b>sorted() là sort ổn định (stable).</b> <code>Stream.sorted</code> được đặc tả là stable với stream có encounter order: hai phần tử mà comparator coi là bằng nhau sẽ giữ nguyên thứ tự xuất hiện ban đầu. Chạy thật: sắp <code>[an, ba, cu, duy, em]</code> theo độ dài cho ra <code>[an, ba, cu, em, duy]</code> — bốn phần tử độ dài 2 giữ đúng thứ tự gốc. Đây là nền tảng của kỹ thuật sort nhiều tiêu chí bằng cách sort nhiều lần từ tiêu chí phụ tới tiêu chí chính, dù trong thực tế nên dùng <code>Comparator.comparing(...).thenComparing(...)</code> vì nó chỉ duyệt một lần. Lưu ý tính ổn định chỉ có nghĩa khi nguồn <i>có</i> encounter order — sort một stream từ HashSet thì \"ổn định\" so với một thứ tự vốn đã không xác định.",
+        "<b>forEach vs forEachOrdered dưới parallel.</b> <code>forEach</code> cố tình <i>không</i> hứa thứ tự để mỗi nhánh chạy xong là gọi ngay consumer. <code>forEachOrdered</code> hứa đúng encounter order, đổi lại phải đệm kết quả của các nhánh và chờ nhánh trước — tức là bạn trả tiền cho song song mà mất phần lớn lợi ích. Chạy thật trên 8 phần tử: <code>parallelStream().forEach</code> cho ra một thứ tự xáo trộn (ví dụ <code>[6, 5, 8, 7, 3, 4, 2, 1]</code>), còn <code>forEachOrdered</code> luôn cho <code>[1..8]</code>. Cũng cần nhớ consumer trong <code>forEach</code> song song phải thread-safe: thêm vào một <code>ArrayList</code> thường ở đây là lỗi dữ liệu chứ không phải chuyện thứ tự.",
+        "<b>findFirst vs findAny: hai ngữ nghĩa khác nhau, không phải hai tên của một thứ.</b> <code>findFirst</code> bị ràng buộc phải trả về phần tử đầu tiên theo encounter order kể cả khi chạy song song — nên nó phải bỏ đi kết quả của các nhánh phía sau và chờ nhánh đầu. <code>findAny</code> cố tình bỏ ràng buộc đó để nhánh nào tìm thấy trước thì trả về. Đo thật trên danh sách 1..200 với 200 lần chạy: <code>findFirst</code> luôn trả 2, còn <code>findAny</code> trả về hàng chục giá trị chẵn khác nhau. Trên stream tuần tự thì cài đặt hiện tại của JDK khiến <code>findAny</code> thường cũng trả phần tử đầu — đừng dựa vào chi tiết cài đặt đó.",
+        "<b>unordered() và các operation đắt lên vì thứ tự.</b> <code>distinct()</code>, <code>limit()</code>, <code>skip()</code> và <code>sorted()</code> đắt hơn hẳn trên stream song song CÓ thứ tự, vì phải bảo toàn quan hệ trước-sau giữa các nhánh. Nếu nghiệp vụ không quan tâm thứ tự, gọi <code>.unordered()</code> cho phép JDK bỏ ràng buộc và thường nhanh lên rõ rệt — ví dụ <code>distinct()</code> chuyển từ giữ thứ tự sang gom bằng một tập chia sẻ. Đây là chi tiết mà rất ít ứng viên biết và là một câu hỏi vặn hay.",
+        "<b>Khi nào một vòng for thắng stream.</b> Ba trường hợp thực tế. Thứ nhất, boxing: <code>Stream&lt;Integer&gt;</code> tạo một object cho mỗi phần tử, còn <code>IntStream</code> thì không — nên <code>list.stream().mapToInt(X::getAge).sum()</code> thường tốt hơn <code>list.stream().map(X::getAge).reduce(0, Integer::sum)</code>. Thứ hai, tập dữ liệu nhỏ: chi phí dựng pipeline và gọi lambda (dù JIT thường inline được) không đáng so với vài chục phần tử. Thứ ba, parallel chỉ có lãi khi công việc trên mỗi phần tử đủ nặng và CPU-bound, N đủ lớn, VÀ nguồn chia tách tốt — <code>ArrayList</code> và mảng chia tách rẻ, còn <code>LinkedList</code> hay <code>Stream.iterate</code> thì gần như không chia tách được. Với I/O thì <code>parallelStream</code> là lựa chọn sai vì nó chiếm thread của common ForkJoinPool. Đây là chỗ nên nói \"phải đo\" thay vì khẳng định — nhưng phải biết đo cái gì."
+      ],
+      "example": "List<Integer> src = IntStream.rangeClosed(1, 8).boxed().collect(Collectors.toList());\n\n// findFirst bi rang buoc boi encounter order -> luon 2, ke ca song song\nSystem.out.println(src.parallelStream().filter(i -> i % 2 == 0).findFirst().get());  // 2\n\n// forEach song song: thu tu tuy y (mot lan chay that)\nList<Integer> a = Collections.synchronizedList(new ArrayList<>());\nsrc.parallelStream().forEach(a::add);\nSystem.out.println(a);           // vi du [6, 5, 8, 7, 3, 4, 2, 1]\n\n// forEachOrdered: dung thu tu nguon, doi lai mat phan lon loi ich song song\nList<Integer> b = Collections.synchronizedList(new ArrayList<>());\nsrc.parallelStream().forEachOrdered(b::add);\nSystem.out.println(b);           // [1, 2, 3, 4, 5, 6, 7, 8]\n\n// sorted() on dinh: cac phan tu \"bang nhau\" giu nguyen thu tu xuat hien\nList<String> ws = Arrays.asList(\"an\", \"ba\", \"cu\", \"duy\", \"em\");\nSystem.out.println(ws.stream()\n        .sorted(Comparator.comparingInt(String::length))\n        .collect(Collectors.toList()));   // [an, ba, cu, em, duy]\n\n// HashSet khong co encounter order xac dinh\nSet<String> hs = new HashSet<>(Arrays.asList(\"delta\", \"alpha\", \"bravo\", \"charlie\", \"echo\"));\nSystem.out.println(new ArrayList<>(hs));  // [bravo, alpha, delta, echo, charlie]",
+      "exampleTitle": "Thứ tự dưới parallel và tính ổn định của sorted (output đã chạy thật)",
+      "keyPoints": [
+        "Encounter order do nguồn quyết định: List/mảng/LinkedHashSet có, HashSet/HashMap không.",
+        "sorted() là stable — phần tử bằng nhau theo comparator giữ nguyên thứ tự xuất hiện.",
+        "forEach song song không hứa thứ tự; forEachOrdered hứa thứ tự nhưng phải đệm và chờ.",
+        "findFirst xác định kể cả khi parallel; findAny cố tình không xác định để nhanh hơn.",
+        "distinct/limit/skip/sorted đắt hơn trên parallel có thứ tự; .unordered() gỡ ràng buộc đó.",
+        "IntStream tránh boxing so với Stream<Integer>; parallel chỉ có lãi khi N lớn, CPU-bound và nguồn chia tách tốt."
+      ],
+      "trap": "Chạy parallelStream().forEach(list::add) rồi thấy kết quả đúng trên máy dev và kết luận là an toàn. Hai vấn đề chồng lên nhau: thứ tự không được đảm bảo, và ArrayList không thread-safe nên kết quả có thể mất phần tử hoặc chứa null — nó chỉ chưa lộ ra vì dữ liệu test quá nhỏ.",
+      "followUp": [
+        "Vì sao findFirst dưới parallel lại tốn kém hơn findAny?",
+        "unordered() ảnh hưởng thế nào tới distinct() và limit() trên stream song song?",
+        "Nguồn nào chia tách (split) tốt cho parallel và nguồn nào thì không?"
+      ]
+    },
+    {
+      "id": "t-6-6",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Exception chaining và thiết kế custom exception: đừng làm mất nguyên nhân gốc",
+      "summary": "Wrap exception là việc đúng, nhưng wrap mà quên truyền cause biến một sự cố có thể debug trong 30 giây thành một đêm trực mất ngủ.",
+      "sections": [
+        "<b>Cause là một field của Throwable, không phải một đoạn chuỗi.</b> <code>Throwable</code> có sẵn constructor <code>(String, Throwable)</code> và method <code>initCause()</code>. Khi bạn viết <code>throw new ConfigException(\"cau hinh sai: \" + e.getMessage())</code>, bạn chỉ chép <i>chuỗi mô tả</i> của exception gốc, còn object gốc bị vứt. Đo thật: exception mới có <code>getCause() == null</code> và stack trace chỉ chứa một frame — frame của dòng <code>throw</code>. Toàn bộ đường đi dẫn tới lỗi, kể cả dòng code thực sự nổ, không còn tồn tại ở bất cứ đâu. Truyền cause thì logger in ra khối <code>Caused by:</code> đầy đủ và bạn nhìn thấy ngay dòng số mấy trong class nào.",
+        "<b>Exception translation: dịch lỗi khi đi qua ranh giới tầng.</b> Tầng dưới ném lỗi theo ngôn ngữ của công nghệ nó dùng (<code>SQLException</code>, <code>IOException</code>, lỗi HTTP của client). Tầng trên không nên biết những thứ đó, nếu không thì đổi từ JDBC sang một thư viện khác sẽ làm vỡ chữ ký của toàn bộ hệ thống. Nguyên tắc: mỗi tầng bắt exception của công nghệ bên dưới, bọc lại thành exception thuộc từ vựng của tầng mình, và <i>luôn giữ cause</i>. Đó chính là mô hình <code>DataAccessException</code> của Spring. Bọc mà mất cause thì bạn có kiến trúc đẹp và log vô dụng.",
+        "<b>Checked hay unchecked cho một quy tắc nghiệp vụ.</b> Câu hỏi đúng không phải \"lỗi này nghiêm trọng tới đâu\" mà là <i>\"người gọi có hành động khắc phục cụ thể và hợp lý nào không?\"</i>. Nếu có — ví dụ \"số dư không đủ\" mà caller phải hiển thị màn hình nạp tiền — thì checked exception buộc caller đối diện với tình huống đó, và đó là giá trị thật của checked. Nếu không có gì để làm ngoài việc để lỗi nổi lên tầng biên (dữ liệu vi phạm invariant, lập trình viên gọi sai) thì unchecked. Thực tế các API hiện đại nghiêng hẳn về unchecked vì checked exception không đi qua được lambda và stream mà không phải bọc thủ công — đây là lý do kỹ thuật, không phải chuyện thẩm mỹ.",
+        "<b>Đừng tạo một exception class cho mỗi mã lỗi.</b> Mẫu thiết kế tệ hay gặp: <code>OrderNotFoundException</code>, <code>OrderAlreadyPaidException</code>, <code>OrderLimitExceededException</code>... rồi 40 class nữa, mỗi class ba dòng. Hệ quả: khối catch phình ra, không ai catch hết được, và người ta quay về <code>catch (Exception e)</code>. Phương án gọn hơn: <i>một</i> exception nghiệp vụ mang thêm một field enum mã lỗi (và có thể vài tham số để dựng thông điệp đa ngôn ngữ). Chỉ tách class riêng khi thật sự có nơi nào đó cần <code>catch</code> riêng loại đó — tiêu chí là 'có ai catch riêng không', không phải 'có phải lỗi khác nhau không'.",
+        "<b>Validate ở biên, một lần.</b> Kiểm tra đầu vào ngay tại ranh giới public của module: <code>Objects.requireNonNull(x, \"x\")</code> cho tham số bắt buộc, <code>IllegalArgumentException</code> cho giá trị sai miền. Làm vậy thì bên trong module bạn được quyền giả định dữ liệu đã sạch và không phải rải null-check khắp nơi. Thông điệp phải chứa <i>giá trị vi phạm</i> — <code>\"amount must be positive: -5\"</code> hữu ích gấp nhiều lần <code>\"invalid amount\"</code>. Đây cũng là chỗ phân biệt: NullPointerException từ <code>requireNonNull</code> ở biên là lỗi của caller và dễ sửa; NullPointerException nổ sâu 12 frame bên trong là lỗi thiết kế của bạn.",
+        "<b>Optional và exception giải quyết hai vấn đề khác nhau.</b> \"Không tìm thấy\" là kết quả <i>bình thường và dự kiến được</i> của một truy vấn thì trả <code>Optional</code>: nó buộc caller xử lý trường hợp rỗng ngay tại chỗ, không tốn chi phí dựng stack trace, và không lạm dụng exception làm luồng điều khiển. \"Không tìm thấy\" là <i>vi phạm hợp đồng</i> — caller khẳng định id này phải tồn tại — thì ném exception. Mẫu API rõ ràng nhất là có cả hai: <code>findById</code> trả <code>Optional&lt;Order&gt;</code>, <code>getById</code> ném <code>OrderNotFoundException</code>. Điều cần tránh là trả <code>Optional</code> rồi caller nào cũng <code>.get()</code> — khi đó bạn chỉ đổi một NoSuchElementException lấy một NullPointerException."
+      ],
+      "example": "// SAI: cause bi vut, getCause() == null, stack trace chi con 1 frame\ncatch (SQLException e) {\n    throw new OrderRepositoryException(\"khong doc duoc don hang: \" + e.getMessage());\n}\n\n// DUNG: giu cause, log in ra khoi \"Caused by:\" day du\ncatch (SQLException e) {\n    throw new OrderRepositoryException(\"khong doc duoc don hang \" + id, e);\n}\n\n// Mot exception nghiep vu + enum ma loi, thay vi 40 class con ba dong\npublic class OrderException extends RuntimeException {\n    public enum Code { NOT_FOUND, ALREADY_PAID, LIMIT_EXCEEDED }\n\n    private final Code code;\n\n    public OrderException(Code code, String message, Throwable cause) {\n        super(message, cause);\n        this.code = code;\n    }\n\n    public Code getCode() { return code; }\n}\n\n// Validate o bien public, thong diep chua gia tri vi pham\npublic void transfer(Account from, Account to, BigDecimal amount) {\n    Objects.requireNonNull(from, \"from\");\n    Objects.requireNonNull(to, \"to\");\n    if (amount.signum() <= 0) {\n        throw new IllegalArgumentException(\"amount must be positive: \" + amount);\n    }\n    // tu day tro di duoc quyen gia dinh du lieu da sach\n}\n\n// Hai method, hai hop dong khac nhau\nOptional<Order> findById(long id);            // vang mat la binh thuong\nOrder          getById(long id);              // vang mat la vi pham hop dong -> ném",
+      "exampleTitle": "Chaining, custom exception có mã lỗi, validate ở biên",
+      "keyPoints": [
+        "Wrap exception thì luôn truyền cause: new X(msg, e), không phải new X(msg + e.getMessage()).",
+        "Mất cause là mất toàn bộ stack trace của lỗi gốc — đo thật: getCause() null và chỉ còn một frame.",
+        "Mỗi tầng dịch exception sang từ vựng của mình nhưng vẫn giữ chuỗi cause nguyên vẹn.",
+        "Checked khi caller có hành động khắc phục cụ thể; ngoài ra unchecked, đặc biệt vì checked không đi qua lambda.",
+        "Một exception nghiệp vụ + enum mã lỗi tốt hơn hàng chục class con mà không ai catch riêng.",
+        "Optional cho 'vắng mặt là bình thường', exception cho 'vi phạm hợp đồng'."
+      ],
+      "trap": "throw new BusinessException(\"loi: \" + e.getMessage()) trông rất hợp lý vì thông điệp vẫn còn. Nhưng người phỏng vấn sẽ hỏi 'trong log production bạn tìm dòng code gây lỗi ở đâu?' — và câu trả lời là không ở đâu cả, vì stack trace của exception gốc đã bị vứt cùng với object gốc.",
+      "followUp": [
+        "Vì sao checked exception gây khó khi dùng với lambda và Stream?",
+        "Khi nào tách một exception class riêng là chính đáng thay vì thêm một mã lỗi enum?",
+        "findById trả Optional còn getById ném exception — vì sao nên có cả hai thay vì chỉ một?"
+      ]
+    },
+    {
+      "id": "t-6-7",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Exception qua ranh giới thread và logging: những chỗ stack trace lặng lẽ biến mất",
+      "summary": "Exception ném trong một worker thread không tự đi tới log của bạn — và cách bạn gọi logger quyết định nó còn stack trace hay chỉ còn một dòng chữ.",
+      "sections": [
+        "<b>submit() nuốt exception cho tới khi có ai gọi Future.get().</b> <code>ExecutorService.submit</code> bọc task trong một <code>FutureTask</code>: nếu task ném exception, <code>FutureTask</code> <i>bắt lại</i> và cất vào Future. Không có gì được in ra, thread không chết, chương trình chạy tiếp như không có chuyện gì. Chỉ khi ai đó gọi <code>future.get()</code> thì lỗi mới nổi lên, gói trong <code>ExecutionException</code> mà <code>getCause()</code> là exception gốc (đã đo thật). Trong code kiểu fire-and-forget — submit rồi bỏ Future đi — đây là một trong những nguồn bug im lặng khó chịu nhất: job chạy nền hỏng hàng tuần mà log hoàn toàn sạch.",
+        "<b>execute() thì ngược lại hoàn toàn.</b> <code>Executor.execute(Runnable)</code> không có Future để cất lỗi, nên exception thoát ra khỏi worker thread và đi tới <code>UncaughtExceptionHandler</code>. Handler mặc định in stack trace ra stderr với dòng quen thuộc <code>Exception in thread \"pool-1-thread-1\" ...</code> (đã đo thật), rồi thread đó chết và <code>ThreadPoolExecutor</code> tạo thread thay thế. Vì vậy quy tắc thực dụng là: đã dùng <code>submit</code> thì phải xử lý Future; không định xử lý Future thì dùng <code>execute</code>.",
+        "<b>Bắt mọi thứ ở tầng pool.</b> Hai điểm móc đáng dùng. Thứ nhất, <code>ThreadFactory</code> tự viết để gán <code>setUncaughtExceptionHandler</code> cho mọi thread của pool — tiện thể đặt luôn tên thread có ý nghĩa, thứ giúp đọc thread dump nhanh hơn rất nhiều. Thứ hai, override <code>ThreadPoolExecutor.afterExecute(Runnable, Throwable)</code>: đây là chỗ duy nhất nhìn thấy cả lỗi của <code>execute</code> lẫn lỗi đã bị <code>FutureTask</code> nuốt (với task là Future thì tham số Throwable là null nên phải tự gọi <code>get()</code> để moi ra). Ngoài ra <code>Thread.setDefaultUncaughtExceptionHandler</code> đặt lưới an toàn cuối cùng cho toàn JVM.",
+        "<b>CompletableFuture có luật riêng.</b> Exception trong một stage không dừng chương trình mà làm future đó <i>completed exceptionally</i>, rồi lan xuống các stage phụ thuộc. <code>join()</code> ném <code>CompletionException</code>, <code>get()</code> ném <code>ExecutionException</code> — cả hai đều bọc exception gốc nên phải lấy <code>getCause()</code>. Ba method dễ lẫn: <code>exceptionally</code> chỉ chạy khi có lỗi và cho phép thay thế bằng giá trị dự phòng; <code>handle</code> chạy trong cả hai trường hợp và biến đổi kết quả; <code>whenComplete</code> chạy trong cả hai trường hợp nhưng <i>không</i> nuốt lỗi. Một CompletableFuture bị bỏ rơi không ai chờ cũng là một lỗi biến mất y hệt trường hợp <code>submit</code>.",
+        "<b>Truyền exception vào logger, đừng nối chuỗi.</b> <code>log.error(\"loi: \" + e.getMessage())</code> ghi ra một dòng chữ và vứt stack trace. Đúng phải là <code>log.error(\"loi khi luu don hang {}\", id, e)</code> — với SLF4J, tham số cuối là một Throwable thì nó được xử lý như exception chứ không phải như placeholder, nên bạn có cả thông điệp có ngữ cảnh lẫn stack trace đầy đủ kèm các khối <code>Caused by:</code>. Đây cũng là lý do thông điệp nên chứa <i>khoá nghiệp vụ</i> (id đơn hàng, mã giao dịch): stack trace nói lỗi ở đâu, thông điệp nói lỗi với dữ liệu nào.",
+        "<b>Log HOẶC ném, đừng làm cả hai.</b> Mẫu <i>log-and-rethrow</i> — ghi log rồi ném tiếp lên — khiến một sự cố sinh ra nhiều entry ở nhiều tầng, dưới nhiều hình dạng khác nhau, làm mọi thống kê lỗi sai và làm người trực phải mất công ghép lại xem có phải cùng một sự cố không. Nguyên tắc: tầng nào <i>xử lý</i> exception thì tầng đó log; tầng nào chỉ bọc và chuyển tiếp thì im lặng, vì cause đã mang đủ thông tin lên trên. Trong ứng dụng web, nơi log một lần thường là exception handler ở tầng biên (ví dụ <code>@ControllerAdvice</code>). Ngoại lệ hợp lý duy nhất là khi bạn thêm được ngữ cảnh mà tầng trên không thể biết — và khi đó nên log ở mức DEBUG, không phải ERROR."
+      ],
+      "example": "ExecutorService pool = Executors.newFixedThreadPool(4);\n\n// 1) submit: exception bi cat trong Future, KHONG in ra gi\nFuture<?> f = pool.submit((Runnable) () -> { throw new IllegalStateException(\"boom\"); });\n// neu khong ai goi f.get() -> loi bien mat hoan toan\n\ntry {\n    f.get();                                  // day moi la luc loi noi len\n} catch (ExecutionException e) {\n    log.error(\"task that bai\", e.getCause()); // getCause() moi la exception goc\n}\n\n// 2) execute: exception di toi UncaughtExceptionHandler -> in ra stderr\npool.execute(() -> { throw new IllegalStateException(\"boom2\"); });\n// Exception in thread \"pool-1-thread-1\" java.lang.IllegalStateException: boom2\n\n// 3) Gan handler (va dat ten thread) cho moi thread cua pool\nThreadFactory tf = r -> {\n    Thread t = new Thread(r, \"order-worker\");\n    t.setUncaughtExceptionHandler((th, ex) -> log.error(\"uncaught tren \" + th.getName(), ex));\n    return t;\n};\n\n// 4) Logging: truyen exception lam tham so cuoi, khong noi chuoi\nlog.error(\"khong luu duoc don hang {}\", id, e);          // co stack trace + Caused by\nlog.error(\"khong luu duoc don hang: \" + e.getMessage()); // MAT stack trace",
+      "exampleTitle": "submit vs execute, handler cho pool, và cách gọi logger",
+      "keyPoints": [
+        "submit() bắt exception và cất vào Future: không log, không chết thread, lỗi chỉ hiện khi gọi get().",
+        "Future.get() ném ExecutionException; exception gốc nằm ở getCause().",
+        "execute() để exception thoát ra UncaughtExceptionHandler và in ra stderr, thread chết rồi được thay thế.",
+        "ThreadFactory tự viết (đặt tên thread + handler) và afterExecute là hai điểm móc để không mất lỗi trong pool.",
+        "CompletableFuture: join ném CompletionException, get ném ExecutionException; whenComplete không nuốt lỗi còn exceptionally/handle thì có.",
+        "log.error(msg, e) mới có stack trace; nối e.getMessage() vào chuỗi là vứt stack trace.",
+        "Log HOẶC ném, đừng làm cả hai — nếu không một sự cố sẽ xuất hiện nhiều lần trong log."
+      ],
+      "trap": "Dùng submit() cho task nền rồi bỏ Future đi vì 'không cần kết quả'. Task ném exception thì không có bất kỳ dấu vết nào trong log — đây là câu hỏi vặn rất hay gặp và là nguyên nhân thật của nhiều sự cố 'job chạy mà dữ liệu không thay đổi'.",
+      "followUp": [
+        "Vì sao afterExecute nhận Throwable null khi task được nộp bằng submit, và moi lỗi ra bằng cách nào?",
+        "Khác nhau giữa exceptionally, handle và whenComplete của CompletableFuture là gì?",
+        "Trong ứng dụng web, tầng nào nên là nơi duy nhất log exception và vì sao?"
+      ]
+    },
+    {
+      "id": "t-7-6",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "title": "Đọc OutOfMemoryError cho đúng và quy trình chẩn đoán bộ nhớ",
+      "summary": "OutOfMemoryError không phải một lỗi mà là một họ lỗi, và mỗi biến thể chỉ về một vùng bộ nhớ khác nhau — đọc sai biến thể là sửa sai chỗ.",
+      "sections": [
+        "<b>Sáu biến thể cần nhận ra ngay từ dòng đầu.</b> <code>Java heap space</code>: heap thật sự đầy. <code>GC overhead limit exceeded</code>: heap chưa đầy hẳn nhưng GC chạy gần như liên tục mà thu hồi được rất ít. <code>Metaspace</code>: metadata class tràn — thường do nạp class động không kiểm soát (proxy, class loader không được giải phóng, redeploy nhiều lần). <code>Requested array size exceeds VM limit</code>: xin một mảng lớn hơn giới hạn của JVM, tức lỗi tính toán kích thước chứ không phải thiếu RAM (đo thật với <code>new int[Integer.MAX_VALUE]</code>). <code>unable to create native thread</code>: OS từ chối cấp thread mới. Và nhóm lỗi liên quan tới <i>direct buffer</i>: hết hạn mức <code>-XX:MaxDirectMemorySize</code>. Lưu ý câu chữ chính xác của thông điệp có thay đổi giữa các bản JDK — điều bất biến là <i>vùng bộ nhớ</i> mà nó chỉ tới.",
+        "<b>Java heap space vs GC overhead limit exceeded.</b> Biến thể thứ hai là một <i>heuristic</i>: khi JVM dành trên khoảng 98% thời gian cho GC mà thu hồi được dưới khoảng 2% heap, nó chủ động ném lỗi thay vì để ứng dụng thoi thóp mãi. Cơ chế này bật/tắt bằng <code>-XX:+UseGCOverheadLimit</code> (mặc định bật). Cần nói rõ: đây là chi tiết phụ thuộc collector và phiên bản — không phải mọi collector đều cài đặt heuristic này, và trong nhiều trường hợp bạn sẽ chỉ thấy <code>Java heap space</code> dù triệu chứng giống hệt. Về cách xử lý thì hai biến thể như nhau: hoặc live set thật sự lớn hơn heap được cấp, hoặc có leak.",
+        "<b>Ba biến thể KHÔNG liên quan gì tới -Xmx.</b> <code>Metaspace</code>, <code>unable to create native thread</code> và lỗi direct buffer đều nằm ngoài Java heap. Nghịch lý quan trọng và là câu hỏi vặn hay gặp: với hai biến thể sau, <i>tăng</i> <code>-Xmx</code> còn làm lỗi dễ xảy ra hơn, vì heap chiếm mất phần RAM mà stack native và buffer native cần. Metaspace giới hạn bằng <code>-XX:MaxMetaspaceSize</code> (mặc định gần như không giới hạn, tức nó sẽ ăn dần native memory cho tới khi OS từ chối); direct buffer giới hạn bằng <code>-XX:MaxDirectMemorySize</code>.",
+        "<b>Quy trình chẩn đoán: lấy bằng chứng trước, đặt giả thuyết sau.</b> Bật sẵn ở production <code>-XX:+HeapDumpOnOutOfMemoryError</code> kèm <code>-XX:HeapDumpPath</code> trỏ vào volume đủ chỗ (heap dump có kích thước xấp xỉ heap đang dùng), và cân nhắc <code>-XX:+ExitOnOutOfMemoryError</code> để tiến trình chết dứt khoát cho orchestrator khởi động lại thay vì sống lay lắt trong trạng thái hỏng. Khi tiến trình còn sống, <code>jcmd</code> là công cụ được khuyến nghị thay cho <code>jmap</code> đã cũ: <code>jcmd &lt;pid&gt; GC.heap_info</code>, <code>GC.class_histogram</code>, <code>GC.heap_dump</code>. Trong Eclipse MAT, ba thứ cần nhìn là Leak Suspects, dominator tree, và phân biệt <i>shallow heap</i> (kích thước bản thân object) với <i>retained heap</i> (tổng bộ nhớ được giải phóng nếu object đó biến mất) — retained heap mới là con số chỉ ra thủ phạm.",
+        "<b>Đọc một dòng GC log.</b> Từ Java 9 dùng unified logging <code>-Xlog:gc*</code>; trên Java 8 là <code>-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:...</code>. Một dòng thật: <code>[0.113s][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 119M-&gt;4M(256M) 2.315ms</code>. Ba con số là <i>heap đang dùng trước GC → heap đang dùng sau GC (dung lượng heap hiện tại)</i>, tính trên toàn bộ heap chứ không riêng young gen — đây là chỗ nhầm phổ biến nhất. Con số cuối là thời lượng pause. Khi chẩn đoán, ba thứ cần theo dõi là: xu hướng của con số <i>sau</i> GC qua thời gian, tần suất GC, và tổng thời gian pause trên mỗi phút chạy.",
+        "<b>Native Memory Tracking cho phần ngoài heap.</b> Khi RSS lớn hơn <code>-Xmx</code> rất nhiều mà heap dump lại sạch, công cụ đúng là NMT: khởi động với <code>-XX:NativeMemoryTracking=summary</code> rồi <code>jcmd &lt;pid&gt; VM.native_memory summary</code>. Nó bóc tách bộ nhớ theo hạng mục Java Heap / Class / Thread / Code / GC / Metaspace, và thường cho câu trả lời ngay trong một phút. NMT có chi phí hiệu năng nhỏ nên là lựa chọn cân nhắc chứ không phải mặc định. Nếu nghi rò rỉ native của thư viện JNI thì NMT cũng không thấy được và bạn phải chuyển sang công cụ ngoài JVM."
+      ],
+      "example": "# Bat san o production\n-XX:+HeapDumpOnOutOfMemoryError\n-XX:HeapDumpPath=/var/log/app/heap.hprof\n-XX:+ExitOnOutOfMemoryError\n\n# Xem nhanh khi tien trinh con song (jcmd duoc khuyen nghi thay cho jmap)\njcmd <pid> GC.heap_info\njcmd <pid> GC.class_histogram\njcmd <pid> GC.heap_dump /tmp/heap.hprof\njcmd <pid> VM.native_memory summary     # can -XX:NativeMemoryTracking=summary luc khoi dong\njcmd <pid> Thread.print                 # thread dump\n\n# GC log\n-Xlog:gc*:file=/var/log/app/gc.log:time,uptime,level,tags:filecount=5,filesize=20M   # Java 9+\n-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:/var/log/app/gc.log               # Java 8\n\n# Mot dong GC log that (G1)\n[0.061s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 48M->2M(256M) 2.970ms\n[0.113s][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 119M->4M(256M) 2.315ms\n#                                                                   ^dung truoc ^dung sau ^dung luong heap ^pause",
+      "exampleTitle": "Cờ, lệnh jcmd và một dòng GC log thật",
+      "keyPoints": [
+        "Đọc phần sau dấu hai chấm của OutOfMemoryError trước tiên: nó chỉ ra vùng bộ nhớ, và mỗi vùng có cách sửa khác nhau.",
+        "Metaspace, unable to create native thread và direct buffer nằm ngoài heap — tăng -Xmx không giúp, thậm chí làm tệ hơn.",
+        "GC overhead limit exceeded là heuristic (>98% thời gian GC, <2% thu hồi) và phụ thuộc collector/phiên bản.",
+        "Bật sẵn -XX:+HeapDumpOnOutOfMemoryError với HeapDumpPath trên volume đủ chỗ; cân nhắc ExitOnOutOfMemoryError.",
+        "Trong MAT, retained heap chỉ ra thủ phạm còn shallow heap thì không.",
+        "Trong GC log, dạng a->b(c) là heap dùng trước → sau (dung lượng), tính trên toàn heap chứ không riêng young gen.",
+        "RSS lớn hơn -Xmx nhiều mà heap dump sạch thì dùng Native Memory Tracking."
+      ],
+      "trap": "Thấy OutOfMemoryError là phản xạ tăng -Xmx. Với biến thể Metaspace, unable to create native thread hoặc direct buffer thì việc đó không giải quyết gì và có thể làm sự cố đến sớm hơn; với biến thể Java heap space do leak thì nó chỉ dời thời điểm sập ra xa hơn vài giờ.",
+      "followUp": [
+        "Khác nhau giữa shallow heap và retained heap trong Eclipse MAT là gì?",
+        "Vì sao OutOfMemoryError: Metaspace hay xuất hiện sau nhiều lần hot redeploy trên application server?",
+        "Khi RSS lớn hơn -Xmx rất nhiều mà heap dump sạch thì bước điều tra tiếp theo là gì?"
+      ]
+    },
+    {
+      "id": "t-7-7",
+      "topicId": 7,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "title": "JVM trong container: vì sao -Xmx mặc định và RSS luôn làm người ta bất ngờ",
+      "summary": "Trong Kubernetes, hai con số quyết định sống chết là heap mặc định mà JVM tự chọn và phần bộ nhớ nằm ngoài -Xmx — cả hai đều không phải thứ trực giác đoán được.",
+      "sections": [
+        "<b>-Xmx chỉ giới hạn Java heap, không giới hạn tiến trình.</b> Đo thật bằng Native Memory Tracking với <code>-Xmx256m</code>: tổng bộ nhớ committed là khoảng 364MB, trong đó heap 256MB, <i>cấu trúc nội bộ của GC khoảng 68MB</i> (remembered set, card table, marking bitmap của G1), shared class space khoảng 13.5MB, code cache khoảng 7.4MB, cộng stack native của từng thread. Nghĩa là kể cả khi ứng dụng chưa chạy gì, RSS đã vượt xa <code>-Xmx</code>. Đặt memory limit của container bằng đúng <code>-Xmx</code> là công thức chắc chắn bị OOMKilled. Con số cụ thể phụ thuộc collector và phiên bản JDK, nên hãy đo trên chính cấu hình của bạn thay vì học thuộc một tỉ lệ.",
+        "<b>UseContainerSupport: JVM đọc giới hạn cgroup, không đọc RAM của node.</b> Từ JDK 10 (và backport vào 8u191) cờ <code>-XX:+UseContainerSupport</code> bật mặc định: JVM lấy memory limit và CPU quota từ cgroup thay vì từ phần cứng của host. Trước đó, một pod giới hạn 2Gi chạy trên node 128GB sẽ thấy 128GB và chọn heap khổng lồ rồi bị kernel giết — đây là nguyên nhân kinh điển của những sự cố \"Java không chạy được trong Docker\". Cờ này cũng ảnh hưởng tới <code>Runtime.availableProcessors()</code>, thứ quyết định số thread của common ForkJoinPool và số thread GC.",
+        "<b>Mặc định 25% là con số làm mọi người bất ngờ.</b> Khi không đặt <code>-Xmx</code>, JVM lấy <code>MaxRAMPercentage</code>, mặc định là <b>25.0</b> — đo được bằng <code>java -XX:+PrintFlagsFinal -version</code>. Mô phỏng một pod 2Gi bằng <code>-XX:MaxRAM=2g</code> cho ra <code>MaxHeapSize = 536870912</code>, tức đúng 512MB. Đội vận hành cấp 2Gi rồi ngạc nhiên vì ứng dụng vẫn <code>OutOfMemoryError: Java heap space</code> trong khi container hiển thị mới dùng một phần tư bộ nhớ. Thực hành: đặt <code>-XX:MaxRAMPercentage=70.0</code> tới <code>75.0</code> (chừa chỗ cho metaspace, code cache, stack và cấu trúc GC như mục trên) hoặc đặt <code>-Xmx</code> tường minh. Lưu ý ergonomics còn có <code>MinRAMPercentage</code> áp dụng cho máy bộ nhớ nhỏ, nên đừng coi 25% là quy luật phổ quát — hãy kiểm tra bằng <code>-XX:+PrintFlagsFinal</code>.",
+        "<b>OOMKilled khác OutOfMemoryError.</b> Hai sự cố hoàn toàn khác nhau và hay bị gộp làm một. <code>OutOfMemoryError</code> do JVM ném khi một vùng bộ nhớ của nó đầy — có stack trace, có thể bắt được, có thể sinh heap dump. <i>OOMKilled</i> do kernel làm khi RSS của cả cgroup vượt limit: tiến trình bị SIGKILL, không có log, không có heap dump, exit code 137. Thấy exit code 137 mà đi tìm heap dump là mất thời gian; việc cần làm là so lại tổng bộ nhớ ngoài heap với limit đã đặt.",
+        "<b>Direct ByteBuffer sống ngoài heap và có vòng đời khó chịu.</b> <code>ByteBuffer.allocateDirect</code> cấp bộ nhớ native để tránh một lần copy khi làm I/O — đó là lý do Netty và NIO dùng nó nhiều. Phần bộ nhớ đó chỉ được trả lại khi chính object <code>ByteBuffer</code> bị GC thu hồi và Cleaner chạy, nên nó phụ thuộc gián tiếp vào áp lực <i>heap</i>: heap rộng rãi, GC ít chạy, buffer native tồn đọng và bạn cạn hạn mức dù heap còn trống. Đo thật với <code>-XX:MaxDirectMemorySize=64m</code>: cấp phát tới buffer thứ 9 (mỗi cái 8MB) thì JVM ném OutOfMemoryError đúng tại ngưỡng đó. Trong container nên đặt <code>-XX:MaxDirectMemorySize</code> tường minh để phần này không âm thầm ăn hết headroom.",
+        "<b>Thread stack và mô hình thread.</b> Mỗi platform thread cần một stack native riêng, kích thước theo <code>-Xss</code> (mặc định phụ thuộc nền tảng, thường quanh 1MB trên Linux x64 — kiểm tra bằng <code>java -XX:+PrintFlagsFinal -version | grep ThreadStackSize</code>). Một nghìn thread là khoảng một gigabyte bộ nhớ native, hoàn toàn ngoài <code>-Xmx</code>. Đây là lý do các pool cấu hình bừa gây <code>unable to create native thread</code> trong container có giới hạn pids. Java 21 đổi bức tranh này với virtual thread: stack của chúng là các continuation nằm <i>trên heap</i> và co giãn theo nhu cầu, nên một triệu virtual thread khả thi trong khi một triệu platform thread thì không — nhưng đổi lại phần bộ nhớ đó nay tính vào <code>-Xmx</code>."
+      ],
+      "example": "# Pod 2Gi, khong dat -Xmx -> heap chi khoang 512MB (mo phong bang -XX:MaxRAM)\n$ java -XX:MaxRAM=2g -XX:+PrintFlagsFinal -version | grep -E 'MaxRAMPercentage|MaxHeapSize'\n   double MaxRAMPercentage = 25.000000    {product} {default}\n   size_t MaxHeapSize      = 536870912    {product} {ergonomic}\n\n# Bo nho NGOAI -Xmx, do that bang Native Memory Tracking voi -Xmx256m\nTotal: committed = 364 MB\n-        Java Heap  committed = 256 MB\n-               GC  committed =  68 MB    <- remembered set / card table / bitmap cua G1\n- Shared class sp.  committed =  13.5 MB\n-             Code  committed =   7.4 MB\n-           Thread  committed =   0.6 MB  <- moi platform thread mot stack native\n\n# Cau hinh nen dung trong container\n-XX:MaxRAMPercentage=75.0\n-XX:MaxDirectMemorySize=256m\n-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dumps\n-XX:+ExitOnOutOfMemoryError\n-Xlog:gc*:file=/var/log/app/gc.log:time,uptime:filecount=5,filesize=20M",
+      "exampleTitle": "Heap mặc định trong container và phần bộ nhớ ngoài -Xmx (số đo thật)",
+      "keyPoints": [
+        "-Xmx chỉ giới hạn heap; metaspace, code cache, stack thread, buffer native và cấu trúc nội bộ của GC nằm ngoài.",
+        "Đo thật: -Xmx256m cho tổng committed khoảng 364MB, riêng cấu trúc GC đã chiếm khoảng 68MB.",
+        "UseContainerSupport bật mặc định từ JDK 10 (backport 8u191): JVM đọc cgroup limit thay vì RAM của host.",
+        "MaxRAMPercentage mặc định là 25.0 — pod 2Gi không đặt -Xmx chỉ được khoảng 512MB heap.",
+        "OOMKilled (exit code 137, kernel giết, không có dump) khác hẳn OutOfMemoryError (JVM ném, có stack trace).",
+        "Direct ByteBuffer chỉ được giải phóng khi object ByteBuffer bị GC — nên giới hạn tường minh bằng -XX:MaxDirectMemorySize.",
+        "Mỗi platform thread tốn một stack native theo -Xss; virtual thread (Java 21) chuyển phần đó lên heap."
+      ],
+      "trap": "Đặt container memory limit bằng đúng -Xmx, hoặc ngược lại không đặt -Xmx và tin rằng JVM sẽ dùng hết limit. Trường hợp một dẫn tới OOMKilled không log không dump; trường hợp hai dẫn tới ứng dụng chỉ dùng 25% bộ nhớ được cấp rồi ném OutOfMemoryError: Java heap space.",
+      "followUp": [
+        "Phân biệt exit code 137 (OOMKilled) với OutOfMemoryError trong log — mỗi trường hợp điều tra thế nào?",
+        "Vì sao heap rộng rãi lại có thể khiến direct buffer cạn hạn mức sớm hơn?",
+        "Virtual thread của Java 21 làm thay đổi bài toán bộ nhớ trong container ra sao?"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "id": "d-9-10",
+      "topicId": 9,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Từ Java 9, Stream.iterate có thêm dạng ba tham số. Đoạn code sau in ra gì?",
+      "code": "Stream.iterate(1, i -> i < 5, i -> i * 2)\n      .forEach(System.out::print);",
+      "choices": [
+        "124",
+        "1248",
+        "Vòng lặp vô hạn: Stream.iterate luôn sinh dãy vô hạn nên phải có limit() mới dừng được",
+        "12"
+      ],
+      "correctAnswer": 0,
+      "explanation": "In ra 124. Tham số thứ hai là hasNext, được kiểm tra TRƯỚC khi phát mỗi phần tử, đúng ngữ nghĩa của phần điều kiện trong vòng for: 1 thoả, 2 thoả, 4 thoả, tới 8 thì điều kiện i < 5 sai nên dãy dừng và 8 không bao giờ được phát. Dạng ba tham số (Java 9) chính là bản dịch trực tiếp của for(int i=1; i<5; i*=2) sang stream, giúp bỏ được cặp iterate + limit vốn khó đọc và dễ tính nhầm số phần tử.",
+      "whyWrong": [
+        "",
+        "8 không thoả điều kiện i < 5 nên không được phát ra; hasNext được kiểm tra trước chứ không phải sau.",
+        "Chỉ dạng hai tham số Stream.iterate(seed, next) mới sinh dãy vô hạn; dạng ba tham số có predicate dừng nên hữu hạn.",
+        "4 vẫn thoả i < 5 nên vẫn được phát; dãy dừng ở 8 chứ không dừng ở 4."
+      ]
+    },
+    {
+      "id": "d-9-11",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "IntSummaryStatistics st = IntStream.of(2, 4, 9).summaryStatistics();\nSystem.out.println(st.getCount() + \" \" + st.getSum() + \" \" + st.getAverage() + \" \" + st.getMax());",
+      "choices": [
+        "3 15 5 9",
+        "3 15 5.0 9",
+        "3 15.0 5.0 9.0",
+        "Lỗi biên dịch: IntStream không có summaryStatistics()"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 3 15 5.0 9. Kiểu trả về mới là thứ quyết định chuỗi in ra: getCount() và getSum() trả long (in 3 và 15), getAverage() trả double (in 5.0 chứ không phải 5), getMax()/getMin() trả int. Giá trị của summaryStatistics nằm ở chỗ nó lấy đủ năm chỉ số trong MỘT lần duyệt — trong khi gọi min(), max(), sum(), average() riêng lẻ là bốn lần duyệt, và stream chỉ dùng được một lần nên bạn buộc phải tạo lại stream bốn lần. Bẫy cần nhớ: trên stream RỖNG, getMax() trả Integer.MIN_VALUE và getMin() trả Integer.MAX_VALUE (đã đo thật) chứ không ném exception, nên phải kiểm tra getCount() == 0 trước khi tin vào min/max.",
+      "whyWrong": [
+        "getAverage() trả double nên in ra 5.0; chỉ khi ép về int mới ra 5.",
+        "",
+        "getSum() trả long nên in 15 chứ không phải 15.0; getMax() trả int nên in 9 chứ không phải 9.0.",
+        "IntStream, LongStream và DoubleStream đều có summaryStatistics() từ Java 8; Stream<T> thì dùng Collectors.summarizingInt."
+      ]
+    },
+    {
+      "id": "d-9-12",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau chạy tốt trong unit test nhưng chết trong production với 'Too many open files'. Nguyên nhân đúng là gì?",
+      "code": "long total = 0;\nfor (Path p : paths) {          // hang chuc nghin file\n    total += Files.lines(p)\n                  .filter(l -> !l.isEmpty())\n                  .count();\n}",
+      "choices": [
+        "count() không đóng stream nhưng filter() thì có; chỉ cần đổi thứ tự operation là hết",
+        "Files.lines nạp toàn bộ file vào bộ nhớ nên phải chuyển sang Files.newBufferedReader",
+        "GC chưa kịp chạy; gọi System.gc() sau mỗi vòng lặp sẽ giải phóng file descriptor",
+        "Files.lines trả về một Stream đang giữ file mở; terminal operation KHÔNG đóng stream, phải bọc trong try-with-resources vì Stream cũng là AutoCloseable"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Files.lines, Files.list, Files.walk và Files.find mở một file handle thật và trả về Stream có sẵn hành động onClose gắn với handle đó. Terminal operation (count, forEach, collect...) không hề đóng stream — javadoc nói rõ phải dùng try-with-resources. Điểm khiến lỗi này khó thấy: Stream kế thừa BaseStream vốn extends AutoCloseable, nhưng stream tạo từ collection không cần đóng nên đại đa số lập trình viên hình thành thói quen không bao giờ gọi close(). Cách viết đúng là try (Stream<String> s = Files.lines(p)) { total += s.filter(...).count(); }. Test không lộ lỗi vì chỉ mở vài file, còn production chạm giới hạn file descriptor của tiến trình.",
+      "whyWrong": [
+        "Không operation nào trong pipeline đóng stream cả; thứ tự filter/count hoàn toàn không liên quan tới file handle.",
+        "Files.lines đọc lazy từng dòng chứ không nạp cả file; sự cố ở đây là cạn file descriptor chứ không phải cạn bộ nhớ.",
+        "Không được quản lý tài nguyên hệ điều hành bằng GC: kể cả khi một cleaner nào đó cuối cùng có đóng handle thì thời điểm là không xác định, và System.gc() cũng chỉ là gợi ý.",
+        ""
+      ]
+    },
+    {
+      "id": "d-9-13",
+      "topicId": 9,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "List<String> ws = Arrays.asList(\"bo\", \"ca\", \"an\", \"duy\", \"em\");\n\nMap<Integer, List<String>> m = ws.stream().collect(\n        Collectors.groupingBy(String::length, TreeMap::new,\n                Collectors.filtering(s -> s.startsWith(\"a\"), Collectors.toList())));\n\nSystem.out.println(m);",
+      "choices": [
+        "{2=[an]}",
+        "{2=[an], 3=[duy]}",
+        "{2=[an], 3=[]}",
+        "{an=2}"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra {2=[an], 3=[]} (đã chạy thật). Collectors.filtering (Java 9) lọc ở TẦNG DOWNSTREAM: mọi phần tử vẫn đi qua classifier String::length nên khoá 3 vẫn được tạo bởi \"duy\", chỉ có value bị lọc sạch thành list rỗng. Nếu viết ws.stream().filter(s -> s.startsWith(\"a\")).collect(groupingBy(...)) thì \"duy\" bị loại trước khi tới classifier và kết quả là {2=[an]} — khoá 3 biến mất. Đây chính là lý do filtering tồn tại: báo cáo cần liệt kê đủ mọi nhóm kể cả nhóm không có dữ liệu. TreeMap::new chỉ quyết định khoá được sắp tăng dần, không ảnh hưởng tới việc nhóm rỗng có xuất hiện hay không.",
+      "whyWrong": [
+        "Đó là kết quả khi đặt .filter() TRƯỚC groupingBy; với Collectors.filtering thì khoá 3 vẫn được giữ.",
+        "\"duy\" không bắt đầu bằng \"a\" nên bị predicate loại; nó chỉ còn tác dụng tạo ra khoá 3.",
+        "",
+        "groupingBy luôn cho Map<khoá phân nhóm, kết quả downstream>, tức Map<Integer, List<String>>, không phải map từ chuỗi sang độ dài."
+      ]
+    },
+    {
+      "id": "d-9-14",
+      "topicId": 9,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Chạy đoạn code dưới đây hàng trăm lần trên máy nhiều nhân. Phát biểu nào đúng?",
+      "code": "List<Integer> src = IntStream.rangeClosed(1, 200).boxed().collect(Collectors.toList());\n\nInteger a = src.parallelStream().filter(i -> i % 2 == 0).findFirst().get();\nInteger b = src.parallelStream().filter(i -> i % 2 == 0).findAny().get();",
+      "choices": [
+        "Cả a và b đều luôn bằng 2 vì nguồn là List nên encounter order luôn được giữ",
+        "Cả a và b đều không xác định vì parallel() phá vỡ thứ tự của nguồn",
+        "a không xác định còn b luôn bằng 2",
+        "a luôn bằng 2; b có thể là bất kỳ số chẵn nào trong danh sách"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Đo thật 200 lần: findFirst luôn trả 2, findAny trả về hàng chục giá trị chẵn khác nhau. Nguồn là List nên stream CÓ encounter order, và findFirst bị đặc tả ràng buộc phải trả về phần tử đầu tiên theo thứ tự đó kể cả khi chạy song song — nghĩa là JDK phải chờ và loại bỏ kết quả của các nhánh phía sau, nên findFirst đắt hơn dưới parallel. findAny cố tình bỏ ràng buộc đó: nhánh nào tìm thấy trước thì trả về ngay. Quy tắc thực dụng: cần kết quả xác định thì findFirst, chỉ cần 'một phần tử bất kỳ thoả điều kiện' thì findAny. Trên stream tuần tự, cài đặt hiện tại của JDK khiến findAny thường cũng trả phần tử đầu, nhưng đó là chi tiết cài đặt và không được dựa vào.",
+      "whyWrong": [
+        "findAny được đặc tả là có thể trả về phần tử bất kỳ; encounter order của nguồn chỉ ràng buộc findFirst.",
+        "parallel() không xoá encounter order của nguồn — sorted, findFirst, forEachOrdered và collect vào List vẫn tôn trọng thứ tự đó.",
+        "Ngược hoàn toàn: findFirst mới là cái có ràng buộc thứ tự, findAny là cái được tự do.",
+        ""
+      ]
+    },
+    {
+      "id": "d-9-15",
+      "topicId": 9,
+      "versions": [
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Trên Java 17 trở lên, đoạn code sau in ra gì?",
+      "code": "List<Integer> xs = List.of(1, 2, 3, 4);\n\nString r = xs.stream().collect(Collectors.teeing(\n        Collectors.counting(),\n        Collectors.summingInt(i -> i),\n        (c, s) -> c + \":\" + s));\n\nSystem.out.println(r);",
+      "choices": [
+        "4:10",
+        "10:4",
+        "Lỗi biên dịch: không thể gộp hai collector có kiểu kết quả khác nhau",
+        "4:10 nhưng stream bị duyệt hai lần"
+      ],
+      "correctAnswer": 0,
+      "explanation": "In ra 4:10 (đã chạy thật với --release 17). Collectors.teeing xuất hiện ở Java 12: nó đẩy MỖI phần tử tới cả hai downstream collector trong cùng MỘT lần duyệt, rồi gộp hai kết quả bằng BiFunction theo đúng thứ tự tham số — counting() cho 4L, summingInt cho 10, merger nối thành \"4:10\". Vấn đề nó giải quyết rất thật: stream chỉ tiêu thụ được một lần, nên trước Java 12 muốn có hai chỉ số trên cùng tập dữ liệu phải collect ra List rồi duyệt lại, hoặc chấp nhận tạo stream hai lần từ nguồn. Khi mọi chỉ số cần lấy đều là số học thì summaryStatistics() vẫn gọn và rẻ hơn; teeing dành cho khi hai nhánh là hai collector bất kỳ (ví dụ vừa gom danh sách vừa tính trung bình).",
+      "whyWrong": [
+        "",
+        "Thứ tự tham số của merger khớp thứ tự hai collector truyền vào: counting() đứng trước nên đối số đầu là 4.",
+        "teeing được thiết kế đúng cho tình huống này: hai kiểu kết quả R1 và R2 độc lập, merger chịu trách nhiệm gộp lại.",
+        "Đây chính là điểm bị hiểu nhầm phổ biến: teeing chỉ duyệt nguồn MỘT lần, mỗi phần tử được đẩy song song vào cả hai accumulator."
+      ]
+    },
+    {
+      "id": "d-6-10",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "So với việc ném new ConfigException(\"cau hinh sai\", e), đoạn code dưới đây làm mất thông tin gì?",
+      "code": "static Config load(String raw) {\n    try {\n        return parse(raw);\n    } catch (NumberFormatException e) {\n        throw new ConfigException(\"cau hinh sai: \" + e.getMessage());\n    }\n}",
+      "choices": [
+        "Không mất gì đáng kể: thông điệp của exception gốc đã được ghép vào message",
+        "Chỉ mất tên class của exception gốc, còn stack trace vẫn được giữ nguyên",
+        "Mất toàn bộ cause: getCause() trả null nên stack trace của NumberFormatException — thứ duy nhất chỉ ra dòng code thật sự gây lỗi — không còn tồn tại ở đâu",
+        "Mất message của ConfigException vì message của cause sẽ ghi đè lên"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Chỉ chuỗi getMessage() được chép sang, còn object exception gốc bị vứt. Đo thật trên đoạn tương đương: getCause() trả null và stack trace của ConfigException chỉ có đúng một frame — frame của dòng throw — nên không frame nào của parse() còn lại. Trong log production bạn biết 'cau hinh sai: For input string ...' nhưng không biết dòng nào, class nào. Throwable có sẵn constructor (String, Throwable) và method initCause() chính là để tránh chuyện này; truyền cause thì logger in ra khối Caused by: đầy đủ. Quy tắc: đã wrap exception thì luôn truyền cause, không có ngoại lệ.",
+      "whyWrong": [
+        "Message chỉ là một chuỗi; vị trí gây lỗi nằm trong stack trace của object cause chứ không nằm trong message.",
+        "Mất cả hai: tên class lẫn stack trace đều là thuộc tính của object cause, mà object đó đã bị bỏ đi.",
+        "",
+        "Message của ConfigException vẫn nguyên vẹn; cause không bao giờ ghi đè message của exception bao ngoài."
+      ]
+    },
+    {
+      "id": "d-6-11",
+      "topicId": 6,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Từ Java 9, try-with-resources nhận được biến đã khởi tạo sẵn. Đoạn code sau hoạt động thế nào?",
+      "code": "class Res implements AutoCloseable {\n    private final String n;\n    Res(String n) { this.n = n; }\n    public void close() { System.out.println(\"close \" + n); }\n}\n\nRes r = new Res(\"A\");\ntry (r) {\n    System.out.println(\"body\");\n}",
+      "choices": [
+        "Hợp lệ từ Java 9: r phải là final hoặc effectively final; in ra body rồi close A",
+        "Lỗi biên dịch ở mọi phiên bản: try-with-resources bắt buộc khai báo biến ngay trong ngoặc",
+        "Hợp lệ nhưng r KHÔNG được đóng vì nó được tạo bên ngoài khối try",
+        "Hợp lệ, và r còn có thể được gán lại bên trong khối try; khi đó object mới sẽ là object được đóng"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Chạy thật cho ra body rồi close A. Java 7/8 bắt buộc khai báo resource ngay trong ngoặc; JEP 213 (Java 9) cho phép truyền vào một biến final hoặc effectively final đã có sẵn. Ràng buộc effectively final là điều kiện bắt buộc về mặt ngữ nghĩa: nếu biến có thể bị gán lại giữa chừng thì compiler không thể biết phải đóng object nào. Dạng này giải quyết đúng hai tình huống mà trước đây phải viết finally thủ công: resource nhận vào từ tham số của method, và resource cần vài câu lệnh mới dựng xong. Trên Java 8 vẫn phải viết try (Res tmp = r) { ... }.",
+      "whyWrong": [
+        "",
+        "Chỉ Java 7 và 8 mới bắt buộc như vậy; từ Java 9 dạng try (r) là hợp lệ.",
+        "Compiler vẫn sinh khối finally gọi r.close(); nơi khởi tạo biến không ảnh hưởng tới việc đóng.",
+        "Gán lại r sẽ khiến nó không còn effectively final và code không biên dịch được — đó chính là lý do có ràng buộc này."
+      ]
+    },
+    {
+      "id": "d-6-12",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì trên console?",
+      "code": "ExecutorService pool = Executors.newSingleThreadExecutor();\n\npool.submit((Runnable) () -> { throw new IllegalStateException(\"boom\"); });\n\nThread.sleep(300);\nSystem.out.println(\"still here\");",
+      "choices": [
+        "Stack trace của IllegalStateException, rồi still here",
+        "still here, rồi stack trace của IllegalStateException khi pool bị shutdown",
+        "Chương trình chết ngay vì exception trong worker thread giết cả JVM",
+        "Chỉ in still here — exception bị nuốt hoàn toàn, không có dòng log nào"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Chạy thật: chỉ có dòng still here, không có stack trace nào. submit() bọc task trong FutureTask, và FutureTask BẮT mọi Throwable rồi cất vào Future thay vì để nó thoát ra thread. Lỗi chỉ nổi lên khi ai đó gọi future.get(), lúc đó nó được gói trong ExecutionException với getCause() là IllegalStateException gốc (đã đo thật). Nếu đổi submit thành execute thì exception đi tới UncaughtExceptionHandler mặc định và in ra stderr dòng Exception in thread \"pool-1-thread-1\"... Quy tắc rút ra: fire-and-forget thì dùng execute; đã dùng submit thì phải xử lý Future, hoặc override ThreadPoolExecutor.afterExecute để không bao giờ mất lỗi.",
+      "whyWrong": [
+        "submit không để exception thoát ra worker thread nên handler mặc định không bao giờ được gọi.",
+        "shutdown() không phát lại exception đang nằm trong Future; nó chỉ dừng nhận task mới.",
+        "Exception chưa bắt trong một thread chỉ kết thúc thread đó chứ không giết JVM; ở đây thậm chí thread cũng không chết vì FutureTask đã bắt lỗi.",
+        ""
+      ]
+    },
+    {
+      "id": "d-6-13",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "static int f() {\n    int x = 1;\n    try { return x; }\n    finally { x = 2; }\n}\n\nstatic List<String> g() {\n    List<String> l = new ArrayList<>();\n    try { return l; }\n    finally { l.add(\"a\"); }\n}\n\npublic static void main(String[] args) {\n    System.out.println(f() + \" \" + g());\n}",
+      "choices": [
+        "2 [a]",
+        "1 [a]",
+        "1 []",
+        "2 []"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In ra 1 [a] (đã chạy thật). Lệnh return đánh giá biểu thức TRƯỚC rồi mới chạy finally, và giá trị đã đánh giá được giữ trong một ô tạm mà finally không chạm tới được. Với f(), giá trị 1 đã chốt nên x = 2 trong finally vô nghĩa. Với g(), thứ được chốt là REFERENCE tới list; finally không gán lại reference mà sửa nội dung object mà reference đó trỏ tới, nên caller nhìn thấy [a]. Đây chính là hệ quả trực tiếp của việc Java luôn pass-by-value kể cả với reference. Cách duy nhất để finally đổi được giá trị trả về là bản thân nó return hoặc throw — và đó là thứ nên cấm trong code review vì nó nuốt luôn cả exception đang bay ra.",
+      "whyWrong": [
+        "x = 2 chạy sau khi giá trị trả về đã được đánh giá và cất vào ô tạm, nên không ảnh hưởng tới kết quả của f().",
+        "",
+        "finally vẫn chạy trước khi method thực sự trả quyền điều khiển cho caller, nên l.add(\"a\") kịp có hiệu lực trên chính object được trả về.",
+        "Kết hợp cả hai hiểu nhầm: vừa cho rằng finally sửa được giá trị nguyên thuỷ, vừa cho rằng nó không sửa được nội dung object."
+      ]
+    },
+    {
+      "id": "d-6-14",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code sau in ra gì?",
+      "code": "class FlowException extends RuntimeException {\n    FlowException(String msg) {\n        super(msg, null, false, false);   // enableSuppression, writableStackTrace\n    }\n}\n\ntry {\n    throw new FlowException(\"x\");\n} catch (FlowException e) {\n    System.out.println(e.getStackTrace().length + \" \" + e.getMessage());\n}",
+      "choices": [
+        "1 x",
+        "0 null",
+        "0 x",
+        "Lỗi biên dịch: Throwable không có constructor bốn tham số"
+      ],
+      "correctAnswer": 2,
+      "explanation": "In ra 0 x (đã chạy thật; cùng chương trình đó, một RuntimeException thường tại vị trí tương đương cho 1 frame). Throwable có constructor protected bốn tham số (String, Throwable, boolean enableSuppression, boolean writableStackTrace) từ Java 7. Truyền writableStackTrace = false khiến fillInStackTrace() không chạy — mà đó chính là phần đắt nhất của việc ném exception, vì nó phải đi hết call stack hiện tại nên chi phí tỉ lệ với độ sâu stack chứ không phải với việc bắt hay ném. Message vẫn được giữ, chỉ stack trace là rỗng. Kỹ thuật này chỉ chính đáng cho exception dùng làm tín hiệu điều khiển nội bộ ở đường nóng (parser, máy trạng thái) nơi nó bị bắt ngay tại chỗ và không bao giờ vào log; áp dụng cho exception nghiệp vụ là tối ưu hoá tai hại vì bạn vĩnh viễn mất khả năng debug sự cố production.",
+      "whyWrong": [
+        "1 frame là kết quả của exception thường; ở đây fillInStackTrace bị tắt nên mảng stack trace rỗng.",
+        "Chỉ stack trace bị tắt, message vẫn được truyền lên super và getMessage() trả về \"x\".",
+        "",
+        "Constructor bốn tham số là protected và tồn tại từ Java 7, nên subclass gọi được qua super — code biên dịch bình thường."
+      ]
+    },
+    {
+      "id": "d-6-15",
+      "topicId": 6,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Đoạn code dưới đây mắc hai lỗi về logging. Mô tả nào đúng nhất?",
+      "code": "try {\n    repo.save(order);\n} catch (SQLException e) {\n    log.error(\"Loi luu don hang: \" + e.getMessage());\n    throw new OrderException(\"khong luu duoc don hang\", e);\n}",
+      "choices": [
+        "Không có lỗi nào: log ở tầng thấp rồi ném lên tầng trên là thực hành tốt",
+        "Lỗi duy nhất là nối chuỗi thay vì dùng placeholder, gây tốn CPU khi log level bị tắt",
+        "Nên bắt Exception thay vì SQLException để không bỏ sót các loại lỗi khác",
+        "log.error chỉ nhận chuỗi nên stack trace của SQLException bị vứt; và vì exception vẫn được ném lên, tầng trên sẽ log lần nữa nên một sự cố xuất hiện hai lần trong log dưới hai hình dạng khác nhau"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Hai lỗi độc lập nhau. Thứ nhất, log.error(String) chỉ ghi ra một dòng chữ; muốn có stack trace phải truyền chính exception làm tham số cuối: log.error(\"Loi luu don hang {}\", order.getId(), e). Mất stack trace ở đây đặc biệt tai hại vì SQLException gốc là thứ duy nhất chỉ ra câu SQL hay ràng buộc nào hỏng. Thứ hai là mẫu log-and-rethrow: đoạn code vừa log vừa ném tiếp, nên tầng biên sẽ log lần thứ hai cùng sự cố đó — thống kê lỗi bị nhân đôi và người trực phải mất công ghép hai entry lại xem có phải một sự cố không. Nguyên tắc: tầng nào XỬ LÝ exception thì tầng đó log; tầng chỉ bọc và chuyển tiếp thì im lặng, vì cause đã mang đủ thông tin lên trên.",
+      "whyWrong": [
+        "log-and-rethrow là anti-pattern kinh điển: nó sinh log trùng lặp và làm sai mọi số liệu về tần suất lỗi.",
+        "Nối chuỗi là vấn đề phụ; vấn đề chính là exception không hề được truyền vào logger nên stack trace biến mất hoàn toàn.",
+        "Bắt Exception rộng hơn là một anti-pattern khác chứ không phải cách sửa; bắt đúng loại SQLException lại chính là điểm tốt của đoạn code này.",
+        ""
+      ]
+    },
+    {
+      "id": "d-7-10",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Một service Java chết với java.lang.OutOfMemoryError: unable to create native thread. Hành động hợp lý nhất là gì?",
+      "choices": [
+        "Tăng -Xmx vì đây là dấu hiệu heap đã đầy",
+        "Đếm số thread đang sống và tìm chỗ tạo thread không kiểm soát, đồng thời kiểm tra -Xss, RAM còn lại và giới hạn pids/ulimit — lỗi này thuộc về native memory chứ không phải heap",
+        "Chuyển sang ZGC để giảm thời gian pause",
+        "Tăng -XX:MaxMetaspaceSize vì metadata của thread nằm trong metaspace"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Biến thể này nghĩa là JVM xin OS cấp một thread mới và bị từ chối. Mỗi platform thread cần một stack native riêng theo -Xss (mặc định phụ thuộc nền tảng, thường quanh 1MB trên Linux x64 — kiểm tra bằng java -XX:+PrintFlagsFinal -version | grep ThreadStackSize) cộng các cấu trúc của OS, và toàn bộ phần này nằm NGOÀI Java heap. Nguyên nhân thực tế thường là: code tạo thread không giới hạn (new Thread trong vòng lặp, mỗi request một pool mới), chạm ulimit -u, hoặc chạm giới hạn pids của container. Nghịch lý cần nhớ khi phỏng vấn: tăng -Xmx còn làm lỗi này DỄ xảy ra hơn, vì heap chiếm mất phần RAM mà stack native cần. Bước đầu tiên nên làm là lấy thread dump bằng jcmd <pid> Thread.print và đếm theo tên thread.",
+      "whyWrong": [
+        "Heap hoàn toàn không liên quan; tăng -Xmx còn giảm phần RAM còn lại cho stack native nên làm tình hình xấu đi.",
+        "",
+        "Đổi collector không tạo thêm được thread nào; pause time là vấn đề khác hẳn.",
+        "Metaspace chứa metadata của class, không chứa stack hay cấu trúc của thread."
+      ]
+    },
+    {
+      "id": "d-7-11",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "beginner",
+      "question": "Một tiến trình chạy với -Xmx256m nhưng RSS đo được khoảng 350-400MB. Giải thích đúng nhất là gì?",
+      "code": "$ java -Xmx256m -XX:NativeMemoryTracking=summary ... VM.native_memory summary\nTotal: committed = 364 MB\n-        Java Heap  committed = 256 MB\n-               GC  committed =  68 MB\n- Shared class sp.  committed =  13.5 MB\n-             Code  committed =   7.4 MB\n-           Thread  committed =   0.6 MB",
+      "choices": [
+        "JVM đang rò rỉ bộ nhớ native, phải restart định kỳ để giải quyết",
+        "-Xmx bị bỏ qua khi tiến trình chạy trong container",
+        "RSS của OS luôn lớn hơn heap theo một hệ số cố định do cách tính page, không mang ý nghĩa chẩn đoán",
+        "-Xmx chỉ giới hạn Java heap; metaspace, code cache, stack của từng thread, cấu trúc nội bộ của GC và các buffer native đều nằm ngoài giới hạn đó nên RSS luôn lớn hơn -Xmx"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Số liệu trên là kết quả đo thật bằng Native Memory Tracking: heap đúng 256MB như -Xmx quy định, nhưng tổng bộ nhớ committed là 364MB — riêng cấu trúc nội bộ của GC (remembered set, card table, marking bitmap của G1) đã chiếm khoảng 68MB, cộng shared class space, code cache và stack của từng thread. Đây là bài toán thực tế nhất khi đặt memory limit cho container: chọn limit bằng đúng -Xmx là công thức chắc chắn bị OOMKilled với exit code 137, và khi đó không có heap dump nào để mà đọc. Muốn nhìn chi tiết thì khởi động với -XX:NativeMemoryTracking=summary rồi jcmd <pid> VM.native_memory summary; NMT có chi phí hiệu năng nhỏ nên là lựa chọn cân nhắc chứ không bật mặc định. Tỉ lệ cụ thể phụ thuộc collector và phiên bản JDK.",
+      "whyWrong": [
+        "Đây là mức tiêu thụ bình thường và ổn định của JVM, không phải rò rỉ; rò rỉ thì con số phải tăng đơn điệu theo thời gian.",
+        "-Xmx luôn được tôn trọng; container support chỉ ảnh hưởng tới giá trị MẶC ĐỊNH khi bạn không đặt -Xmx.",
+        "Không có hệ số cố định nào: phần vượt phụ thuộc collector, số thread, kích thước code cache và lượng class được nạp — và chính vì vậy nó rất đáng đo.",
+        ""
+      ]
+    },
+    {
+      "id": "d-7-12",
+      "topicId": 7,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Một pod Kubernetes có memory limit 2Gi chạy ứng dụng Java (JDK 11+) mà không đặt -Xmx. JVM sẽ chọn heap tối đa khoảng bao nhiêu?",
+      "code": "resources:\n  limits:\n    memory: \"2Gi\"\n# lenh chay: java -jar app.jar        (khong co -Xmx)\n\n$ java -XX:MaxRAM=2g -XX:+PrintFlagsFinal -version | grep -E 'MaxRAMPercentage|MaxHeapSize'\n   double MaxRAMPercentage = 25.000000    {product} {default}\n   size_t MaxHeapSize      = 536870912    {product} {ergonomic}",
+      "choices": [
+        "Khoảng 512MB: UseContainerSupport cho JVM đọc giới hạn cgroup, rồi ergonomics lấy MaxRAMPercentage mặc định là 25%",
+        "Khoảng 2GB: JVM luôn dùng trọn giới hạn của container",
+        "Khoảng 1GB: mặc định luôn là một nửa bộ nhớ khả dụng",
+        "Không xác định: JVM không đọc được giới hạn cgroup nên vẫn lấy theo RAM của node"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Từ JDK 10 (và backport vào 8u191), -XX:+UseContainerSupport bật mặc định nên JVM đọc memory limit của cgroup thay vì RAM của host. Nhưng ergonomics mặc định chỉ lấy MaxRAMPercentage = 25.0, đo được trực tiếp bằng PrintFlagsFinal; mô phỏng bằng -XX:MaxRAM=2g cho MaxHeapSize = 536870912 = đúng 512MB. Hệ quả là đội vận hành cấp 2Gi rồi ngạc nhiên vì ứng dụng vẫn OutOfMemoryError: Java heap space trong khi container mới dùng một phần tư bộ nhớ. Thực hành đúng: đặt -XX:MaxRAMPercentage=70.0 tới 75.0, chừa phần còn lại cho metaspace, code cache, stack thread và cấu trúc nội bộ của GC. Lưu ý ergonomics còn có MinRAMPercentage áp dụng cho máy bộ nhớ nhỏ, nên đừng coi 25% là quy luật phổ quát mà hãy kiểm tra bằng -XX:+PrintFlagsFinal trên chính image của bạn.",
+      "whyWrong": [
+        "",
+        "JVM cố tình chừa chỗ cho phần bộ nhớ ngoài heap; nếu lấy trọn limit thì pod sẽ bị OOMKilled ngay khi heap đầy.",
+        "Mốc một nửa là quy tắc của một số cấu hình rất cũ, không phải mặc định của JDK hiện đại.",
+        "UseContainerSupport bật mặc định từ JDK 10 nên JVM đọc được cgroup; đây đúng là hành vi của thời trước 8u191."
+      ]
+    },
+    {
+      "id": "d-7-13",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "intermediate",
+      "question": "Ứng dụng chạy G1 với -Xmx4g và liên tục cấp phát các byte[] khoảng 1.5MB. Điều gì xảy ra ở tầng G1?",
+      "code": "$ java -Xmx4g -XX:+PrintFlagsFinal -version | grep G1HeapRegionSize\n   size_t G1HeapRegionSize = 2097152      {product} {ergonomic}\n\n$ java -Xmx4g -XX:+UseG1GC -Xlog:gc,gc+humongous=debug App\n[0.262s][debug][gc,humongous] GC(0) Humongous region 0 (object size 1500016 ...)\n[0.262s][debug][gc,humongous] GC(0) Humongous region 1 (object size 1500016 ...)",
+      "choices": [
+        "byte[] được cấp phát trong eden như mọi object khác vì 1.5MB vẫn nhỏ hơn region 2MB",
+        "byte[] được cấp phát thẳng vào survivor để tránh chi phí copy",
+        "Mỗi byte[] là một humongous object: từ 50% kích thước region trở lên, G1 cấp phát nó vào chuỗi region liền kề đánh dấu là old, bỏ qua eden, và phần dư của region cuối bị lãng phí",
+        "G1 tự động tăng G1HeapRegionSize lên 4MB khi phát hiện object lớn"
+      ],
+      "correctAnswer": 2,
+      "explanation": "G1 chia heap thành các region cùng kích thước; kích thước này được ergonomics chọn xấp xỉ heap chia 2048, làm tròn về luỹ thừa của 2 trong khoảng 1MB đến 32MB — với -Xmx4g ra đúng 2MB, đo được ở trên (và -Xmx2g ra 1MB, -Xmx8g ra 4MB). Object có kích thước từ 50% region trở lên được coi là humongous: 1.5MB > 1MB nên mỗi mảng chiếm một chuỗi region liền kề được đánh dấu old, không đi qua eden — log gc+humongous ở trên xác nhận đúng điều đó. Ba hệ quả thực tế: phần dư của region cuối bị lãng phí (object 1.5MB chiếm trọn region 2MB); humongous region có đường thu hồi khác object thường nên heap có thể đầy dần dù object đã chết (các bản JDK mới đã cải thiện việc thu hồi sớm, mức độ phụ thuộc phiên bản); và nhiều humongous liên tiếp dễ gây phân mảnh dẫn tới full GC. Cách xử lý: giảm hoặc tái sử dụng buffer, hoặc tăng -XX:G1HeapRegionSize để object không còn vượt ngưỡng.",
+      "whyWrong": [
+        "Ngưỡng humongous là 50% region chứ không phải 100%; 1.5MB đã vượt mốc 1MB.",
+        "Survivor chỉ nhận object sống sót sau minor GC; không có cơ chế cấp phát thẳng vào survivor.",
+        "",
+        "G1HeapRegionSize được cố định lúc khởi động theo -Xmx hoặc theo cờ tường minh, không thay đổi động lúc chạy."
+      ]
+    },
+    {
+      "id": "d-7-14",
+      "topicId": 7,
+      "versions": [
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "Trong dòng GC log hợp nhất (unified logging, JDK 9 trở lên) dưới đây, cụm 119M->4M(256M) và con số 2.315ms có nghĩa gì?",
+      "code": "[0.061s][info][gc] GC(0) Pause Young (Normal) (G1 Evacuation Pause) 48M->2M(256M) 2.970ms\n[0.113s][info][gc] GC(1) Pause Young (Normal) (G1 Evacuation Pause) 119M->4M(256M) 2.315ms",
+      "choices": [
+        "Young gen trước GC, young gen sau GC, kích thước young gen tối đa, và thời gian chạy của thread GC",
+        "Tổng heap đang dùng TRƯỚC GC, tổng heap đang dùng SAU GC, dung lượng heap hiện tại; 2.315ms là thời lượng pause của lần GC đó",
+        "Lượng bộ nhớ đã thu hồi, lượng còn lại, tổng đã cấp phát từ đầu chương trình, và thời gian từ lần GC trước",
+        "RSS của tiến trình trước và sau GC, giới hạn -Xmx, và thời gian tiến trình bị treo bởi kernel"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Dạng chuẩn là used_before->used_after(capacity), tính trên TOÀN BỘ heap chứ không riêng young gen — đây là chỗ nhầm phổ biến nhất khi đọc GC log, kể cả với dòng có nhãn Pause Young. Con số cuối là thời lượng của pha pause. Đọc ví dụ: GC(1) hạ heap từ 119M xuống 4M trong 2.315ms, tức tỉ lệ sống rất thấp — đúng như kỳ vọng cho một minor GC khoẻ mạnh, và đó là lý do chi phí minor GC tỉ lệ với lượng object SỐNG chứ không với lượng rác. Khi chẩn đoán, ba thứ cần theo dõi là xu hướng của con số SAU GC qua thời gian, tần suất GC, và tổng thời gian pause trên mỗi phút. Lưu ý -Xlog:gc chỉ cho một dòng tóm tắt; muốn biết pha nào tốn thời gian và young/old chiếm bao nhiêu thì cần -Xlog:gc*,gc+heap=debug. Cú pháp -Xlog có từ Java 9; trên Java 8 tương đương là -XX:+PrintGCDetails -XX:+PrintGCTimeStamps.",
+      "whyWrong": [
+        "Ba con số là của toàn heap, không phải riêng young gen; muốn tách young và old phải bật thêm gc+heap.",
+        "",
+        "Không phải lượng đã thu hồi mà là mức sử dụng trước và sau — lượng thu hồi là hiệu của hai số đó (115M ở dòng GC(1)).",
+        "GC log không báo RSS; số trong ngoặc là dung lượng heap hiện tại, có thể nhỏ hơn -Xmx vì heap co giãn theo nhu cầu."
+      ]
+    },
+    {
+      "id": "d-7-15",
+      "topicId": 7,
+      "versions": [
+        8,
+        11,
+        17,
+        21
+      ],
+      "difficulty": "advanced",
+      "question": "-XX:+UseStringDeduplication thực sự làm gì, và khi nào bật nó là đáng?",
+      "choices": [
+        "GC phát hiện các String có nội dung giống hệt nhau và cho chúng dùng chung MỘT mảng ký tự nền; bản thân các object String vẫn tách biệt nên == không đổi hành vi. Chỉ đáng bật khi heap dump cho thấy String trùng nội dung chiếm phần lớn heap",
+        "Nó gọi String.intern() cho mọi String, đưa tất cả vào string pool nên sau đó so sánh bằng == luôn cho kết quả đúng",
+        "Nó nén nội dung String bằng thuật toán nén để giảm bộ nhớ, đánh đổi bằng CPU mỗi lần đọc chuỗi",
+        "Nó loại bỏ các String trùng lặp khỏi heap và giữ lại đúng một object cho mỗi nội dung"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Tính năng này (JEP 192, có từ JDK 8u20, ban đầu chỉ chạy với G1; từ JDK 18 các collector khác cũng hỗ trợ) hoạt động ở tầng GC: khi một String sống sót qua đủ số lần GC (-XX:StringDeduplicationAgeThreshold), GC băm nội dung và nếu tìm thấy mảng nền giống hệt đã tồn tại thì trỏ field value của String đó về mảng có sẵn rồi giải phóng mảng thừa. Nó KHÔNG hợp nhất object String, nên identity và toán tử == không hề thay đổi — nếu thay đổi thì JVM đã phá vỡ ngữ nghĩa ngôn ngữ. Lợi ích chỉ đáng kể trong ứng dụng thật sự giữ lâu nhiều String trùng nội dung (parse dữ liệu, cache, phân tích log); ngược lại bạn trả chi phí băm cùng một bảng nội bộ mà không thu lại gì. Quy tắc phỏng vấn: đo bằng heap dump trước rồi mới bật, và nói rõ đây là chi tiết phụ thuộc bản cài đặt JVM. Đừng nhầm với compact strings (JEP 254, Java 9) — thứ đổi biểu diễn String từ char[] sang byte[] cộng một field coder và luôn bật.",
+      "whyWrong": [
+        "",
+        "intern() là cơ chế hoàn toàn khác, do lập trình viên chủ động gọi và đưa String vào một bảng nội bộ; string deduplication không đụng tới identity của object.",
+        "Không có bước nén hay giải nén nào; cơ chế chỉ là chia sẻ những mảng nền có nội dung giống hệt nhau.",
+        "Object String không bị hợp nhất — nếu bị hợp nhất thì hành vi của == sẽ đổi, điều mà JVM không được phép làm."
+      ]
+    }
+  ]
+}
