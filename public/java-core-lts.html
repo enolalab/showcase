@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B1120">
-<title>Java Core LTS Mastery</title>
+<title>Java Core LTS - Ôn Luyện Kiến Thức</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -21,66 +21,71 @@
 html,body{height:100%}
 body{
   background:var(--ink); color:var(--paper); font-family:var(--sans);
-  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  font-size:clamp(14px,2.5vw,16px); line-height:1.6; -webkit-font-smoothing:antialiased;
   background-image:radial-gradient(ellipse 80% 50% at 50% -10%, rgba(76,158,235,.10), transparent 70%);
   background-attachment:fixed;
 }
-button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
 code{font-family:var(--mono);font-size:.87em;background:rgba(76,158,235,.13);
   color:#A9CDF3;padding:.1em .38em;border-radius:4px;border:1px solid rgba(76,158,235,.16)}
 b{font-weight:600;color:#fff}
 i{color:var(--muted)}
 
-.wrap{max-width:860px;margin:0 auto;padding:0 20px 120px}
+.wrap{max-width:860px;margin:0 auto;padding:0 clamp(12px,3vw,20px) 120px}
 
 /* ---------- top bar ---------- */
 .bar{position:sticky;top:0;z-index:50;background:rgba(11,17,32,.88);
-  backdrop-filter:blur(14px);border-bottom:1px solid var(--line);margin-bottom:30px}
-.bar-in{max-width:860px;margin:0 auto;padding:13px 20px;display:flex;align-items:center;gap:16px}
-.brand{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--line);margin-bottom:20px}
+.bar-in{max-width:860px;margin:0 auto;padding:12px clamp(12px,3vw,20px);display:flex;align-items:center;gap:12px}
+.brand{font-family:var(--disp);font-weight:700;font-size:clamp(13px,2.5vw,15px);letter-spacing:-.01em;white-space:nowrap}
 .brand span{color:var(--azure)}
 .bar-sp{flex:1}
-.counter{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.counter{font-family:var(--mono);font-size:clamp(10px,2vw,12px);color:var(--muted);white-space:nowrap}
 .counter b{color:var(--paper)}
-.ghost{font-size:13px;color:var(--muted);padding:6px 11px;border:1px solid var(--line);
-  border-radius:7px;transition:.15s;white-space:nowrap}
-.ghost:hover{color:var(--paper);border-color:var(--dim)}
 .track{height:2px;background:var(--line);position:relative;overflow:hidden}
 .track i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--azure),var(--mint));
   width:0;transition:width .45s cubic-bezier(.4,0,.2,1)}
 
 /* ---------- setup ---------- */
-.hero{padding:52px 0 34px;border-bottom:1px solid var(--line);margin-bottom:34px}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--azure);margin-bottom:16px}
-h1{font-family:var(--disp);font-size:clamp(30px,6vw,46px);line-height:1.08;
-  font-weight:700;letter-spacing:-.028em;margin-bottom:16px}
+.hero{padding:clamp(30px,6vw,52px) 0 clamp(20px,4vw,34px);border-bottom:1px solid var(--line);margin-bottom:20px}
+.eyebrow{font-family:var(--mono);font-size:clamp(9px,2vw,11px);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--azure);margin-bottom:12px}
+h1{font-family:var(--disp);font-size:clamp(24px,5vw,46px);line-height:1.08;
+  font-weight:700;letter-spacing:-.028em;margin-bottom:12px}
 h1 em{font-style:normal;color:var(--azure)}
-.lede{color:var(--muted);max-width:56ch;font-size:16.5px}
+.lede{color:var(--muted);max-width:56ch;font-size:clamp(13px,2.5vw,16.5px)}
 .lede b{color:var(--paper);font-weight:600}
 
-.sec{margin-bottom:32px}
-.sec-h{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--dim);margin-bottom:13px;display:flex;align-items:center;gap:10px}
+.sec{margin-bottom:24px}
+.sec-h{font-family:var(--mono);font-size:clamp(9px,2vw,11px);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:12px;display:flex;align-items:center;gap:10px}
 .sec-h:after{content:'';flex:1;height:1px;background:var(--line)}
 
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;font-size:13.5px;
-  color:var(--muted);transition:.15s;background:var(--panel)}
+.chips{display:flex;flex-wrap:wrap;gap:clamp(6px,2vw,8px)}
+.chip{padding:clamp(5px,1.5vw,7px) clamp(10px,2vw,13px);border:1px solid var(--line);border-radius:999px;
+  font-size:clamp(12px,2vw,13.5px);color:var(--muted);transition:.15s;background:var(--panel)}
 .chip:hover{border-color:var(--dim);color:var(--paper)}
 .chip.on{background:rgba(76,158,235,.11);border-color:var(--azure);color:var(--azure)}
-.chip .n{font-family:var(--mono);font-size:11px;opacity:.65;margin-left:5px}
+.chip .n{font-family:var(--mono);font-size:clamp(9px,1.5vw,11px);opacity:.65;margin-left:4px}
 
-.tabs{display:flex;gap:8px;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:16px}
-.tab{padding:8px 16px;border:1px solid var(--line);border-radius:7px;background:var(--panel);
-  color:var(--muted);transition:.15s;cursor:pointer;font-family:var(--disp);font-weight:600}
+.tabs{display:flex;gap:clamp(6px,2vw,8px);margin-bottom:20px;border-bottom:1px solid var(--line);
+  padding-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{padding:clamp(6px,1.5vw,8px) clamp(12px,2.5vw,16px);border:1px solid var(--line);border-radius:6px;
+  background:var(--panel);color:var(--muted);transition:.15s;cursor:pointer;font-family:var(--disp);
+  font-weight:600;font-size:clamp(12px,2vw,14px);white-space:nowrap;min-height:44px;display:flex;align-items:center}
+.tab:active{background:var(--panel2)}
 .tab:hover{border-color:var(--dim);color:var(--paper)}
 .tab.active{border-color:var(--azure);background:rgba(76,158,235,.07);color:var(--azure)}
 
-.sidebar{display:grid;grid-template-columns:200px 1fr;gap:24px}
-.sidebar-menu{display:flex;flex-direction:column;gap:8px;height:fit-content;position:sticky;top:120px}
-.menu-item{padding:10px 12px;border-radius:7px;font-size:13.5px;color:var(--muted);
-  cursor:pointer;transition:.15s;border:1px solid transparent}
+.sidebar{display:grid;grid-template-columns:1fr;gap:clamp(16px,3vw,24px)}
+@media(min-width:768px){
+  .sidebar{grid-template-columns:200px 1fr}
+}
+.sidebar-menu{display:flex;flex-direction:column;gap:6px;height:fit-content;position:sticky;top:100px}
+.menu-item{padding:clamp(8px,1.5vw,10px) 12px;border-radius:6px;font-size:clamp(12px,2vw,13.5px);
+  color:var(--muted);cursor:pointer;transition:.15s;border:1px solid transparent;min-height:44px;
+  display:flex;align-items:center;-webkit-tap-highlight-color:transparent}
+.menu-item:active{background:var(--panel2)}
 .menu-item:hover{color:var(--paper);border-color:var(--line)}
 .menu-item.active{background:rgba(76,158,235,.07);border-color:var(--azure);color:var(--azure)}
 
@@ -88,9 +93,8 @@ h1 em{font-style:normal;color:var(--azure)}
 .tutorial,.drill{display:none}
 .tutorial.active,.drill.active{display:block}
 
-.meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:16px;
-  font-family:var(--mono);font-size:11px}
-.tag{padding:3px 9px;border-radius:5px;border:1px solid var(--line);color:var(--muted)}
+.tag{padding:clamp(2px,1vw,3px) clamp(7px,1.5vw,9px);border-radius:4px;border:1px solid var(--line);
+  color:var(--muted);font-size:clamp(9px,1.5vw,11px);display:inline-block}
 .tag.beginner{color:var(--mint);border-color:rgba(63,208,142,.4);background:rgba(63,208,142,.09)}
 .tag.intermediate{color:var(--amber);border-color:rgba(245,166,35,.35);background:rgba(245,166,35,.08)}
 .tag.advanced{color:var(--ember);border-color:rgba(226,86,74,.4);background:rgba(226,86,74,.09)}
@@ -98,45 +102,58 @@ h1 em{font-style:normal;color:var(--azure)}
 .tag.v11{color:var(--mint);border-color:rgba(63,208,142,.4);background:rgba(63,208,142,.09)}
 .tag.v17{color:var(--violet);border-color:rgba(155,123,232,.4);background:rgba(155,123,232,.1)}
 .tag.v21{color:var(--amber);border-color:rgba(245,166,35,.35);background:rgba(245,166,35,.08)}
-.cid{color:var(--dim);margin-left:auto}
 
-.q{font-family:var(--disp);font-size:clamp(18px,3.6vw,26px);line-height:1.3;
-  font-weight:700;letter-spacing:-.02em;margin-bottom:20px}
+.q{font-family:var(--disp);font-size:clamp(16px,4vw,26px);line-height:1.3;
+  font-weight:700;letter-spacing:-.02em;margin-bottom:16px}
 
-.code-block{background:var(--panel2);padding:16px;border-radius:8px;border:1px solid var(--line);
-  overflow-x:auto;margin:16px 0;font-family:var(--mono);font-size:13px;line-height:1.6}
+.code-block{background:var(--panel2);padding:clamp(10px,2vw,16px);border-radius:6px;border:1px solid var(--line);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;margin:12px 0;font-family:var(--mono);
+  font-size:clamp(11px,1.8vw,13px);line-height:1.5}
 .code-block code{background:none;padding:0;border:none;color:#A9CDF3}
 
-.choices{display:flex;flex-direction:column;gap:12px;margin:24px 0}
-.choice{padding:16px;border:2px solid var(--line);border-radius:8px;background:var(--panel);
-  cursor:pointer;transition:.15s}
+.choices{display:flex;flex-direction:column;gap:10px;margin:16px 0}
+.choice{padding:clamp(12px,2vw,16px);border:2px solid var(--line);border-radius:6px;background:var(--panel);
+  cursor:pointer;transition:.15s;-webkit-tap-highlight-color:transparent;min-height:44px;display:flex;
+  align-items:center;font-size:clamp(12px,2vw,14px)}
+.choice:active{background:var(--panel2)}
 .choice:hover{border-color:var(--dim)}
 .choice.selected{border-color:var(--azure);background:rgba(76,158,235,.07)}
 .choice.correct{border-color:var(--mint);background:rgba(63,208,142,.09)}
 .choice.incorrect{border-color:var(--ember);background:rgba(226,86,74,.09)}
 
-.btn{padding:12px 20px;border-radius:8px;background:var(--azure);color:#fff;font-family:var(--disp);
-  font-weight:600;border:none;cursor:pointer;transition:.15s}
+.btn{padding:clamp(10px,2vw,12px) clamp(16px,3vw,20px);border-radius:6px;background:var(--azure);
+  color:#fff;font-family:var(--disp);font-weight:600;border:none;cursor:pointer;transition:.15s;
+  font-size:clamp(12px,2vw,14px);min-height:44px;-webkit-tap-highlight-color:transparent}
+.btn:active{filter:brightness(0.9)}
 .btn:hover{filter:brightness(1.1)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
-.progress-bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.progress-bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden}
 .progress-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--azure),var(--mint));
   width:0;transition:width .6s ease}
 
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:24px 0}
-.stat-card{padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);text-align:center}
-.stat-card .num{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--azure);margin-bottom:4px}
-.stat-card .label{font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:clamp(8px,2vw,12px);margin:16px 0}
+.stat-card{padding:clamp(12px,2vw,16px);border:1px solid var(--line);border-radius:6px;background:var(--panel);
+  text-align:center}
+.stat-card .num{font-family:var(--mono);font-size:clamp(18px,3vw,24px);font-weight:700;color:var(--azure);margin-bottom:4px}
+.stat-card .label{font-size:clamp(10px,1.5vw,12px);color:var(--muted)}
 
-.placeholder{padding:40px 20px;text-align:center;color:var(--dim)}
+.placeholder{padding:clamp(24px,4vw,40px) clamp(16px,2vw,20px);text-align:center;color:var(--dim);
+  font-size:clamp(13px,2vw,14px)}
+
+h2{font-family:var(--disp);font-size:clamp(18px,4vw,24px);margin-bottom:12px;font-weight:700}
+h3{font-family:var(--disp);font-size:clamp(14px,3vw,18px);margin-bottom:8px;font-weight:600}
+
+.card{margin-bottom:16px;padding:clamp(12px,2vw,20px);border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.card ul{margin:8px 0 0 clamp(16px,3vw,20px);color:var(--muted);font-size:clamp(12px,2vw,13px)}
+.card li{margin-bottom:4px}
 </style>
 </head>
 <body>
 
 <div class="bar">
   <div class="bar-in">
-    <div class="brand">Java Core <span>LTS</span></div>
+    <div class="brand">Java <span>LTS</span></div>
     <div class="bar-sp"></div>
     <div class="counter">
       <span id="current-count">0</span><b>/</b><span id="total-count">0</span>
@@ -147,9 +164,9 @@ h1 em{font-style:normal;color:var(--azure)}
 
 <div class="wrap">
   <div class="hero">
-    <div class="eyebrow">Mastery Series</div>
-    <h1>Java Core <em>LTS</em> Fundamentals</h1>
-    <p class="lede">Master Java Core concepts across <b>4 LTS versions</b>: Java 8, 11, 17, and 21. Combine <b>structured tutorials</b> with <b>targeted drills</b> to solidify your understanding.</p>
+    <div class="eyebrow">📚 Ôn Luyện Kiến Thức</div>
+    <h1>Java Core <em>LTS</em> Mastery</h1>
+    <p class="lede">Nắm vững <b>kiến thức nền tảng Java</b> qua <b>4 phiên bản LTS</b>: Java 8, 11, 17 và 21. Kết hợp <b>hướng dẫn chi tiết</b> và <b>bài tập thực hành</b> để luyện tập hiệu quả.</p>
   </div>
 
   <div class="sec">
@@ -157,26 +174,26 @@ h1 em{font-style:normal;color:var(--azure)}
     <div class="chips">
       <div class="chip on">
         <span>Java 8</span>
-        <span class="n" title="Lambdas, Streams, Optional">8+</span>
+        <span class="n">2014</span>
       </div>
       <div class="chip">
         <span>Java 11</span>
-        <span class="n" title="Modules, HTTP Client, var">11+</span>
+        <span class="n">2018</span>
       </div>
       <div class="chip">
         <span>Java 17</span>
-        <span class="n" title="Records, Sealed Classes, Pattern Matching">17+</span>
+        <span class="n">2021</span>
       </div>
       <div class="chip">
         <span>Java 21</span>
-        <span class="n" title="Virtual Threads, Structured Concurrency">21+</span>
+        <span class="n">2023</span>
       </div>
     </div>
   </div>
 
   <div class="tabs">
-    <div class="tab active" onclick="switchMode('tutorials')">📚 Tutorials</div>
-    <div class="tab" onclick="switchMode('drills')">⚡ Drills</div>
+    <div class="tab active" onclick="switchMode('tutorials')">📚 Hướng Dẫn</div>
+    <div class="tab" onclick="switchMode('drills')">⚡ Bài Tập</div>
   </div>
 
   <!-- Tutorials Section -->
@@ -197,392 +214,67 @@ h1 em{font-style:normal;color:var(--azure)}
 </div>
 
 <script>
-// Data structure
-const VERSIONS = [
-  { id: 8, name: "Java 8", year: 2014 },
-  { id: 11, name: "Java 11", year: 2018 },
-  { id: 17, name: "Java 17", year: 2021 },
-  { id: 21, name: "Java 21", year: 2023 }
-];
-
+// Topics
 const TOPICS = [
-  { id: 1, name: "Java Basics", desc: "Variables, operators, control flow" },
-  { id: 2, name: "OOP Core", desc: "Classes, inheritance, interfaces" },
-  { id: 3, name: "Collections", desc: "List, Set, Map, and iteration" },
-  { id: 4, name: "Strings", desc: "String handling and APIs" },
-  { id: 5, name: "Generics", desc: "Type parameters and wildcards" },
+  { id: 1, name: "Java Cơ Bản", desc: "Biến, toán tử, luồng điều khiển" },
+  { id: 2, name: "Lập Trình Hướng Đối Tượng", desc: "Class, kế thừa, interface, đa hình" },
+  { id: 3, name: "Collections", desc: "List, Set, Map, iterator" },
+  { id: 4, name: "Xử Lý Chuỗi", desc: "String handling và APIs" },
+  { id: 5, name: "Generics", desc: "Type parameters và wildcard" },
   { id: 6, name: "Exception Handling", desc: "Try-catch, try-with-resources" },
-  { id: 7, name: "Memory & GC", desc: "Heap, stack, garbage collection" },
-  { id: 8, name: "Lambdas", desc: "Functional interfaces, method references" },
-  { id: 9, name: "Streams API", desc: "Map, filter, reduce, collectors" },
-  { id: 10, name: "Optional", desc: "Null handling patterns" },
+  { id: 7, name: "Bộ Nhớ & GC", desc: "Heap, stack, garbage collection" },
+  { id: 8, name: "Lambdas", desc: "Functional interfaces, method reference" },
+  { id: 9, name: "Streams API", desc: "Map, filter, reduce, collector" },
+  { id: 10, name: "Optional", desc: "Xử lý null hiệu quả" },
   { id: 11, name: "Modules", desc: "Java modules (Java 9+)" },
   { id: 12, name: "HTTP Client", desc: "Modern HTTP (Java 11+)" },
-  { id: 13, name: "Type Inference", desc: "var keyword (Java 10+)" },
+  { id: 13, name: "Type Inference", desc: "Từ khóa var (Java 10+)" },
   { id: 14, name: "Records", desc: "Immutable data classes (Java 17+)" },
-  { id: 15, name: "Sealed Classes", desc: "Restrict hierarchies (Java 17+)" },
-  { id: 16, name: "Pattern Matching", desc: "Advanced pattern matching (Java 17+)" },
+  { id: 15, name: "Sealed Classes", desc: "Hạn chế kế thừa (Java 17+)" },
+  { id: 16, name: "Pattern Matching", desc: "Pattern matching nâng cao (Java 17+)" },
   { id: 17, name: "Virtual Threads", desc: "Lightweight threading (Java 21+)" },
-  { id: 18, name: "Concurrency", desc: "Threads, locks, executors" },
-  { id: 19, name: "Design Patterns", desc: "Common patterns and anti-patterns" },
+  { id: 18, name: "Concurrency", desc: "Thread, lock, executor" },
+  { id: 19, name: "Design Patterns", desc: "Các pattern thông dụng" },
   { id: 20, name: "Best Practices", desc: "Performance, testing, architecture" }
 ];
 
 const TUTORIALS = [
-  // Topic 1: Java Basics
-  {
-    id: "t-1-1",
-    topicId: 1,
-    versions: [8, 11, 17, 21],
-    title: "Understanding Java Variables and Primitive Types",
-    content: "Learn about Java's primitive types (int, long, float, double, boolean, char) and how they differ from reference types. Understand type casting and auto-boxing.",
-    example: "int age = 25;\nlong population = 8000000000L;\ndouble pi = 3.14159;\nboolean isActive = true;",
-    keyPoints: ["Primitive types vs reference types", "Type casting and conversion", "Auto-boxing and unboxing"]
-  },
-  {
-    id: "t-1-2",
-    topicId: 1,
-    versions: [8, 11, 17, 21],
-    title: "Control Flow: If-Else, Loops, and Switch",
-    content: "Master conditional statements and loops. Understand the differences between for, while, and enhanced for loops.",
-    example: "for (int i = 0; i < 10; i++) {\n  if (i % 2 == 0) System.out.println(i);\n}\nswitch (day) {\n  case 1: System.out.println(\"Monday\");\n}",
-    keyPoints: ["If-else-if chains", "For and while loops", "Switch statements and break"]
-  },
-  {
-    id: "t-1-3",
-    topicId: 1,
-    versions: [8, 11, 17, 21],
-    title: "Arrays and ArrayLists",
-    content: "Work with arrays and the ArrayList class. Understand fixed-size arrays vs dynamic collections.",
-    example: "int[] numbers = {1, 2, 3, 4, 5};\nList<Integer> list = new ArrayList<>();\nlist.add(10);",
-    keyPoints: ["Fixed-size arrays", "Dynamic ArrayLists", "Iteration and access patterns"]
-  },
-  {
-    id: "t-1-4",
-    topicId: 1,
-    versions: [8, 11, 17, 21],
-    title: "Operators and Operator Precedence",
-    content: "Understand arithmetic, logical, and bitwise operators. Learn operator precedence to avoid bugs.",
-    example: "int result = 5 + 3 * 2;  // 11, not 16\nboolean flag = true && false || true;  // true",
-    keyPoints: ["Arithmetic and logical operators", "Operator precedence", "Ternary operator"]
-  },
-  {
-    id: "t-1-5",
-    topicId: 1,
-    versions: [8, 11, 17, 21],
-    title: "Scope and Variable Lifetime",
-    content: "Understand variable scope (local, class, and parameter). Learn about variable shadowing and the dangers it poses.",
-    example: "{\n  int x = 10;  // local scope\n  {\n    int x = 20;  // shadows outer x\n  }\n}",
-    keyPoints: ["Local vs instance variables", "Variable shadowing", "Scope rules"]
-  },
-
-  // Topic 2: OOP Core
-  {
-    id: "t-2-1",
-    topicId: 2,
-    versions: [8, 11, 17, 21],
-    title: "Classes, Objects, and Constructors",
-    content: "Learn how to define classes and create objects. Understand constructors and constructor overloading.",
-    example: "class Person {\n  String name;\n  int age;\n  Person(String name, int age) {\n    this.name = name;\n    this.age = age;\n  }\n}",
-    keyPoints: ["Class definition", "Constructors", "this keyword"]
-  },
-  {
-    id: "t-2-2",
-    topicId: 2,
-    versions: [8, 11, 17, 21],
-    title: "Inheritance and Method Overriding",
-    content: "Master inheritance hierarchy. Understand method overriding, super keyword, and constructor chaining.",
-    example: "class Animal {\n  void speak() { System.out.println(\"Sound\"); }\n}\nclass Dog extends Animal {\n  @Override\n  void speak() { System.out.println(\"Woof\"); }\n}",
-    keyPoints: ["Extends keyword", "Method overriding", "super keyword", "Constructor chaining"]
-  },
-  {
-    id: "t-2-3",
-    topicId: 2,
-    versions: [8, 11, 17, 21],
-    title: "Interfaces and Abstract Classes",
-    content: "Understand contracts defined by interfaces and abstract classes. Learn when to use each.",
-    example: "interface Animal {\n  void speak();\n}\nabstract class Mammal implements Animal {\n  abstract void sleep();\n}",
-    keyPoints: ["Interface contracts", "Abstract classes", "Multiple interface implementation"]
-  },
-  {
-    id: "t-2-4",
-    topicId: 2,
-    versions: [8, 11, 17, 21],
-    title: "Polymorphism and Dynamic Dispatch",
-    content: "Leverage polymorphism to write flexible code. Understand method resolution order.",
-    example: "List<Animal> animals = Arrays.asList(new Dog(), new Cat());\nfor (Animal a : animals) a.speak();  // Calls overridden methods",
-    keyPoints: ["Runtime polymorphism", "Method resolution", "Liskov Substitution Principle"]
-  },
-  {
-    id: "t-2-5",
-    topicId: 2,
-    versions: [8, 11, 17, 21],
-    title: "Access Modifiers and Encapsulation",
-    content: "Control visibility with public, private, protected. Implement getter/setter pattern.",
-    example: "public class Account {\n  private double balance;\n  public double getBalance() { return balance; }\n  public void deposit(double amount) { balance += amount; }\n}",
-    keyPoints: ["Access modifiers", "Encapsulation", "Information hiding"]
-  },
-
-  // Topic 3: Collections
-  {
-    id: "t-3-1",
-    topicId: 3,
-    versions: [8, 11, 17, 21],
-    title: "List Interface and Implementations",
-    content: "Work with ArrayList, LinkedList, and other List implementations. Understand performance characteristics.",
-    example: "List<String> list = new ArrayList<>();\nlist.add(\"Java\");\nlist.add(0, \"Hello\");\nfor (String item : list) System.out.println(item);",
-    keyPoints: ["ArrayList vs LinkedList", "Add, remove, get operations", "Iteration methods"]
-  },
-  {
-    id: "t-3-2",
-    topicId: 3,
-    versions: [8, 11, 17, 21],
-    title: "Set Interface and Uniqueness",
-    content: "Use HashSet, TreeSet, and LinkedHashSet. Understand how they maintain uniqueness.",
-    example: "Set<Integer> numbers = new HashSet<>(Arrays.asList(1, 2, 2, 3));\nSystem.out.println(numbers);  // [1, 2, 3]",
-    keyPoints: ["HashSet performance", "TreeSet ordering", "LinkedHashSet insertion order"]
-  },
-  {
-    id: "t-3-3",
-    topicId: 3,
-    versions: [8, 11, 17, 21],
-    title: "Map Interface and Key-Value Storage",
-    content: "Store and retrieve data with HashMap, TreeMap, and ConcurrentHashMap.",
-    example: "Map<String, Integer> scores = new HashMap<>();\nscores.put(\"Alice\", 95);\nscores.put(\"Bob\", 87);\nInteger aliceScore = scores.get(\"Alice\");",
-    keyPoints: ["HashMap basics", "Key-value operations", "Iteration patterns"]
-  },
-  {
-    id: "t-3-4",
-    topicId: 3,
-    versions: [8, 11, 17, 21],
-    title: "Iterators and Enhancement for Loop",
-    content: "Master different iteration approaches. Know when to use Iterator vs enhanced for loop.",
-    example: "Iterator<String> it = list.iterator();\nwhile (it.hasNext()) {\n  String item = it.next();\n  it.remove();  // Safe removal\n}",
-    keyPoints: ["Iterator pattern", "ConcurrentModificationException", "Enhanced for loop"]
-  },
-  {
-    id: "t-3-5",
-    topicId: 3,
-    versions: [8, 11, 17, 21],
-    title: "Comparators and Sorting",
-    content: "Implement Comparable and Comparator interfaces. Sort collections efficiently.",
-    example: "List<String> words = Arrays.asList(\"java\", \"python\", \"go\");\nCollections.sort(words);\nwords.sort((a, b) -> b.length() - a.length());  // Reverse by length",
-    keyPoints: ["Comparable interface", "Comparator interface", "Sorting strategies"]
-  },
-
-  // Topic 8: Lambdas (Java 8+)
-  {
-    id: "t-8-1",
-    topicId: 8,
-    versions: [8, 11, 17, 21],
-    title: "Introduction to Lambda Expressions",
-    content: "Learn the basics of lambda syntax. Understand how lambdas replace anonymous inner classes.",
-    example: "// Before Java 8\nRunnable r = new Runnable() {\n  public void run() { System.out.println(\"Hello\"); }\n};\n// Java 8+\nRunnable r = () -> System.out.println(\"Hello\");",
-    keyPoints: ["Lambda syntax", "Functional interfaces", "Closure and variable capture"]
-  },
-  {
-    id: "t-8-2",
-    topicId: 8,
-    versions: [8, 11, 17, 21],
-    title: "Method References and Function Composition",
-    content: "Use method references (::) for cleaner code. Compose functions elegantly.",
-    example: "// Lambda\nlist.forEach(s -> System.out.println(s));\n// Method reference\nlist.forEach(System.out::println);\n// Type constructor reference\nFunction<Integer, String> converter = String::valueOf;",
-    keyPoints: ["Method reference syntax", "Static and instance methods", "Constructor references"]
-  },
-  {
-    id: "t-8-3",
-    topicId: 8,
-    versions: [8, 11, 17, 21],
-    title: "Functional Interfaces and Built-in Types",
-    content: "Master java.util.function interfaces: Function, Predicate, Consumer, Supplier.",
-    example: "Predicate<Integer> isEven = n -> n % 2 == 0;\nConsumer<String> print = System.out::println;\nFunction<Integer, Integer> square = x -> x * x;\nSupplier<LocalDateTime> now = LocalDateTime::now;",
-    keyPoints: ["Predicate interface", "Consumer interface", "Function interface", "Supplier interface"]
-  },
-
-  // Topic 9: Streams API (Java 8+)
-  {
-    id: "t-9-1",
-    topicId: 9,
-    versions: [8, 11, 17, 21],
-    title: "Stream Basics: Creation and Intermediate Operations",
-    content: "Create streams and apply transformations. Master filter, map, and flatMap operations.",
-    example: "List<String> words = Arrays.asList(\"java\", \"python\", \"go\");\nwords.stream()\n  .filter(w -> w.length() > 2)\n  .map(String::toUpperCase)\n  .forEach(System.out::println);",
-    keyPoints: ["Stream creation", "Filter operation", "Map transformation", "Lazy evaluation"]
-  },
-  {
-    id: "t-9-2",
-    topicId: 9,
-    versions: [8, 11, 17, 21],
-    title: "Terminal Operations and Collectors",
-    content: "Collect stream results. Master collect(), reduce(), count(), and aggregation operations.",
-    example: "List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5);\nint sum = numbers.stream().reduce(0, Integer::sum);\nList<String> upper = words.stream().map(String::toUpperCase).collect(Collectors.toList());\nMap<Integer, List<String>> grouped = words.stream().collect(Collectors.groupingBy(String::length));",
-    keyPoints: ["Collector interface", "Reduce operation", "groupingBy", "partitioningBy"]
-  },
-  {
-    id: "t-9-3",
-    topicId: 9,
-    versions: [8, 11, 17, 21],
-    title: "Parallel Streams and Performance",
-    content: "Leverage parallel streams for data parallelism. Understand when to use parallel() and performance implications.",
-    example: "List<Integer> numbers = IntStream.rangeClosed(1, 1000000).boxed().collect(Collectors.toList());\nlong count = numbers.parallelStream().filter(n -> isPrime(n)).count();\n// Be careful: parallelStream has overhead for small datasets",
-    keyPoints: ["Parallel streams", "ForkJoinPool", "Performance considerations", "Thread safety"]
-  },
-  {
-    id: "t-9-4",
-    topicId: 9,
-    versions: [8, 11, 17, 21],
-    title: "Advanced Stream Operations: flatMap and Complex Transformations",
-    content: "Use flatMap to flatten nested structures. Chain operations for complex data transformations.",
-    example: "List<List<Integer>> matrix = Arrays.asList(\n  Arrays.asList(1, 2),\n  Arrays.asList(3, 4)\n);\nList<Integer> flattened = matrix.stream().flatMap(List::stream).collect(Collectors.toList());\n// Output: [1, 2, 3, 4]",
-    keyPoints: ["flatMap operation", "Nested stream handling", "Complex pipelines"]
-  },
-
-  // Topic 14: Records (Java 17+)
-  {
-    id: "t-14-1",
-    topicId: 14,
-    versions: [17, 21],
-    title: "Introduction to Records",
-    content: "Replace boilerplate data classes with Records. Understand immutability and compact constructors.",
-    example: "// Before Java 17\npublic class Point {\n  private final int x, y;\n  public Point(int x, int y) { this.x = x; this.y = y; }\n}\n// Java 17+\npublic record Point(int x, int y) { }",
-    keyPoints: ["Record syntax", "Automatic equals/hashCode", "Compact constructors"]
-  },
-  {
-    id: "t-14-2",
-    topicId: 14,
-    versions: [17, 21],
-    title: "Record Components and Custom Methods",
-    content: "Add custom methods and validation to records. Understand component and record patterns.",
-    example: "public record Person(String name, int age) {\n  public Person {\n    if (age < 0) throw new IllegalArgumentException(\"Age must be positive\");\n  }\n  public boolean isAdult() { return age >= 18; }\n}",
-    keyPoints: ["Compact constructors", "Custom methods", "Validation in records"]
-  },
-
-  // Topic 17: Virtual Threads (Java 21+)
-  {
-    id: "t-17-1",
-    topicId: 17,
-    versions: [21],
-    title: "Introduction to Virtual Threads",
-    content: "Replace heavy platform threads with lightweight virtual threads. Handle millions of concurrent operations.",
-    example: "try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {\n  for (int i = 0; i < 1000000; i++) {\n    executor.submit(() -> {\n      // Task runs on virtual thread\n      doWork();\n    });\n  }\n}",
-    keyPoints: ["Virtual threads vs platform threads", "Executor framework", "Structured concurrency"]
-  },
-
-  // Topic 18: Concurrency
-  {
-    id: "t-18-1",
-    topicId: 18,
-    versions: [8, 11, 17, 21],
-    title: "Threads and Thread Lifecycle",
-    content: "Create and manage threads. Understand thread states and lifecycle.",
-    example: "Thread t = new Thread(() -> {\n  System.out.println(\"Running in thread: \" + Thread.currentThread().getName());\n});\nt.start();  // Start thread (don't call run() directly)",
-    keyPoints: ["Thread creation", "Thread states", "Thread naming", "currentThread()"]
-  },
-  {
-    id: "t-18-2",
-    topicId: 18,
-    versions: [8, 11, 17, 21],
-    title: "Synchronization and Locks",
-    content: "Prevent race conditions. Master synchronized keyword and Lock interfaces.",
-    example: "class Counter {\n  private synchronized int getAndIncrement() { return ++count; }\n}\n// Modern approach\nclass SafeCounter {\n  private final Lock lock = new ReentrantLock();\n  public int getAndIncrement() {\n    lock.lock();\n    try { return ++count; } finally { lock.unlock(); }\n  }\n}",
-    keyPoints: ["Synchronized keyword", "Race conditions", "Lock interface", "Deadlock prevention"]
-  },
-
-  // Topic 19: Design Patterns
-  {
-    id: "t-19-1",
-    topicId: 19,
-    versions: [8, 11, 17, 21],
-    title: "Creational Patterns: Singleton and Factory",
-    content: "Implement Singleton and Factory patterns for object creation.",
-    example: "// Singleton\npublic class Database {\n  private static final Database INSTANCE = new Database();\n  private Database() { }\n  public static Database getInstance() { return INSTANCE; }\n}\n// Factory\ninterface Shape { }\nclass ShapeFactory {\n  public static Shape create(String type) {\n    return switch(type) {\n      case \"circle\" -> new Circle();\n      case \"square\" -> new Square();\n      default -> null;\n    };\n  }\n}",
-    keyPoints: ["Singleton pattern", "Factory pattern", "Object creation"]
-  },
-
-  // Topic 20: Best Practices
-  {
-    id: "t-20-1",
-    topicId: 20,
-    versions: [8, 11, 17, 21],
-    title: "Writing Clean, Maintainable Code",
-    content: "Follow naming conventions, keep methods small, and write self-documenting code.",
-    example: "// Bad\nint d = 5;  // days elapsed\nList<String> l1 = getList();\n\n// Good\nint daysElapsed = 5;\nList<String> activeUsers = getUserList();\n\n// Best: Constants\nprivate static final int DEFAULT_CAPACITY = 16;",
-    keyPoints: ["Naming conventions", "Method size", "Comments and documentation"]
-  }
+  { id: "t-1-1", topicId: 1, versions: [8, 11, 17, 21], title: "Biến và Kiểu Dữ Liệu", content: "Tìm hiểu về các kiểu nguyên thủy (int, long, float, double, boolean, char) và kiểu tham chiếu. Hiểu về casting và auto-boxing.", example: "int age = 25;\nlong pop = 8000000000L;\ndouble pi = 3.14159;\nboolean active = true;", keyPoints: ["Kiểu nguyên thủ vs tham chiếu", "Casting và chuyển đổi", "Auto-boxing"] },
+  { id: "t-1-2", topicId: 1, versions: [8, 11, 17, 21], title: "If-Else, Loops, Switch", content: "Thành thạo câu lệnh điều kiện và vòng lặp. Hiểu sự khác biệt giữa for, while và enhanced for.", example: "for (int i = 0; i < 10; i++) {\n  if (i % 2 == 0) println(i);\n}", keyPoints: ["If-else-if chains", "For và while loop", "Switch statement"] },
+  { id: "t-1-3", topicId: 1, versions: [8, 11, 17, 21], title: "Arrays và ArrayList", content: "Làm việc với mảng và ArrayList. Hiểu sự khác biệt giữa mảng cố định và collection động.", example: "int[] nums = {1, 2, 3, 4, 5};\nList<Integer> list = new ArrayList<>();\nlist.add(10);", keyPoints: ["Mảng cố định", "ArrayList động", "Các pattern iteration"] },
+  { id: "t-2-1", topicId: 2, versions: [8, 11, 17, 21], title: "Class, Object, Constructor", content: "Học cách định nghĩa class và tạo object. Hiểu constructor và method overloading.", example: "class Person {\n  String name;\n  int age;\n  Person(String name, int age) {\n    this.name = name; this.age = age;\n  }", keyPoints: ["Định nghĩa class", "Constructor", "Từ khóa this"] },
+  { id: "t-2-2", topicId: 2, versions: [8, 11, 17, 21], title: "Kế Thừa và Polymorphism", content: "Nắm vững kế thừa, method overriding và super keyword. Hiểu polymorphism.", example: "class Dog extends Animal {\n  @Override\n  void speak() { println(\"Woof\"); }\n}", keyPoints: ["Kế thừa", "Method overriding", "Đa hình"] },
+  { id: "t-3-1", topicId: 3, versions: [8, 11, 17, 21], title: "List Interface", content: "Sử dụng ArrayList, LinkedList và các implementation khác. Hiểu tính năng hiệu suất.", example: "List<String> list = new ArrayList<>();\nlist.add(\"Java\");\nlist.add(0, \"Hello\");", keyPoints: ["ArrayList vs LinkedList", "Add, remove, get", "Iteration"] },
+  { id: "t-8-1", topicId: 8, versions: [8, 11, 17, 21], title: "Lambda Expression", content: "Học cú pháp lambda. Hiểu cách lambdas thay thế anonymous inner class.", example: "// Trước Java 8\nRunnable r = new Runnable() {\n  public void run() { println(\"Hi\"); }\n};\n// Java 8+\nRunnable r = () -> println(\"Hi\");", keyPoints: ["Cú pháp lambda", "Functional interface", "Variable capture"] },
+  { id: "t-9-1", topicId: 9, versions: [8, 11, 17, 21], title: "Streams API Cơ Bản", content: "Tạo stream và áp dụng transformation. Thành thạo filter, map, flatMap.", example: "words.stream()\n  .filter(w -> w.length() > 2)\n  .map(String::toUpperCase)\n  .forEach(println);", keyPoints: ["Tạo stream", "Filter operation", "Map transformation", "Lazy evaluation"] },
+  { id: "t-14-1", topicId: 14, versions: [17, 21], title: "Records", content: "Thay thế boilerplate data classes với Records. Hiểu immutability.", example: "public record Point(int x, int y) { }\nPoint p = new Point(10, 20);", keyPoints: ["Record syntax", "Auto-generated methods", "Compact constructor"] },
+  { id: "t-18-1", topicId: 18, versions: [8, 11, 17, 21], title: "Threads & Synchronization", content: "Tạo và quản lý threads. Tránh race condition với synchronized.", example: "Thread t = new Thread(() -> {\n  println(\"Running: \" + Thread.currentThread().getName());\n});\nt.start();", keyPoints: ["Thread creation", "Race condition", "Synchronized", "Lock interface"] }
 ];
 
 const DRILLS = [
-  // Topic 1: Java Basics (drills 1-8)
-  { id: "d-1-1", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What is the output of: System.out.println(10 + 20 + \"Java\");", choices: ["30Java", "10 20 Java", "\"30Java\"", "Compilation Error"], correctAnswer: 0, explanation: "Addition is left-to-right. 10 + 20 = 30 (int), then 30 + \"Java\" = \"30Java\" (string concatenation)." },
-  { id: "d-1-2", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Which is NOT a primitive type in Java?", choices: ["int", "boolean", "String", "double"], correctAnswer: 2, explanation: "String is a reference type (a class), not a primitive type. Primitives are int, long, float, double, boolean, char, byte, short." },
-  { id: "d-1-3", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What does 5 / 2 evaluate to in Java?", choices: ["2", "2.5", "2.0", "Error"], correctAnswer: 0, explanation: "Integer division: 5 / 2 = 2 (fractional part is discarded). To get 2.5, cast: (double) 5 / 2." },
-  { id: "d-1-4", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What happens with this code? int[] arr = new int[5]; System.out.println(arr[0]);", choices: ["Runtime Error: ArrayIndexOutOfBoundsException", "null", "0", "Undefined behavior"], correctAnswer: 2, explanation: "Arrays are initialized with default values. For int[], default is 0. Objects default to null." },
-  { id: "d-1-5", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What is the scope of variable 'x'? { int x = 5; } System.out.println(x);", choices: ["Prints 5", "Compilation error", "Runtime error", "Prints null"], correctAnswer: 1, explanation: "x is declared in a block scope and is not accessible outside that block. Scope violation = compilation error." },
-  { id: "d-1-6", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What is auto-boxing?", choices: ["Automatic conversion of reference types to primitives", "Automatic conversion of primitives to wrapper classes", "Both A and B", "Neither"], correctAnswer: 1, explanation: "Auto-boxing converts int → Integer, double → Double, etc. Unboxing does the reverse (Integer → int)." },
-  { id: "d-1-7", topicId: 1, versions: [8, 11, 17, 21], difficulty: "advanced", question: "What is the output? int x = 5; x = x++ + ++x; System.out.println(x);", choices: ["10", "11", "12", "Undefined"], correctAnswer: 2, explanation: "x++ returns 5 (then x=6). ++x makes x=7 (then returns 7). So 5 + 7 = 12, then x = 12." },
-  { id: "d-1-8", topicId: 1, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Which variable shadowing occurs here? int x = 5; { int x = 10; } System.out.println(x);", choices: ["Prints 5", "Prints 10", "Compilation error", "Runtime error"], correctAnswer: 0, explanation: "Inner x shadows outer x only within the block. Outside, outer x (5) is visible. This compiles (bad practice)." },
-
-  // Topic 2: OOP (drills 9-17)
-  { id: "d-2-1", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What is the default constructor?", choices: ["A constructor with no parameters", "A constructor created by compiler if none defined", "Both A and B", "Constructor with parameters"], correctAnswer: 2, explanation: "A default constructor takes no parameters. Java auto-generates one if no constructor is explicitly defined." },
-  { id: "d-2-2", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What does 'this' keyword refer to?", choices: ["Current class", "Current object", "Parent class", "Superclass"], correctAnswer: 1, explanation: "'this' refers to the current object instance, used to access instance variables and call instance methods." },
-  { id: "d-2-3", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Can a class extend multiple classes in Java?", choices: ["Yes", "No", "Only with interfaces", "Only in Java 11+"], correctAnswer: 1, explanation: "Java does NOT support multiple inheritance of classes (but supports multiple interface implementation)." },
-  { id: "d-2-4", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What is method overriding?", choices: ["Defining a method with same name in subclass", "Defining a method with different parameters", "Defining a static method", "None"], correctAnswer: 0, explanation: "Overriding = same method signature in subclass. Overloading = same name, different parameters." },
-  { id: "d-2-5", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What is the output? class A { void m() { System.out.println(\"A\"); } } class B extends A { void m() { System.out.println(\"B\"); } } A obj = new B(); obj.m();", choices: ["A", "B", "Compilation error", "Runtime error"], correctAnswer: 1, explanation: "Polymorphism: actual type is B, so B.m() is called (prints 'B'), not A.m()." },
-  { id: "d-2-6", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Can you declare an interface with a constructor?", choices: ["Yes", "No", "Only in Java 11+", "Only in Java 17+"], correctAnswer: 1, explanation: "Interfaces cannot have constructors. They define contracts (method signatures), not instantiation logic." },
-  { id: "d-2-7", topicId: 2, versions: [8, 11, 17, 21], difficulty: "advanced", question: "What is the difference between abstract class and interface in Java 8?", choices: ["Abstract class can have state, interface cannot", "Abstract class uses 'extends', interface uses 'implements'", "Both are correct", "No significant difference"], correctAnswer: 2, explanation: "Abstract classes have fields, constructors, state. Interfaces are pure contracts (Java 8 added default methods, but still no state)." },
-  { id: "d-2-8", topicId: 2, versions: [8, 11, 17, 21], difficulty: "advanced", question: "What happens with super() call? class B extends A { B() { super(); } }", choices: ["Calls A's default constructor", "Calls B's constructor recursively", "Compilation error", "Runtime error"], correctAnswer: 0, explanation: "super() calls parent class constructor. If not explicit, compiler adds it automatically (if parent has default constructor)." },
-
-  // Topic 3: Collections (drills 18-25)
-  { id: "d-3-1", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What is ArrayList?", choices: ["Dynamically resizing array", "Fixed-size array", "Linked list", "Tree-based collection"], correctAnswer: 0, explanation: "ArrayList is a dynamic, resizable implementation of List interface backed by an array." },
-  { id: "d-3-2", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What's the difference between List and Set?", choices: ["List allows duplicates, Set doesn't", "Set is ordered, List isn't", "Both A and B", "No difference"], correctAnswer: 0, explanation: "List allows duplicates and maintains order. Set ensures uniqueness (order depends on implementation)." },
-  { id: "d-3-3", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What does HashMap store?", choices: ["Unique values", "Key-value pairs", "Ordered elements", "Duplicate elements"], correctAnswer: 1, explanation: "HashMap stores key-value pairs. Keys must be unique; values can be duplicated." },
-  { id: "d-3-4", topicId: 3, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What happens when you modify a collection during iteration? List<Integer> list = ...; for(Integer i : list) { list.remove(i); }", choices: ["Works fine", "ConcurrentModificationException", "Skips some elements", "Compilation error"], correctAnswer: 1, explanation: "Modifying collection during iteration (except via Iterator.remove()) causes ConcurrentModificationException." },
-  { id: "d-3-5", topicId: 3, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What's the time complexity of get() on ArrayList?", choices: ["O(1)", "O(n)", "O(log n)", "O(n log n)"], correctAnswer: 0, explanation: "ArrayList get() is O(1) - direct array index access. LinkedList get() is O(n) - must traverse." },
-  { id: "d-3-6", topicId: 3, versions: [8, 11, 17, 21], difficulty: "advanced", question: "When does HashSet rehashing occur?", choices: ["When size exceeds capacity * load factor", "When size equals capacity", "Randomly", "Never"], correctAnswer: 0, explanation: "Rehashing occurs when load factor threshold is exceeded (default 0.75). New capacity = 2 * old capacity." },
-
-  // Topic 8: Lambdas (drills 26-33)
-  { id: "d-8-1", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What does -> mean in Java?", choices: ["Lambda operator", "Comparison operator", "Arrow for loops", "Ternary operator"], correctAnswer: 0, explanation: "-> is the lambda operator, separating parameters from body. Introduced in Java 8." },
-  { id: "d-8-2", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What is a functional interface?", choices: ["Interface with single abstract method", "Interface that implements Function", "Interface with multiple methods", "Any interface"], correctAnswer: 0, explanation: "@FunctionalInterface marks interfaces with exactly one abstract method. Lambdas require functional interfaces." },
-  { id: "d-8-3", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What's the equivalent lambda for this? Runnable r = new Runnable() { public void run() { System.out.println(\"Hi\"); } };", choices: ["() -> System.out.println(\"Hi\");", "() -> { System.out.println(\"Hi\"); }", "Both A and B", "Neither"], correctAnswer: 2, explanation: "Both forms work. Single statement: () -> ... Multi-line: () -> { ... }" },
-  { id: "d-8-4", topicId: 8, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What does System.out::println mean?", choices: ["Lambda expression", "Method reference", "Static method", "Constructor call"], correctAnswer: 1, explanation: ":: is method reference syntax. System.out::println = lambda that calls println on System.out." },
-  { id: "d-8-5", topicId: 8, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Can lambda capture mutable local variables?", choices: ["Yes, always", "No, never", "Only if effectively final", "Only in Java 11+"], correctAnswer: 2, explanation: "Lambdas can only access local variables if they're effectively final (not modified after assignment)." },
-  { id: "d-8-6", topicId: 8, versions: [8, 11, 17, 21], difficulty: "advanced", question: "What happens with this lambda? Function<Integer, Integer> f = x -> x * 2; List<Integer> result = list.stream().map(f).collect(...);", choices: ["Works fine", "Compilation error", "Runtime error", "Type mismatch"], correctAnswer: 0, explanation: "Function<Integer, Integer> works as a lambda (functional interface). Can be assigned and reused." },
-
-  // Topic 9: Streams (drills 34-42)
-  { id: "d-9-1", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What does .collect(Collectors.toList()) do?", choices: ["Converts stream to List", "Counts stream elements", "Filters stream", "Transforms stream elements"], correctAnswer: 0, explanation: "collect() is a terminal operation. Collectors.toList() converts stream results into a List." },
-  { id: "d-9-2", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What's the output? Arrays.asList(1,2,3,4,5).stream().filter(x -> x > 2).forEach(System.out::println);", choices: ["1 2 3 4 5", "3 4 5", "2 3 4", "Nothing"], correctAnswer: 1, explanation: "filter(x -> x > 2) keeps only elements > 2, so: 3, 4, 5." },
-  { id: "d-9-3", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Which operation is terminal?", choices: ["filter()", "map()", "forEach()", "All are terminal"], correctAnswer: 2, explanation: "Terminal ops: forEach, collect, reduce, count, min, max, findFirst, etc. Intermediate: filter, map, flatMap." },
-  { id: "d-9-4", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What's the output? Arrays.asList(1,2,3).stream().map(x -> x * 2).collect(Collectors.toList());", choices: ["[1,2,3]", "[2,4,6]", "[2,3,4]", "[0,0,0]"], correctAnswer: 1, explanation: "map(x -> x * 2) transforms each element: 1*2=2, 2*2=4, 3*2=6." },
-  { id: "d-9-5", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What does flatMap do? List<List<Integer>> matrix = ...; matrix.stream().flatMap(List::stream).collect(...);", choices: ["Flattens nested lists into single list", "Filters lists", "Groups lists", "Counts lists"], correctAnswer: 0, explanation: "flatMap flattens nested structures. List<List<Integer>> becomes List<Integer>." },
-  { id: "d-9-6", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What's the time complexity advantage of parallel streams?", choices: ["Always faster", "Faster on multi-core processors", "Always slower", "No difference"], correctAnswer: 1, explanation: "parallelStream() uses ForkJoinPool for parallel processing. Beneficial on multi-core systems for large datasets." },
-  { id: "d-9-7", topicId: 9, versions: [8, 11, 17, 21], difficulty: "advanced", question: "What's lazy evaluation in streams?", choices: ["Operations execute immediately", "Operations execute only when terminal op is called", "Both", "Neither"], correctAnswer: 1, explanation: "Streams are lazy: intermediate ops don't execute until a terminal operation forces evaluation." },
-  { id: "d-9-8", topicId: 9, versions: [8, 11, 17, 21], difficulty: "advanced", question: "What does .reduce(0, Integer::sum) do?", choices: ["Sums all elements starting from 0", "Reduces list size", "Removes 0", "Counts elements"], correctAnswer: 0, explanation: "reduce(identity, accumulator) combines stream elements. reduce(0, Integer::sum) sums all: 0 + all elements." },
-
-  // Topic 14: Records (drills 43-50, Java 17+)
-  { id: "d-14-1", topicId: 14, versions: [17, 21], difficulty: "beginner", question: "What does 'record' keyword do?", choices: ["Declares a data class", "Records data to file", "Implements Serializable", "Creates a mutable class"], correctAnswer: 0, explanation: "record keyword (Java 17+) creates immutable data classes with auto-generated equals, hashCode, toString." },
-  { id: "d-14-2", topicId: 14, versions: [17, 21], difficulty: "beginner", question: "public record Point(int x, int y) { } - What does this auto-generate?", choices: ["Constructor", "equals() and hashCode()", "toString()", "All of the above"], correctAnswer: 3, explanation: "Records auto-generate: constructor, equals, hashCode, toString, getters (x(), y())." },
-  { id: "d-14-3", topicId: 14, versions: [17, 21], difficulty: "intermediate", question: "Can records have custom methods?", choices: ["Yes", "No", "Only in Java 21+", "Only static methods"], correctAnswer: 0, explanation: "Records can have custom instance and static methods. Can also add validation in compact constructors." },
-
-  // Topic 17: Virtual Threads (drills 51-57, Java 21+)
-  { id: "d-17-1", topicId: 17, versions: [21], difficulty: "beginner", question: "What are virtual threads?", choices: ["Lightweight threads managed by JVM", "Heavy OS threads", "Thread pools", "Async tasks"], correctAnswer: 0, explanation: "Virtual threads (Java 21+) are lightweight threads managed by the JVM, not OS. Millions can run concurrently." },
-  { id: "d-17-2", topicId: 17, versions: [21], difficulty: "beginner", question: "How to create virtual threads? Executors.newVirtualThreadPerTaskExecutor()", choices: ["Creates thread pool of virtual threads", "Creates single virtual thread", "Creates OS threads", "Invalid"], correctAnswer: 0, explanation: "newVirtualThreadPerTaskExecutor() returns ExecutorService that creates new virtual thread per task." },
-
-  // Topic 18: Concurrency (drills 58-66)
-  { id: "d-18-1", topicId: 18, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What's a race condition?", choices: ["Threads compete for same resource", "Program runs too fast", "Threads finish out of order", "Thread scheduling"], correctAnswer: 0, explanation: "Race condition: multiple threads access shared resource simultaneously, leading to unpredictable results." },
-  { id: "d-18-2", topicId: 18, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What does synchronized keyword do?", choices: ["Makes method thread-safe", "Makes method fast", "Makes method private", "Makes method static"], correctAnswer: 0, explanation: "synchronized ensures only one thread executes that method/block at a time, preventing race conditions." },
-  { id: "d-18-3", topicId: 18, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What's the difference between wait() and sleep()?", choices: ["wait() releases lock, sleep() doesn't", "sleep() is faster", "No difference", "Both release locks"], correctAnswer: 0, explanation: "wait() releases lock, other threads can acquire it. sleep() does NOT release lock." },
-  { id: "d-18-4", topicId: 18, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What's a deadlock?", choices: ["Thread finishes", "Two+ threads wait for each other's locks", "Program crashes", "Thread is blocked"], correctAnswer: 1, explanation: "Deadlock: Thread A holds Lock 1 and waits for Lock 2; Thread B holds Lock 2 and waits for Lock 1. Both stuck." },
-  { id: "d-18-5", topicId: 18, versions: [8, 11, 17, 21], difficulty: "advanced", question: "Which approach prevents deadlock? Use tryLock() with timeout, Always acquire locks in same order", choices: ["First only", "Second only", "Both can prevent", "Neither prevents"], correctAnswer: 2, explanation: "Both strategies prevent deadlock: (1) tryLock() avoids indefinite waiting; (2) consistent lock ordering prevents circular waits." },
-
-  // Topic 20: Best Practices (drills 67-74)
-  { id: "d-20-1", topicId: 20, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What's a code smell?", choices: ["Code that compiles", "Code that runs fast", "Indicator of deeper problems", "All valid code"], correctAnswer: 2, explanation: "Code smell: warning sign that code may have design issues (long methods, duplicate code, too many params, etc)." },
-  { id: "d-20-2", topicId: 20, versions: [8, 11, 17, 21], difficulty: "beginner", question: "What is a unit test?", choices: ["Tests entire application", "Tests single method/class", "Tests UI", "Tests database"], correctAnswer: 1, explanation: "Unit test: tests smallest unit of code (single method/class) in isolation with fast, automated verification." },
-  { id: "d-20-3", topicId: 20, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "What's the Single Responsibility Principle?", choices: ["Class should do only one thing", "Method should have one return", "Variable should have one value", "All"], correctAnswer: 0, explanation: "SRP: A class should have only ONE reason to change. Each class/method should do ONE thing well." }
+  { id: "d-1-1", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Kết quả của: System.out.println(10 + 20 + \"Java\");", choices: ["30Java", "10 20 Java", "Compilation Error", "null"], correctAnswer: 0, explanation: "10 + 20 = 30 (int), rồi 30 + \"Java\" = \"30Java\" (string concatenation)" },
+  { id: "d-1-2", topicId: 1, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Đâu KHÔNG phải kiểu nguyên thủy?", choices: ["int", "boolean", "String", "double"], correctAnswer: 2, explanation: "String là reference type (class), không phải primitive. Primitive: int, long, float, double, boolean, char, byte, short." },
+  { id: "d-1-3", topicId: 1, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Kết quả: int x = 5; x = x++ + ++x; println(x);", choices: ["10", "11", "12", "Undefined"], correctAnswer: 2, explanation: "x++ trả về 5 (x=6). ++x làm x=7. Tổng: 5 + 7 = 12" },
+  { id: "d-2-1", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Constructor mặc định là gì?", choices: ["Constructor không param", "Compiler tự tạo", "Cả A và B", "Constructor có param"], correctAnswer: 2, explanation: "Constructor mặc định: không có param. Java tự tạo nếu bạn không định nghĩa." },
+  { id: "d-2-2", topicId: 2, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Class có thể kế thừa từ bao nhiêu class?", choices: ["1", "2", "Nhiều", "Unlimited"], correctAnswer: 0, explanation: "Java không hỗ trợ multiple inheritance của class. Nhưng có thể implement nhiều interface." },
+  { id: "d-2-3", topicId: 2, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Đâu là polymorphism? class A { void m() {} } class B extends A { void m() {} } A obj = new B(); obj.m();", choices: ["Gọi A.m()", "Gọi B.m()", "Compilation error", "Runtime error"], correctAnswer: 1, explanation: "Polymorphism: kiểu thực tế là B, nên gọi B.m() (prints 'B')" },
+  { id: "d-3-1", topicId: 3, versions: [8, 11, 17, 21], difficulty: "beginner", question: "ArrayList là gì?", choices: ["Mảng cố định", "Mảng động", "Linked list", "Tree"], correctAnswer: 1, explanation: "ArrayList: collection động, có thể resize kích thước." },
+  { id: "d-3-2", topicId: 3, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Sửa: List<Integer> list = ...; for(Integer i : list) { list.remove(i); }", choices: ["Chạy tốt", "ConcurrentModificationException", "Bỏ qua elements", "Compilation error"], correctAnswer: 1, explanation: "Sửa collection khi iterate → ConcurrentModificationException. Dùng Iterator.remove()" },
+  { id: "d-8-1", topicId: 8, versions: [8, 11, 17, 21], difficulty: "beginner", question: "-> là gì trong Java?", choices: ["Lambda operator", "Comparison", "Arrow loop", "Ternary"], correctAnswer: 0, explanation: "-> là lambda operator (Java 8+), ngăn cách param và body" },
+  { id: "d-8-2", topicId: 8, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Functional interface là gì?", choices: ["Interface có 1 abstract method", "Interface implement Function", "Interface có nhiều method", "Bất kỳ interface nào"], correctAnswer: 0, explanation: "@FunctionalInterface: đúng 1 abstract method. Lambda yêu cầu functional interface." },
+  { id: "d-9-1", topicId: 9, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Kết quả: Arrays.asList(1,2,3,4,5).stream().filter(x -> x > 2).collect(Collectors.toList());", choices: ["[1,2,3,4,5]", "[3,4,5]", "[2,3,4]", "[]"], correctAnswer: 1, explanation: "filter(x -> x > 2): giữ lại 3, 4, 5" },
+  { id: "d-9-2", topicId: 9, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "flatMap làm gì? List<List<Integer>> matrix = ...; matrix.stream().flatMap(List::stream)", choices: ["Flatten nested list", "Filter lists", "Group lists", "Count lists"], correctAnswer: 0, explanation: "flatMap: làm phẳng cấu trúc lồng nhau. List<List<Integer>> → List<Integer>" },
+  { id: "d-14-1", topicId: 14, versions: [17, 21], difficulty: "beginner", question: "record keyword làm gì?", choices: ["Record data to file", "Tạo data class", "Implements Serializable", "Mutable class"], correctAnswer: 1, explanation: "record (Java 17+): tạo immutable data class với auto-generated equals, hashCode, toString" },
+  { id: "d-18-1", topicId: 18, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Race condition là gì?", choices: ["Threads cạnh tranh resource", "Program chạy quá nhanh", "Threads finish out of order", "Thread scheduling"], correctAnswer: 0, explanation: "Race condition: nhiều thread access shared resource cùng lúc → kết quả không dự đoán" },
+  { id: "d-18-2", topicId: 18, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Sự khác biệt giữa wait() vs sleep()?", choices: ["wait() release lock, sleep() không", "sleep() nhanh hơn", "Không khác", "Cả 2 release"], correctAnswer: 0, explanation: "wait(): release lock (threads khác có thể acquire). sleep(): giữ lock." },
+  { id: "d-20-1", topicId: 20, versions: [8, 11, 17, 21], difficulty: "beginner", question: "Unit test là gì?", choices: ["Test toàn bộ app", "Test single method/class", "Test UI", "Test database"], correctAnswer: 1, explanation: "Unit test: test đơn vị nhỏ nhất (single method/class) một cách cô lập" },
+  { id: "d-20-2", topicId: 20, versions: [8, 11, 17, 21], difficulty: "intermediate", question: "Single Responsibility Principle?", choices: ["Class chỉ làm 1 việc", "Method return 1 value", "Variable có 1 value", "Tất cả"], correctAnswer: 0, explanation: "SRP: class nên có DỨ LẬP một lý do duy nhất để thay đổi" }
 ];
 
 // State
 let currentMode = 'tutorials';
 let currentTopic = 1;
+let currentDrillFilter = { topic: 1, difficulty: 'all', version: 'all' };
 let completedDrills = new Set();
 
 // Initialize
@@ -639,15 +331,7 @@ function renderTutorial(topicId) {
   const content = document.getElementById('tutorials-content');
 
   if (tutorialsForTopic.length === 0) {
-    content.innerHTML = `
-      <div>
-        <h2>${topic.name}</h2>
-        <p class="lede">${topic.desc}</p>
-        <div class="placeholder" style="margin-top: 40px">
-          📝 Tutorials for ${topic.name} coming soon...
-        </div>
-      </div>
-    `;
+    content.innerHTML = `<div class="placeholder">📝 Hướng dẫn cho ${topic.name} sắp có...</div>`;
     return;
   }
 
@@ -655,20 +339,18 @@ function renderTutorial(topicId) {
     <div>
       <h2>${topic.name}</h2>
       <p class="lede">${topic.desc}</p>
-      <div class="sec" style="margin-top: 32px">
+      <div class="sec" style="margin-top: 20px">
         ${tutorialsForTopic.map(t => `
-          <div style="margin-bottom: 32px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel)">
-            <div style="display: flex; gap: 8px; margin-bottom: 12px">
+          <div class="card">
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
               ${t.versions.map(v => `<span class="tag v${v}">Java ${v}</span>`).join('')}
             </div>
-            <h3 style="font-family: var(--disp); font-size: 18px; margin-bottom: 12px">${t.title}</h3>
-            <p style="color: var(--muted); margin-bottom: 16px">${t.content}</p>
-            <div style="background: var(--panel2); padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid var(--line)">
-              <pre style="margin: 0; overflow-x: auto"><code>${escapeHtml(t.example)}</code></pre>
-            </div>
+            <h3>${t.title}</h3>
+            <p style="color:var(--muted);margin-bottom:12px;font-size:clamp(12px,2vw,13px)">${t.content}</p>
+            <div class="code-block"><code>${escapeHtml(t.example)}</code></div>
             <div>
-              <strong style="color: var(--azure)">Key Points:</strong>
-              <ul style="margin: 8px 0 0 20px; color: var(--muted)">
+              <strong style="color:var(--azure)">💡 Điểm chính:</strong>
+              <ul style="margin:6px 0 0 clamp(14px,3vw,18px);color:var(--muted);font-size:clamp(11px,2vw,12px)">
                 ${t.keyPoints.map(kp => `<li>${kp}</li>`).join('')}
               </ul>
             </div>
@@ -685,22 +367,20 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-let currentDrillFilter = { topic: 1, difficulty: 'all', version: 'all' };
-
 function renderDrillsFilters() {
   const menu = document.getElementById('filters-menu');
   menu.innerHTML = `
-    <div style="font-size: 12px; color: var(--muted); margin-bottom: 16px; font-weight: 600">Topics</div>
+    <div style="font-size:clamp(11px,2vw,12px);color:var(--muted);margin-bottom:12px;font-weight:600">Chủ Đề</div>
     ${TOPICS.map(t => `
       <div class="menu-item ${t.id === currentDrillFilter.topic ? 'active' : ''}" onclick="filterDrills('topic', ${t.id})">
         ${t.name}
       </div>
     `).join('')}
-    <div style="font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 600">Difficulty</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'all' ? 'active' : ''}" onclick="filterDrills('difficulty', 'all')">All Levels</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'beginner' ? 'active' : ''}" onclick="filterDrills('difficulty', 'beginner')">Beginner</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'intermediate' ? 'active' : ''}" onclick="filterDrills('difficulty', 'intermediate')">Intermediate</div>
-    <div class="menu-item ${currentDrillFilter.difficulty === 'advanced' ? 'active' : ''}" onclick="filterDrills('difficulty', 'advanced')">Advanced</div>
+    <div style="font-size:clamp(11px,2vw,12px);color:var(--muted);margin:12px 0 8px;font-weight:600">Độ Khó</div>
+    <div class="menu-item ${currentDrillFilter.difficulty === 'all' ? 'active' : ''}" onclick="filterDrills('difficulty', 'all')">Tất Cả</div>
+    <div class="menu-item ${currentDrillFilter.difficulty === 'beginner' ? 'active' : ''}" onclick="filterDrills('difficulty', 'beginner')">Cơ Bản</div>
+    <div class="menu-item ${currentDrillFilter.difficulty === 'intermediate' ? 'active' : ''}" onclick="filterDrills('difficulty', 'intermediate')">Trung Bình</div>
+    <div class="menu-item ${currentDrillFilter.difficulty === 'advanced' ? 'active' : ''}" onclick="filterDrills('difficulty', 'advanced')">Nâng Cao</div>
   `;
   renderDrills();
 }
@@ -719,21 +399,19 @@ function renderDrills() {
 
   const content = document.getElementById('drills-content');
   if (filtered.length === 0) {
-    content.innerHTML = '<div class="placeholder">No drills for this filter yet...</div>';
+    content.innerHTML = '<div class="placeholder">Bài tập cho bộ lọc này sắp có...</div>';
     return;
   }
 
   content.innerHTML = `
     <div>
-      <div style="margin-bottom: 24px">
-        <div class="sec-h">Drills (${filtered.length})</div>
-      </div>
+      <div class="sec-h" style="margin-bottom:16px">Bài Tập (${filtered.length})</div>
       ${filtered.map((d, idx) => `
-        <div id="drill-${d.id}" style="margin-bottom: 24px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel)">
-          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px">
-            <span class="tag ${d.difficulty}">${d.difficulty}</span>
+        <div id="drill-${d.id}" class="card">
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <span class="tag ${d.difficulty}">${getDifficultyLabel(d.difficulty)}</span>
             ${d.versions.map(v => `<span class="tag v${v}">Java ${v}</span>`).join('')}
-            <span style="margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--dim)">${d.id}</span>
+            <span style="margin-left:auto;font-family:var(--mono);font-size:clamp(9px,1.5vw,11px);color:var(--dim)">${d.id}</span>
           </div>
           <div class="q">${d.question}</div>
           <div class="choices" id="choices-${d.id}">
@@ -743,20 +421,24 @@ function renderDrills() {
               </div>
             `).join('')}
           </div>
-          <button class="btn" style="width: 100%; margin-top: 12px" onclick="revealAnswer('${d.id}', ${d.correctAnswer}, '${escapeHtml(d.explanation)}')">
-            Reveal Answer
+          <button class="btn" style="width:100%;margin-top:12px" onclick="revealAnswer('${d.id}', ${d.correctAnswer}, '${escapeHtml(d.explanation)}')">
+            Xem Đáp Án
           </button>
-          <div id="answer-${d.id}" style="display: none; margin-top: 16px; padding: 16px; border-radius: 8px; background: var(--panel2); border-left: 4px solid var(--mint)">
-            <strong style="color: var(--mint)">Correct Answer:</strong>
-            <p style="margin: 8px 0; color: var(--paper)">${d.choices[d.correctAnswer]}</p>
-            <strong style="color: var(--azure)">Explanation:</strong>
-            <p style="margin: 8px 0; color: var(--muted)">${d.explanation}</p>
-            <button class="btn" style="margin-top: 12px" onclick="markCompleted('${d.id}')">Mark Complete ✓</button>
+          <div id="answer-${d.id}" style="display:none;margin-top:12px;padding:clamp(10px,2vw,16px);border-radius:6px;background:var(--panel2);border-left:4px solid var(--mint)">
+            <strong style="color:var(--mint)">✓ Đáp Án Đúng:</strong>
+            <p style="margin:6px 0;color:var(--paper);font-size:clamp(12px,2vw,14px)">${d.choices[d.correctAnswer]}</p>
+            <strong style="color:var(--azure);display:block;margin-top:8px">📖 Giải Thích:</strong>
+            <p style="margin:6px 0;color:var(--muted);font-size:clamp(11px,2vw,13px)">${d.explanation}</p>
+            <button class="btn" style="margin-top:12px;width:100%" onclick="markCompleted('${d.id}')">Đánh Dấu Hoàn Thành ✓</button>
           </div>
         </div>
       `).join('')}
     </div>
   `;
+}
+
+function getDifficultyLabel(diff) {
+  return { beginner: "Cơ Bản", intermediate: "Trung Bình", advanced: "Nâng Cao" }[diff];
 }
 
 function selectChoice(drillId, choiceIdx) {
@@ -785,7 +467,7 @@ function markCompleted(drillId) {
 }
 
 function updateProgress() {
-  const total = 150; // Estimated total drills
+  const total = 150;
   const completed = completedDrills.size;
   document.getElementById('current-count').textContent = completed;
   document.getElementById('total-count').textContent = total;
@@ -793,7 +475,6 @@ function updateProgress() {
   document.getElementById('progress-fill').style.width = percent + '%';
 }
 
-// Start
 window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
